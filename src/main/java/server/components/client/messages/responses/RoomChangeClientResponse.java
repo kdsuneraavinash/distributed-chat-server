@@ -1,13 +1,34 @@
 package server.components.client.messages.responses;
 
 import com.google.gson.annotations.SerializedName;
-import lombok.AllArgsConstructor;
+import lombok.NonNull;
+import lombok.ToString;
+import server.core.ParticipantId;
+import server.core.RoomId;
 
-@AllArgsConstructor
+@ToString
 public class RoomChangeClientResponse {
-    private final String type = "roomchange";
-    private final String identity;
-    private final String former;
+    public static final String TYPE = "roomchange";
+
+    private final String type;
+    @SerializedName("identity")
+    private final String participantId;
+    @SerializedName("former")
+    private final String formerRoomId;
     @SerializedName("roomid")
-    private final String roomId;
+    private final String currentRoomId;
+
+    public RoomChangeClientResponse(@NonNull ParticipantId participantId, @NonNull RoomId formerRoomId, @NonNull RoomId currentRoomId) {
+        this.type = TYPE;
+        this.participantId = participantId.getValue();
+        this.formerRoomId = formerRoomId.getValue();
+        this.currentRoomId = currentRoomId.getValue();
+    }
+
+    public RoomChangeClientResponse(@NonNull ParticipantId participantId, @NonNull RoomId currentRoomId) {
+        this.type = TYPE;
+        this.participantId = participantId.getValue();
+        this.formerRoomId = "";
+        this.currentRoomId = currentRoomId.getValue();
+    }
 }

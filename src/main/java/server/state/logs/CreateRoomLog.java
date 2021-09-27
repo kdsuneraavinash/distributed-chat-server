@@ -10,7 +10,6 @@ import lombok.ToString;
 public class CreateRoomLog extends BaseLog {
     public static final String COMMAND = "CREATE_ROOM";
 
-    private final String serverId;
     private final String roomId;
-    private final String identity;
+    private final String participantId;
 }

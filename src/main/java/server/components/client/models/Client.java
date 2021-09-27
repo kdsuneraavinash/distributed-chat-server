@@ -3,6 +3,8 @@ package server.components.client.models;
 import com.google.gson.Gson;
 import lombok.*;
 import lombok.extern.log4j.Log4j2;
+import server.core.ClientId;
+import server.core.ParticipantId;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -23,19 +25,22 @@ public class Client implements AutoCloseable {
     @Getter
     @ToString.Include
     @EqualsAndHashCode.Include
-    private final String clientId;
+    private final ClientId clientId;
+    @Getter(AccessLevel.PROTECTED)
     private final Socket socket;
     @Setter
+    @Getter
+    private ParticipantId participantId;
     private Thread thread;
 
     public Client(@NonNull Socket socket) {
         this.socket = socket;
         // TODO: Better unique ID?
-        this.clientId = UUID.randomUUID().toString();
+        this.clientId = new ClientId(UUID.randomUUID().toString());
     }
 
     public void startListening(ClientListener.EventHandler eventHandler, Gson serializer) {
-        ClientListener clientListener = new ClientListener(socket, eventHandler, serializer);
+        ClientListener clientListener = new ClientListener(this, eventHandler, serializer);
         this.thread = new Thread(clientListener);
         this.thread.start();
     }

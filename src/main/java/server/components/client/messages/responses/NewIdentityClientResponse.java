@@ -1,9 +1,18 @@
 package server.components.client.messages.responses;
 
 import lombok.AllArgsConstructor;
+import lombok.ToString;
 
+@ToString
 @AllArgsConstructor
 public class NewIdentityClientResponse {
-    private final String type = "newidentity";
+    public static final String TYPE = "newidentity";
+
+    private final String type;
     private final String approved;
+
+    public NewIdentityClientResponse(boolean approved) {
+        this.type = TYPE;
+        this.approved = Boolean.toString(approved);
+    }
 }
