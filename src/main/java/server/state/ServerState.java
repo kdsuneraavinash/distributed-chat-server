@@ -8,11 +8,14 @@ import server.core.RoomId;
 import server.core.ServerId;
 import server.state.logs.*;
 
+import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 
 @ToString
 @Log4j2
 public class ServerState {
+    public static final RoomId MAIN_HALL = new RoomId("MainHall");
     public static final ServerId SERVER = new ServerId("SERVER");
     /**
      * Map for each server containing its participants.
@@ -90,5 +93,18 @@ public class ServerState {
 
     public boolean hasParticipant(ParticipantId participantId) {
         return participantServerMap.containsKey(participantId);
+    }
+
+    public Collection<RoomId> serverRoomIds() {
+        HashSet<RoomId> roomIds = new HashSet<>();
+        roomIds.add(ServerState.MAIN_HALL);
+        state.get(SERVER).forEach((key, value) -> {
+            if (value != null) roomIds.add(value);
+        });
+        return roomIds;
+    }
+
+    public ParticipantId getOwnerId(RoomId roomId) {
+        return roomOwnerMap.get(roomId);
     }
 }

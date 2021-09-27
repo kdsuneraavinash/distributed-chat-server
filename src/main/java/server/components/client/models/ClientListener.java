@@ -4,10 +4,7 @@ import com.google.gson.Gson;
 import lombok.Cleanup;
 import lombok.NonNull;
 import lombok.extern.log4j.Log4j2;
-import server.components.client.messages.requests.BaseClientRequest;
-import server.components.client.messages.requests.ListClientRequest;
-import server.components.client.messages.requests.MessageClientRequest;
-import server.components.client.messages.requests.NewIdentityClientRequest;
+import server.components.client.messages.requests.*;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -49,6 +46,7 @@ public class ClientListener implements Runnable {
     }
 
     void receiveMessage(String message) {
+        log.info("{} -> {}", client.getClientId(), message);
         BaseClientRequest request = serializer.fromJson(message, BaseClientRequest.class);
         if (request instanceof NewIdentityClientRequest) {
             NewIdentityClientRequest castedRequest = (NewIdentityClientRequest) request;
@@ -58,10 +56,11 @@ public class ClientListener implements Runnable {
         } else if (request instanceof MessageClientRequest) {
             MessageClientRequest castedRequest = (MessageClientRequest) request;
             eventHandler.messageRequest(client, castedRequest.getContent());
+        } else if (request instanceof WhoClientRequest) {
+            eventHandler.whoRequest(client);
         } else {
             throw new UnsupportedOperationException();
         }
-        log.info("{} -> {}", client.getClientId(), message);
     }
 
     /**
@@ -79,5 +78,7 @@ public class ClientListener implements Runnable {
         void chatRoomListRequest(Client client);
 
         void messageRequest(Client client, String content);
+
+        void whoRequest(Client client);
     }
 }

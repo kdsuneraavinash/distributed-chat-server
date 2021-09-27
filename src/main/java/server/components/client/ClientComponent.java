@@ -5,9 +5,7 @@ import lombok.Cleanup;
 import lombok.extern.log4j.Log4j2;
 import server.components.ServerComponent;
 import server.components.client.messages.ClientMessageSerializer;
-import server.components.client.messages.responses.MessageClientResponse;
-import server.components.client.messages.responses.NewIdentityClientResponse;
-import server.components.client.messages.responses.RoomChangeClientResponse;
+import server.components.client.messages.responses.*;
 import server.components.client.models.Client;
 import server.components.client.models.ClientListener;
 import server.core.ParticipantId;
@@ -18,8 +16,10 @@ import server.state.logs.CreateIdentityLog;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.stream.Collectors;
 
 /**
  * Server component that handles client requests.
@@ -28,7 +28,6 @@ import java.util.HashSet;
  */
 @Log4j2
 public class ClientComponent extends ServerComponent implements ClientListener.EventHandler {
-    private static final RoomId MAIN_HALL = new RoomId("MainHall");
     private final ServerState serverState;
     private final HashSet<Client> clients;
     private final HashMap<RoomId, HashSet<Client>> roomParticipants;
@@ -42,7 +41,7 @@ public class ClientComponent extends ServerComponent implements ClientListener.E
         this.participantRoom = new HashMap<>();
         this.serializer = ClientMessageSerializer.createAttachedSerializer();
         this.roomParticipants = new HashMap<>();
-        this.roomParticipants.put(MAIN_HALL, new HashSet<>());
+        this.roomParticipants.put(ServerState.MAIN_HALL, new HashSet<>());
     }
 
     @Override
@@ -103,17 +102,17 @@ public class ClientComponent extends ServerComponent implements ClientListener.E
         sendMessage(client, newIdentityClientResponse);
         clients.add(client);
         client.setParticipantId(newParticipantId);
-        roomParticipants.get(MAIN_HALL).add(client);
-        participantRoom.put(newParticipantId, MAIN_HALL);
-        RoomChangeClientResponse roomChangeClientResponse = new RoomChangeClientResponse(newParticipantId, MAIN_HALL);
-        for (Client otherClient : roomParticipants.get(MAIN_HALL)) {
+        roomParticipants.get(ServerState.MAIN_HALL).add(client);
+        participantRoom.put(newParticipantId, ServerState.MAIN_HALL);
+        RoomChangeClientResponse roomChangeClientResponse = new RoomChangeClientResponse(newParticipantId, ServerState.MAIN_HALL);
+        for (Client otherClient : roomParticipants.get(ServerState.MAIN_HALL)) {
             sendMessage(otherClient, roomChangeClientResponse);
         }
     }
 
     @Override
     public void chatRoomListRequest(Client client) {
-
+        sendMessage(client, new ListClientResponse(serverState.serverRoomIds()));
     }
 
     @Override
@@ -128,5 +127,13 @@ public class ClientComponent extends ServerComponent implements ClientListener.E
                 sendMessage(otherClient, response);
             }
         }
+    }
+
+    @Override
+    public void whoRequest(Client client) {
+        ParticipantId participantId = client.getParticipantId();
+        RoomId roomId = participantRoom.get(participantId);
+        Collection<ParticipantId> participantIds = roomParticipants.get(roomId).stream().map(Client::getParticipantId).collect(Collectors.toList());
+        sendMessage(client, new WhoClientResponse(roomId, participantIds, serverState.getOwnerId(roomId)));
     }
 }
