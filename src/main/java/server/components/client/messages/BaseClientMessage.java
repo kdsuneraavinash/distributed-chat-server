@@ -3,6 +3,6 @@ package server.components.client.messages;
 import lombok.Getter;
 
 @Getter
-public class BaseMessage {
+public class BaseClientMessage {
     private String type;
 }

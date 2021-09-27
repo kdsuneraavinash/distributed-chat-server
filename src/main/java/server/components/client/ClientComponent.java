@@ -6,10 +6,10 @@ import lombok.Cleanup;
 import lombok.NonNull;
 import lombok.extern.java.Log;
 import server.components.ServerComponent;
-import server.components.client.messages.BaseMessage;
-import server.components.client.messages.ListMessage;
-import server.components.client.messages.MessageSerializer;
-import server.components.client.messages.NewIdentityMessage;
+import server.components.client.messages.BaseClientMessage;
+import server.components.client.messages.ClientMessageSerializer;
+import server.components.client.messages.ListClientMessage;
+import server.components.client.messages.NewIdentityClientMessage;
 import server.components.client.models.Client;
 import server.components.client.models.ClientListener;
 
@@ -31,7 +31,7 @@ public class ClientComponent extends ServerComponent {
     public ClientComponent(int port) {
         super(port);
         GsonBuilder gsonBuilder = new GsonBuilder();
-        gsonBuilder.registerTypeAdapter(BaseMessage.class, new MessageSerializer());
+        gsonBuilder.registerTypeAdapter(BaseClientMessage.class, new ClientMessageSerializer());
         this.gson = gsonBuilder.create();
         this.clients = new HashSet<>();
     }
@@ -59,10 +59,6 @@ public class ClientComponent extends ServerComponent {
         for (Client client : clients) {
             client.close();
         }
-    }
-
-    private BaseMessage parseMessage(String message) {
-        return gson.fromJson(message, BaseMessage.class);
     }
 
     /**
@@ -96,12 +92,12 @@ public class ClientComponent extends ServerComponent {
 
         @Override
         public void receiveMessage(String message) {
-            BaseMessage baseMessage = parseMessage(message);
-            if (baseMessage instanceof NewIdentityMessage) {
-                NewIdentityMessage newIdentityMessage = (NewIdentityMessage) baseMessage;
+            BaseClientMessage baseMessage = gson.fromJson(message, BaseClientMessage.class);
+            if (baseMessage instanceof NewIdentityClientMessage) {
+                NewIdentityClientMessage newIdentityMessage = (NewIdentityClientMessage) baseMessage;
                 System.out.println(newIdentityMessage.getIdentity());
-            } else if (baseMessage instanceof ListMessage) {
-                ListMessage listMessage = (ListMessage) baseMessage;
+            } else if (baseMessage instanceof ListClientMessage) {
+                ListClientMessage listMessage = (ListClientMessage) baseMessage;
             } else {
                 throw new UnsupportedOperationException();
             }

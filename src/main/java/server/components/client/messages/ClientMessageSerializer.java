@@ -4,9 +4,9 @@ import com.google.gson.*;
 
 import java.lang.reflect.Type;
 
-public class MessageSerializer implements JsonDeserializer<BaseMessage> {
+public class ClientMessageSerializer implements JsonDeserializer<BaseClientMessage> {
     @Override
-    public BaseMessage deserialize(final JsonElement json, final Type typeOfT, final JsonDeserializationContext context)
+    public BaseClientMessage deserialize(final JsonElement json, final Type typeOfT, final JsonDeserializationContext context)
             throws JsonParseException {
 
         JsonObject jsonObject = json.getAsJsonObject();
@@ -14,9 +14,9 @@ public class MessageSerializer implements JsonDeserializer<BaseMessage> {
         String type = jsonType.getAsString();
 
         if ("newidentity".equals(type)) {
-            return context.deserialize(json, NewIdentityMessage.class);
+            return context.deserialize(json, NewIdentityClientMessage.class);
         } else if ("list".equals(type)) {
-            return context.deserialize(json, ListMessage.class);
+            return context.deserialize(json, ListClientMessage.class);
         } else {
             throw new JsonParseException("Unknown type: " + type);
         }
