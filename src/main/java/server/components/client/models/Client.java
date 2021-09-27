@@ -26,8 +26,6 @@ public class Client implements AutoCloseable {
     private final String clientId;
     private final Socket socket;
     @Setter
-    @Getter
-    private String identity;
     private Thread thread;
 
     public Client(@NonNull Socket socket) {

@@ -9,6 +9,12 @@ import server.components.client.messages.requests.NewIdentityClientRequest;
 import java.lang.reflect.Type;
 
 public class ClientMessageSerializer implements JsonDeserializer<BaseClientRequest> {
+    public static Gson createAttachedSerializer() {
+        GsonBuilder gsonBuilder = new GsonBuilder();
+        gsonBuilder.registerTypeAdapter(BaseClientRequest.class, new ClientMessageSerializer());
+        return gsonBuilder.create();
+    }
+
     @Override
     public BaseClientRequest deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context)
             throws JsonParseException {

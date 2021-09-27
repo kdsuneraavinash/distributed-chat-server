@@ -3,62 +3,72 @@ package server.state;
 import lombok.NonNull;
 import lombok.ToString;
 import lombok.extern.log4j.Log4j2;
+import server.state.logs.CreateIdentityLog;
+import server.state.logs.CreateRoomLog;
+import server.state.logs.DeleteIdentityLog;
+import server.state.logs.DeleteRoomLog;
 
-import java.util.Collection;
 import java.util.HashMap;
 
 @ToString
 @Log4j2
 public class ServerState {
-    private final HashMap<String, String> participants;
+    public static final String SERVER = "SERVER";
+    // Servers -> Participants -> Room
+    private final HashMap<String, HashMap<String, String>> state;
+    // Participants -> Server
+    private final HashMap<String, String> participantLocations;
+    // Rooms -> Server
+    private final HashMap<String, String> roomLocations;
+    // Rooms -> Participant
     private final HashMap<String, String> roomOwners;
 
     public ServerState() {
-        participants = new HashMap<>();
-        roomOwners = new HashMap<>();
+        this.state = new HashMap<>();
+        this.state.put(SERVER, new HashMap<>());
+        this.participantLocations = new HashMap<>();
+        this.roomLocations = new HashMap<>();
+        this.roomOwners = new HashMap<>();
     }
 
-    public boolean createIdentity(@NonNull String identity) {
-        if (participants.containsKey(identity)) {
-            log.info("Identity {} already exists.", identity);
-            return false;
-        }
-        participants.put(identity, null);
-        log.info("Created identity {}.", identity);
-        return true;
+    public void createIdentity(@NonNull CreateIdentityLog stateLog) {
+        String identity = stateLog.getIdentity();
+        String serverId = stateLog.getServerId();
+        state.get(serverId).put(identity, null);
+        participantLocations.put(identity, serverId);
+        log.info(this);
     }
 
-    public boolean createRoom(@NonNull String identity, @NonNull String roomId) {
-        if (roomOwners.containsKey(roomId)) {
-            log.info("Room {} already exists.", roomId);
-            return false;
-        }
-        if (participants.get(roomId) != null) {
-            log.info("{} is already owner of {}.", roomId, participants.get(roomId));
-            return false;
-        }
+    public void createRoom(@NonNull CreateRoomLog stateLog) {
+        String identity = stateLog.getIdentity();
+        String serverId = stateLog.getServerId();
+        String roomId = stateLog.getRoomId();
+        state.get(serverId).put(identity, roomId);
         roomOwners.put(roomId, identity);
-        participants.put(identity, roomId);
-        log.info("Created room {} for {}.", roomId, identity);
-        return true;
+        roomLocations.put(roomId, serverId);
+        log.info(this);
     }
 
-    public void deleteIdentity(@NonNull String identity) {
-        if (roomOwners.containsKey(identity)) {
-            // If identity has a room, delete it first
-            deleteRoom(roomOwners.get(identity));
+    public void deleteIdentity(@NonNull DeleteIdentityLog stateLog) {
+        String identity = stateLog.getIdentity();
+        String serverId = participantLocations.remove(identity);
+        String ownedRoomId = state.get(serverId).remove(identity);
+        if (ownedRoomId != null) {
+            roomLocations.remove(ownedRoomId);
+            roomOwners.remove(ownedRoomId);
         }
-        participants.remove(identity);
-        log.info("Deleted identity {}.", identity);
+        log.info(this);
     }
 
-    public void deleteRoom(@NonNull String roomId) {
-        participants.put(roomOwners.get(roomId), null);
-        roomOwners.remove(roomId);
-        log.info("Deleted room {}.", roomId);
+    public void deleteRoom(@NonNull DeleteRoomLog stateLog) {
+        String roomId = stateLog.getRoomId();
+        String serverId = roomLocations.remove(roomId);
+        String ownerId = roomOwners.remove(roomId);
+        state.get(serverId).put(ownerId, null);
+        log.info(this);
     }
 
-    public Collection<String> getAllIdentities() {
-        return participants.keySet();
+    public boolean hasParticipant(String identity) {
+        return participantLocations.containsKey(identity);
     }
 }

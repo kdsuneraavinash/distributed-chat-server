@@ -6,6 +6,10 @@ import server.components.client.ClientComponent;
 import server.components.gossip.GossipComponent;
 import server.components.raft.RaftComponent;
 
+/**
+ * Chat server main entry class. Contains of three primary components;
+ * {@link ClientComponent}, {@link GossipComponent} and {@link RaftComponent}.
+ */
 @Log4j2
 public class ChatServer implements AutoCloseable {
     // Components
