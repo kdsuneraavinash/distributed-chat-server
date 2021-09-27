@@ -1,12 +1,13 @@
 package server;
 
 import lombok.extern.java.Log;
+import lombok.extern.log4j.Log4j2;
 import server.components.ServerComponent;
 import server.components.client.ClientComponent;
 import server.components.gossip.GossipComponent;
 import server.components.raft.RaftComponent;
 
-@Log
+@Log4j2
 public class ChatServer implements AutoCloseable {
     // Components
     private final ServerComponent clientComponent;

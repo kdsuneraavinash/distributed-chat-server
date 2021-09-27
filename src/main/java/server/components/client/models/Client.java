@@ -4,7 +4,7 @@ import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.ToString;
-import lombok.extern.java.Log;
+import lombok.extern.log4j.Log4j2;
 
 import java.net.Socket;
 import java.util.UUID;
@@ -15,7 +15,7 @@ import java.util.UUID;
  * Each client will get a unique client ID which will be used
  * for equivalence checks.
  */
-@Log
+@Log4j2
 @ToString(onlyExplicitlyIncluded = true)
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
 public class Client implements AutoCloseable {

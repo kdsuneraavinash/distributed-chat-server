@@ -4,7 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import lombok.Cleanup;
 import lombok.NonNull;
-import lombok.extern.java.Log;
+import lombok.extern.log4j.Log4j2;
 import server.components.ServerComponent;
 import server.components.client.messages.BaseClientMessage;
 import server.components.client.messages.ClientMessageSerializer;
@@ -23,7 +23,7 @@ import java.util.HashSet;
  * Manages the chat messages etc... among clients.
  * Command messages will be proxied to other servers.
  */
-@Log
+@Log4j2
 public class ClientComponent extends ServerComponent {
     private final HashSet<Client> clients;
     private final Gson gson;
@@ -49,8 +49,8 @@ public class ClientComponent extends ServerComponent {
                 clients.add(client);
             }
         } catch (IOException e) {
-            log.severe("Server socket opening failed on port " + port);
-            log.throwing("ServerSocket", "<init>", e);
+            log.error("Server socket opening failed on port {}.", getPort());
+            log.throwing(e);
         }
     }
 
@@ -75,8 +75,7 @@ public class ClientComponent extends ServerComponent {
         @Override
         public void connect() {
             clients.add(client);
-            log.info("Connected " + client);
-            log.info("Number of clients " + clients.size());
+            log.info("Connected {}. Total {} clients connected.", client, clients.size());
         }
 
         @Override
@@ -86,8 +85,7 @@ public class ClientComponent extends ServerComponent {
             } catch (Exception ignored) {
             }
             clients.remove(client);
-            log.info("Disconnected " + client);
-            log.info("Number of clients " + clients.size());
+            log.info("Disconnected {}. Total {} clients connected.", client, clients.size());
         }
 
         @Override
@@ -95,10 +93,12 @@ public class ClientComponent extends ServerComponent {
             BaseClientMessage baseMessage = gson.fromJson(message, BaseClientMessage.class);
             if (baseMessage instanceof NewIdentityClientMessage) {
                 NewIdentityClientMessage newIdentityMessage = (NewIdentityClientMessage) baseMessage;
-                System.out.println(newIdentityMessage.getIdentity());
+                log.info("#{}: {}", client, newIdentityMessage);
             } else if (baseMessage instanceof ListClientMessage) {
                 ListClientMessage listMessage = (ListClientMessage) baseMessage;
+                log.info("#{}: {}.", client, listMessage);
             } else {
+                log.info("#Unknown: {}.", baseMessage);
                 throw new UnsupportedOperationException();
             }
         }
