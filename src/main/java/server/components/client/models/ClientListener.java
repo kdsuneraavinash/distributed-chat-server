@@ -1,4 +1,4 @@
-package server.models.client;
+package server.components.client.models;
 
 import lombok.Cleanup;
 import lombok.NonNull;
