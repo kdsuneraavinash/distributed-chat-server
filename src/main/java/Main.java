@@ -1,3 +1,4 @@
+import lombok.Cleanup;
 import picocli.CommandLine;
 import server.ChatServer;
 
@@ -16,9 +17,8 @@ public class Main implements Callable<Integer> {
     @Override
     public Integer call() throws Exception {
         // Start server on the specified configuration
-        try (ChatServer chatServer = new ChatServer(this.port)) {
-            chatServer.startListening();
-        }
+        @Cleanup ChatServer chatServer = new ChatServer(this.port);
+        chatServer.startListening();
         return 0;
     }
 }
