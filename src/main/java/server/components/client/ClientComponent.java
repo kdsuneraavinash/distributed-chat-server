@@ -68,6 +68,10 @@ public class ClientComponent extends ServerComponent {
         }
     }
 
+    private void sendMessage(Client client, Object message) {
+        client.sendMessage(serializer.toJson(message));
+    }
+
     /**
      * A class for event handling for events from client side.
      * This includes client disconnecting or client sending messages.
@@ -99,12 +103,12 @@ public class ClientComponent extends ServerComponent {
         public void receiveMessage(NewIdentityClientRequest request) {
             boolean isApproved = serverState.createIdentity(request.getIdentity());
             NewIdentityClientResponse newIdentityClientResponse = new NewIdentityClientResponse(Boolean.toString(isApproved));
-            client.sendMessage(newIdentityClientResponse);
+            sendMessage(client, newIdentityClientResponse);
             if (isApproved) {
                 client.setIdentity(request.getIdentity());
                 for (Client otherClient : clients) {
                     RoomChangeClientResponse roomChangeClientResponse = new RoomChangeClientResponse(request.getIdentity(), "", "MainHall-s1");
-                    otherClient.sendMessage(roomChangeClientResponse);
+                    sendMessage(otherClient, roomChangeClientResponse);
                 }
             }
         }
@@ -118,7 +122,7 @@ public class ClientComponent extends ServerComponent {
             MessageClientResponse response = new MessageClientResponse(client.getIdentity(), request.getContent());
             for (Client otherClient : clients) {
                 if (otherClient != client) {
-                    otherClient.sendMessage(response);
+                    sendMessage(otherClient, response);
                 }
             }
         }

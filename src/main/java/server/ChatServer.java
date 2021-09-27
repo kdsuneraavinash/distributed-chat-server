@@ -1,6 +1,5 @@
 package server;
 
-import lombok.extern.java.Log;
 import lombok.extern.log4j.Log4j2;
 import server.components.ServerComponent;
 import server.components.client.ClientComponent;
@@ -23,6 +22,7 @@ public class ChatServer implements AutoCloseable {
         this.clientComponent = new ClientComponent(port);
         this.gossipComponent = new GossipComponent(port);
         this.raftComponent = new RaftComponent(port);
+        // Threads
         this.clientComponentThread = new Thread(clientComponent);
         this.gossipComponentThread = new Thread(gossipComponent);
         this.raftComponentThread = new Thread(raftComponent);
@@ -41,12 +41,15 @@ public class ChatServer implements AutoCloseable {
 
     @Override
     public void close() throws Exception {
+        // Interrupt all threads
         clientComponentThread.interrupt();
-        clientComponentThread.join();
         gossipComponentThread.interrupt();
-        gossipComponentThread.join();
         raftComponentThread.interrupt();
+        // Wait until threads exit
+        clientComponentThread.join();
+        gossipComponentThread.join();
         raftComponentThread.join();
+        // Close each component resources
         raftComponent.close();
         gossipComponent.close();
         clientComponent.close();

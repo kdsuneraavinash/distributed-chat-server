@@ -19,6 +19,7 @@ public class ClientMessageSerializer implements JsonDeserializer<BaseClientReque
     }
 
     private Class<?> mapTypeToClass(String type) {
+        // TODO: Register other request types
         switch (type) {
             case NewIdentityClientRequest.TYPE:
                 return NewIdentityClientRequest.class;

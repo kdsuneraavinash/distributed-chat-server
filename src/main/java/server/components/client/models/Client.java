@@ -29,7 +29,6 @@ public class Client implements AutoCloseable {
     @Getter
     private String identity;
     private Thread thread;
-    private Gson serializer;
 
     public Client(@NonNull Socket socket) {
         this.socket = socket;
@@ -39,19 +38,17 @@ public class Client implements AutoCloseable {
 
     public void startListening(ClientListener.EventHandler eventHandler, Gson serializer) {
         ClientListener clientListener = new ClientListener(socket, eventHandler, serializer);
-        this.serializer = serializer;
         this.thread = new Thread(clientListener);
         this.thread.start();
     }
 
-    public void sendMessage(Object message) {
+    public void sendMessage(String message) {
         try {
-            OutputStream outstream = socket.getOutputStream();
-            PrintWriter out = new PrintWriter(outstream);
-            String messageStr = serializer.toJson(message);
-            log.info(messageStr);
-            out.println(messageStr);
-            out.flush();
+            OutputStream socketOutputStream = socket.getOutputStream();
+            PrintWriter printWriter = new PrintWriter(socketOutputStream);
+            printWriter.println(message);
+            printWriter.flush();
+            log.info("{} <- {}", clientId, message);
         } catch (IOException e) {
             e.printStackTrace();
         }
