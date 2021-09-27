@@ -56,6 +56,9 @@ public class ClientListener implements Runnable {
         } else if (request instanceof MessageClientRequest) {
             MessageClientRequest castedRequest = (MessageClientRequest) request;
             eventHandler.messageRequest(client, castedRequest.getContent());
+        } else if (request instanceof CreateRoomClientRequest) {
+            CreateRoomClientRequest castedRequest = (CreateRoomClientRequest) request;
+            eventHandler.createRoomRequest(client, castedRequest.getRoomId());
         } else if (request instanceof WhoClientRequest) {
             eventHandler.whoRequest(client);
         } else {
@@ -80,5 +83,7 @@ public class ClientListener implements Runnable {
         void messageRequest(Client client, String content);
 
         void whoRequest(Client client);
+
+        void createRoomRequest(Client client, String roomId);
     }
 }

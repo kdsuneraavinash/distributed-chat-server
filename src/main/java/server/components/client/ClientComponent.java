@@ -12,6 +12,7 @@ import server.core.ParticipantId;
 import server.core.RoomId;
 import server.state.ServerState;
 import server.state.logs.CreateIdentityLog;
+import server.state.logs.CreateRoomLog;
 
 import java.io.IOException;
 import java.net.ServerSocket;
@@ -96,7 +97,7 @@ public class ClientComponent extends ServerComponent implements ClientListener.E
             return;
         }
         // TODO: Check with global state.
-        serverState.addLog(new CreateIdentityLog(ServerState.SERVER.getValue(), newParticipantId.getValue()));
+        serverState.addLog(new CreateIdentityLog(ServerState.SERVER.getValue(), identity));
         // TODO: Remove following and put to Raft, This should run when committing
         NewIdentityClientResponse newIdentityClientResponse = new NewIdentityClientResponse(true);
         sendMessage(client, newIdentityClientResponse);
@@ -135,5 +136,29 @@ public class ClientComponent extends ServerComponent implements ClientListener.E
         RoomId roomId = participantRoom.get(participantId);
         Collection<ParticipantId> participantIds = roomParticipants.get(roomId).stream().map(Client::getParticipantId).collect(Collectors.toList());
         sendMessage(client, new WhoClientResponse(roomId, participantIds, serverState.getOwnerId(roomId)));
+    }
+
+    @Override
+    public void createRoomRequest(Client client, String roomId) {
+        RoomId newRoomId = new RoomId(roomId);
+        ParticipantId ownerId = client.getParticipantId();
+        if (serverState.hasRoom(newRoomId)) {
+            sendMessage(client, new CreateRoomClientResponse(newRoomId, false));
+            return;
+        }
+        // TODO: Check with global state.
+        serverState.addLog(new CreateRoomLog(roomId, ownerId.getValue()));
+        // TODO: Remove following and put to Raft, This should run when committing
+        CreateRoomClientResponse createRoomClientResponse = new CreateRoomClientResponse(newRoomId, true);
+        RoomId oldRoomId = participantRoom.get(ownerId);
+        roomParticipants.put(newRoomId, new HashSet<>());
+        roomParticipants.get(oldRoomId).remove(client);
+        roomParticipants.get(newRoomId).add(client);
+        participantRoom.put(ownerId, newRoomId);
+        sendMessage(client, createRoomClientResponse);
+        RoomChangeClientResponse roomChangeClientResponse = new RoomChangeClientResponse(ownerId, oldRoomId, newRoomId);
+        for (Client otherClient : roomParticipants.get(ServerState.MAIN_HALL)) {
+            sendMessage(otherClient, roomChangeClientResponse);
+        }
     }
 }

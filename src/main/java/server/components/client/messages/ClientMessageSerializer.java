@@ -32,6 +32,8 @@ public class ClientMessageSerializer implements JsonDeserializer<BaseClientReque
                 return MessageClientRequest.class;
             case WhoClientRequest.TYPE:
                 return WhoClientRequest.class;
+            case CreateRoomClientRequest.TYPE:
+                return CreateRoomClientRequest.class;
             default:
                 throw new JsonParseException("Unknown type: " + type);
         }

@@ -95,6 +95,13 @@ public class ServerState {
         return participantServerMap.containsKey(participantId);
     }
 
+    public boolean hasRoom(RoomId roomId) {
+        if (MAIN_HALL.equals(roomId)) {
+            return true;
+        }
+        return roomOwnerMap.containsKey(roomId);
+    }
+
     public Collection<RoomId> serverRoomIds() {
         HashSet<RoomId> roomIds = new HashSet<>();
         roomIds.add(ServerState.MAIN_HALL);
