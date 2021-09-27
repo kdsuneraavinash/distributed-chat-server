@@ -6,12 +6,17 @@ import lombok.Cleanup;
 import lombok.NonNull;
 import lombok.extern.log4j.Log4j2;
 import server.components.ServerComponent;
-import server.components.client.messages.BaseClientMessage;
 import server.components.client.messages.ClientMessageSerializer;
-import server.components.client.messages.ListClientMessage;
-import server.components.client.messages.NewIdentityClientMessage;
+import server.components.client.messages.requests.BaseClientRequest;
+import server.components.client.messages.requests.ListClientRequest;
+import server.components.client.messages.requests.MessageClientRequest;
+import server.components.client.messages.requests.NewIdentityClientRequest;
+import server.components.client.messages.responses.MessageClientResponse;
+import server.components.client.messages.responses.NewIdentityClientResponse;
+import server.components.client.messages.responses.RoomChangeClientResponse;
 import server.components.client.models.Client;
 import server.components.client.models.ClientListener;
+import server.state.ServerState;
 
 import java.io.IOException;
 import java.net.ServerSocket;
@@ -25,15 +30,17 @@ import java.util.HashSet;
  */
 @Log4j2
 public class ClientComponent extends ServerComponent {
+    private final ServerState serverState;
     private final HashSet<Client> clients;
-    private final Gson gson;
+    private final Gson serializer;
 
     public ClientComponent(int port) {
         super(port);
-        GsonBuilder gsonBuilder = new GsonBuilder();
-        gsonBuilder.registerTypeAdapter(BaseClientMessage.class, new ClientMessageSerializer());
-        this.gson = gsonBuilder.create();
         this.clients = new HashSet<>();
+        this.serverState = new ServerState();
+        this.serializer = new GsonBuilder()
+                .registerTypeAdapter(BaseClientRequest.class, new ClientMessageSerializer())
+                .create();
     }
 
     @Override
@@ -45,7 +52,7 @@ public class ClientComponent extends ServerComponent {
                 // Create a new client from each socket connection.
                 Socket socket = serverSocket.accept();
                 Client client = new Client(socket);
-                client.startListening(new ClientSideEventHandler(client));
+                client.startListening(new ClientSideEventHandler(client), this.serializer);
                 clients.add(client);
             }
         } catch (IOException e) {
@@ -89,17 +96,30 @@ public class ClientComponent extends ServerComponent {
         }
 
         @Override
-        public void receiveMessage(String message) {
-            BaseClientMessage baseMessage = gson.fromJson(message, BaseClientMessage.class);
-            if (baseMessage instanceof NewIdentityClientMessage) {
-                NewIdentityClientMessage newIdentityMessage = (NewIdentityClientMessage) baseMessage;
-                log.info("#{}: {}", client, newIdentityMessage);
-            } else if (baseMessage instanceof ListClientMessage) {
-                ListClientMessage listMessage = (ListClientMessage) baseMessage;
-                log.info("#{}: {}.", client, listMessage);
-            } else {
-                log.info("#Unknown: {}.", baseMessage);
-                throw new UnsupportedOperationException();
+        public void receiveMessage(NewIdentityClientRequest request) {
+            boolean isApproved = serverState.createIdentity(request.getIdentity());
+            NewIdentityClientResponse newIdentityClientResponse = new NewIdentityClientResponse(Boolean.toString(isApproved));
+            client.sendMessage(newIdentityClientResponse);
+            if (isApproved) {
+                client.setIdentity(request.getIdentity());
+                for (Client otherClient : clients) {
+                    RoomChangeClientResponse roomChangeClientResponse = new RoomChangeClientResponse(request.getIdentity(), "", "MainHall-s1");
+                    otherClient.sendMessage(roomChangeClientResponse);
+                }
+            }
+        }
+
+        @Override
+        public void receiveMessage(ListClientRequest request) {
+        }
+
+        @Override
+        public void receiveMessage(MessageClientRequest request) {
+            MessageClientResponse response = new MessageClientResponse(client.getIdentity(), request.getContent());
+            for (Client otherClient : clients) {
+                if (otherClient != client) {
+                    otherClient.sendMessage(response);
+                }
             }
         }
     }

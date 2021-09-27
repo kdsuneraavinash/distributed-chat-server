@@ -1,11 +1,12 @@
 package server.components.client.models;
 
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.NonNull;
-import lombok.ToString;
+import com.google.gson.Gson;
+import lombok.*;
 import lombok.extern.log4j.Log4j2;
 
+import java.io.IOException;
+import java.io.OutputStream;
+import java.io.PrintWriter;
 import java.net.Socket;
 import java.util.UUID;
 
@@ -24,7 +25,11 @@ public class Client implements AutoCloseable {
     @EqualsAndHashCode.Include
     private final String clientId;
     private final Socket socket;
+    @Setter
+    @Getter
+    private String identity;
     private Thread thread;
+    private Gson serializer;
 
     public Client(@NonNull Socket socket) {
         this.socket = socket;
@@ -32,10 +37,24 @@ public class Client implements AutoCloseable {
         this.clientId = UUID.randomUUID().toString();
     }
 
-    public void startListening(ClientListener.EventHandler eventHandler) {
-        ClientListener clientListener = new ClientListener(socket, eventHandler);
+    public void startListening(ClientListener.EventHandler eventHandler, Gson serializer) {
+        ClientListener clientListener = new ClientListener(socket, eventHandler, serializer);
+        this.serializer = serializer;
         this.thread = new Thread(clientListener);
         this.thread.start();
+    }
+
+    public void sendMessage(Object message) {
+        try {
+            OutputStream outstream = socket.getOutputStream();
+            PrintWriter out = new PrintWriter(outstream);
+            String messageStr = serializer.toJson(message);
+            log.info(messageStr);
+            out.println(messageStr);
+            out.flush();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     @Override
