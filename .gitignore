@@ -52,4 +52,7 @@ gradle-app.setting
 # JDT-specific (Eclipse Java Development Tools)
 .classpath
 
+# Chat client
+!assets/client.jar
+
 # End of https://www.toptal.com/developers/gitignore/api/java,gradle
