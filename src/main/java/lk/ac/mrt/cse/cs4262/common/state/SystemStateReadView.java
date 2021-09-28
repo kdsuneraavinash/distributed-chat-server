@@ -27,9 +27,9 @@ public interface SystemStateReadView {
 
     /**
      * @param participantId ID of the participant.
-     * @return Whether the participant owns a room.
+     * @return Room ID if the participant owns a room. Otherwise null.
      */
-    boolean ownsRoom(@NonNull ParticipantId participantId);
+    RoomId owningRoom(@NonNull ParticipantId participantId);
 
     /**
      * @param serverId ID of the server.

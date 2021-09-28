@@ -107,9 +107,9 @@ public class SystemStateImpl implements SystemState {
     }
 
     @Override
-    public boolean ownsRoom(@NonNull ParticipantId participantId) {
+    public RoomId owningRoom(@NonNull ParticipantId participantId) {
         ServerId serverId = participantServerMap.get(participantId);
-        return state.get(serverId).get(participantId) != null;
+        return state.get(serverId).get(participantId);
     }
 
     @Override
