@@ -1,6 +1,7 @@
 package lk.ac.mrt.cse.cs4262;
 
-import lk.ac.mrt.cse.cs4262.components.ServerComponent;
+import lk.ac.mrt.cse.cs4262.common.state.SystemState;
+import lk.ac.mrt.cse.cs4262.common.state.SystemStateImpl;
 import lk.ac.mrt.cse.cs4262.components.client.ClientComponent;
 import lk.ac.mrt.cse.cs4262.components.gossip.GossipComponent;
 import lk.ac.mrt.cse.cs4262.components.raft.RaftComponent;
@@ -13,9 +14,9 @@ import lombok.extern.log4j.Log4j2;
 @Log4j2
 public class ChatServer implements AutoCloseable {
     // Components
-    private final ServerComponent clientComponent;
-    private final ServerComponent gossipComponent;
-    private final ServerComponent raftComponent;
+    private final ClientComponent clientComponent;
+    private final GossipComponent gossipComponent;
+    private final RaftComponent raftComponent;
     // Threads
     private final Thread clientComponentThread;
     private final Thread gossipComponentThread;
@@ -27,14 +28,16 @@ public class ChatServer implements AutoCloseable {
      * @param port Port to operate.
      */
     public ChatServer(int port) {
+        SystemState systemState = new SystemStateImpl();
         // Components
-        this.clientComponent = new ClientComponent(port);
+        this.clientComponent = new ClientComponent(port, systemState);
         this.gossipComponent = new GossipComponent();
         this.raftComponent = new RaftComponent();
         // Threads
         this.clientComponentThread = new Thread(clientComponent);
         this.gossipComponentThread = new Thread(gossipComponent);
         this.raftComponentThread = new Thread(raftComponent);
+        systemState.attachListener(this.clientComponent);
     }
 
     /**

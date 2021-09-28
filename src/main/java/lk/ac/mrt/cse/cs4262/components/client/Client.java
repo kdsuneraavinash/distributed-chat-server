@@ -1,6 +1,5 @@
-package lk.ac.mrt.cse.cs4262.components.client.models;
+package lk.ac.mrt.cse.cs4262.components.client;
 
-import com.google.gson.Gson;
 import lk.ac.mrt.cse.cs4262.common.symbols.ClientId;
 import lk.ac.mrt.cse.cs4262.common.symbols.ParticipantId;
 import lombok.AccessLevel;
@@ -16,15 +15,8 @@ import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.net.Socket;
 
-/**
- * Client model class encapsulating client connection information,
- * thread, identity and other state information.
- * Each client will get a unique client ID which will be used
- * for equivalence checks.
- */
 @Log4j2
-@ToString(onlyExplicitlyIncluded = true)
-@EqualsAndHashCode(onlyExplicitlyIncluded = true)
+@ToString
 public class Client implements AutoCloseable {
     /**
      * ID of the client.
@@ -42,17 +34,14 @@ public class Client implements AutoCloseable {
     @Getter(AccessLevel.PROTECTED)
     private final Socket socket;
 
+    private Thread thread;
+
     /**
      * Participant ID if the client is a participant.
      */
     @Setter
     @Getter
     private ParticipantId participantId;
-
-    /**
-     * Thread that is handling client requests.
-     */
-    private Thread thread;
 
     /**
      * Creates a new client. See {@link Client}.
@@ -64,25 +53,27 @@ public class Client implements AutoCloseable {
         this.clientId = new ClientId();
     }
 
-    public void startListening(ClientListener.EventHandler eventHandler, Gson serializer) {
-        ClientListener clientListener = new ClientListener(this, eventHandler, serializer);
-        this.thread = new Thread(clientListener);
-        this.thread.start();
-    }
-
+    /**
+     * Sends a message to the connected client.
+     *
+     * @param message Message to send.
+     */
     public void sendMessage(String message) {
-        if (socket.isClosed()) {
-            log.error("{} |<- {}", this, message);
+        // No messages sent if disconnected
+        // and disconnect if socket already closed.
+        if (!isConnected()) {
             return;
         }
         try {
-            OutputStream socketOutputStream = socket.getOutputStream();
+            // Get output stream of socket. (Don't close afterwards)
+            OutputStream socketOutputStream = getSocket().getOutputStream();
             PrintWriter printWriter = new PrintWriter(socketOutputStream);
             printWriter.println(message);
             printWriter.flush();
-            log.info("{} <- {}", this, message);
+            log.info("Server -> {}: {}", this, message);
         } catch (IOException e) {
-            log.error("{} X<- {}", this, message);
+            // Sending failed. Disconnect if socket closed. Otherwise ignore.
+            log.error("Server -X {}: {}", this, message);
             log.throwing(e);
         }
     }
@@ -92,9 +83,25 @@ public class Client implements AutoCloseable {
         if (this.thread != null) {
             this.thread.interrupt();
             this.thread.join();
+            this.thread = null;
         }
         if (!this.socket.isClosed()) {
             this.socket.close();
         }
+        log.info("{} disconnected.", this);
+    }
+
+    /**
+     * @return Whether the client is still connected. (Socket open)
+     */
+    public boolean isConnected() {
+        return !socket.isClosed();
+    }
+
+    /**
+     * @return Whether the client is still connected and has acquired an id. (can chat)
+     */
+    public boolean isParticipating() {
+        return !socket.isClosed() && participantId != null;
     }
 }

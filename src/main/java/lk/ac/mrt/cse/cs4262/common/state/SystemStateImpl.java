@@ -53,6 +53,10 @@ public class SystemStateImpl implements SystemState {
      * This is a derived value of {@code state}. Used for reverse relations.
      */
     private final Map<@NonNull RoomId, @NonNull ParticipantId> roomOwnerMap;
+    /**
+     * Listener to attach for the changes in the system.
+     */
+    private Listener listener;
 
     /**
      * Create a system state. See {@link SystemStateImpl}.
@@ -131,6 +135,11 @@ public class SystemStateImpl implements SystemState {
         return new RoomId(MAIN_ROOM_PREFIX + serverId.getValue());
     }
 
+    @Override
+    public void attachListener(@NonNull Listener newListener) {
+        this.listener = newListener;
+    }
+
     private void createReservedIdsForServer(@NonNull ServerId serverId) {
         RoomId mainRoomId = getMainRoomId(serverId);
         ParticipantId systemUserId = getSystemUserId(serverId);
@@ -145,6 +154,9 @@ public class SystemStateImpl implements SystemState {
         ServerId serverId = new ServerId(logEntry.getServerId());
         state.get(serverId).put(participantId, null);
         participantServerMap.put(participantId, serverId);
+        if (listener != null) {
+            listener.createdParticipantId(serverId, participantId);
+        }
     }
 
     private void applyCreateRoomLog(@NonNull CreateRoomLog logEntry) {
@@ -153,6 +165,9 @@ public class SystemStateImpl implements SystemState {
         ServerId serverId = participantServerMap.get(participantId);
         state.get(serverId).put(participantId, roomId);
         roomOwnerMap.put(roomId, participantId);
+        if (listener != null) {
+            listener.createdRoom(serverId, participantId, roomId);
+        }
     }
 
     private void applyDeleteIdentityLog(@NonNull DeleteIdentityLog logEntry) {
@@ -162,6 +177,9 @@ public class SystemStateImpl implements SystemState {
         if (ownedRoomId != null) {
             roomOwnerMap.remove(ownedRoomId);
         }
+        if (listener != null) {
+            listener.deletedIdentity(serverId, participantId, ownedRoomId);
+        }
     }
 
     private void applyDeleteRoomLog(@NonNull DeleteRoomLog logEntry) {
@@ -169,5 +187,8 @@ public class SystemStateImpl implements SystemState {
         ParticipantId ownerId = roomOwnerMap.remove(roomId);
         ServerId serverId = participantServerMap.get(ownerId);
         state.get(serverId).put(ownerId, null);
+        if (listener != null) {
+            listener.deletedRoom(serverId, roomId);
+        }
     }
 }
