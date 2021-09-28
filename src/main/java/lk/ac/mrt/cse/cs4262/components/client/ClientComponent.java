@@ -9,8 +9,13 @@ import lk.ac.mrt.cse.cs4262.common.symbols.ParticipantId;
 import lk.ac.mrt.cse.cs4262.common.symbols.RoomId;
 import lk.ac.mrt.cse.cs4262.common.symbols.ServerId;
 import lk.ac.mrt.cse.cs4262.components.ServerComponent;
-import lk.ac.mrt.cse.cs4262.components.client.messages.ClientMessageSerializer;
-import lk.ac.mrt.cse.cs4262.components.client.messages.responses.*;
+import lk.ac.mrt.cse.cs4262.components.client.messages.ClientMessageDeserializer;
+import lk.ac.mrt.cse.cs4262.components.client.messages.responses.CreateRoomClientResponse;
+import lk.ac.mrt.cse.cs4262.components.client.messages.responses.ListClientResponse;
+import lk.ac.mrt.cse.cs4262.components.client.messages.responses.MessageClientResponse;
+import lk.ac.mrt.cse.cs4262.components.client.messages.responses.NewIdentityClientResponse;
+import lk.ac.mrt.cse.cs4262.components.client.messages.responses.RoomChangeClientResponse;
+import lk.ac.mrt.cse.cs4262.components.client.messages.responses.WhoClientResponse;
 import lk.ac.mrt.cse.cs4262.components.client.models.Client;
 import lk.ac.mrt.cse.cs4262.components.client.models.ClientListener;
 import lombok.Cleanup;
@@ -30,7 +35,8 @@ import java.util.stream.Collectors;
  * Command messages will be proxied to other servers.
  */
 @Log4j2
-public class ClientComponent extends ServerComponent implements ClientListener.EventHandler {
+public class ClientComponent implements ServerComponent, ClientListener.EventHandler {
+    private final int port;
     private final SystemState serverState;
     private final HashSet<Client> clients;
     private final HashMap<RoomId, HashSet<Client>> roomParticipants;
@@ -38,11 +44,11 @@ public class ClientComponent extends ServerComponent implements ClientListener.E
     private final Gson serializer;
 
     public ClientComponent(int port) {
-        super(port);
+        this.port = port;
         this.clients = new HashSet<>();
         this.serverState = new SystemStateImpl();
         this.participantRoom = new HashMap<>();
-        this.serializer = ClientMessageSerializer.createAttachedSerializer();
+        this.serializer = ClientMessageDeserializer.createAttachedSerializer();
         this.roomParticipants = new HashMap<>();
         this.roomParticipants.put(serverState.getMainRoomId(serverState.getCurrentServerId()), new HashSet<>());
     }
@@ -59,7 +65,7 @@ public class ClientComponent extends ServerComponent implements ClientListener.E
                 client.startListening(this, this.serializer);
             }
         } catch (IOException e) {
-            log.error("Server socket opening failed on port {}.", getPort());
+            log.error("Server socket opening failed on port {}.", port);
             log.throwing(e);
         }
     }
@@ -109,7 +115,7 @@ public class ClientComponent extends ServerComponent implements ClientListener.E
         client.setParticipantId(newParticipantId);
         roomParticipants.get(currentRoomId).add(client);
         participantRoom.put(newParticipantId, currentRoomId);
-        RoomChangeClientResponse roomChangeClientResponse = new RoomChangeClientResponse(newParticipantId, currentRoomId);
+        RoomChangeClientResponse roomChangeClientResponse = new RoomChangeClientResponse(newParticipantId, RoomId.NULL, currentRoomId);
         for (Client otherClient : roomParticipants.get(currentRoomId)) {
             sendMessage(otherClient, roomChangeClientResponse);
         }

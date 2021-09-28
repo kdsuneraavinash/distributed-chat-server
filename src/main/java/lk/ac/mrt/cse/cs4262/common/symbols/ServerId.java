@@ -1,6 +1,8 @@
 package lk.ac.mrt.cse.cs4262.common.symbols;
 
 
+import com.google.gson.annotations.JsonAdapter;
+import lk.ac.mrt.cse.cs4262.common.utils.ToStringSerializer;
 import lombok.NonNull;
 
 /**
@@ -9,6 +11,7 @@ import lombok.NonNull;
  * Server ID must be unique globally across the system.
  * Each server has a unique ID and all the servers are known at the start.
  */
+@JsonAdapter(ToStringSerializer.class)
 public class ServerId extends BaseId {
     /**
      * Create a Server ID. See {@link ServerId}.

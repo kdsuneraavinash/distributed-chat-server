@@ -1,31 +1,28 @@
 package lk.ac.mrt.cse.cs4262.components.client.messages.responses;
 
 import com.google.gson.annotations.SerializedName;
-import lombok.NonNull;
-import lombok.ToString;
 import lk.ac.mrt.cse.cs4262.common.symbols.ParticipantId;
 import lk.ac.mrt.cse.cs4262.common.symbols.RoomId;
+import lombok.AllArgsConstructor;
+import lombok.NonNull;
+import lombok.ToString;
 
 import java.util.Collection;
-import java.util.List;
-import java.util.stream.Collectors;
 
 @ToString
+@AllArgsConstructor
 public class WhoClientResponse {
-    public static final String TYPE = "roomcontents";
+    private final String type = "roomcontents";
 
-    private final String type;
+    @NonNull
     @SerializedName("roomid")
-    private final String roomId;
-    @SerializedName("identities")
-    private final List<String> participantIds;
-    @SerializedName("owner")
-    private final String ownerId;
+    private final RoomId roomId;
 
-    public WhoClientResponse(@NonNull RoomId roomId, @NonNull Collection<ParticipantId> participantIds, ParticipantId ownerId) {
-        this.type = TYPE;
-        this.roomId = roomId.getValue();
-        this.participantIds = participantIds.stream().map(ParticipantId::getValue).collect(Collectors.toList());
-        this.ownerId = (ownerId == null) ? "" : ownerId.getValue();
-    }
+    @NonNull
+    @SerializedName("identities")
+    private final Collection<ParticipantId> participantIds;
+
+    @NonNull
+    @SerializedName("owner")
+    private final ParticipantId ownerId;
 }

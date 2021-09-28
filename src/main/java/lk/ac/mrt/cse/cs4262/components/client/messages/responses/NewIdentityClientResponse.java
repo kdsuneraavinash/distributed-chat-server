@@ -1,18 +1,17 @@
 package lk.ac.mrt.cse.cs4262.components.client.messages.responses;
 
+import com.google.gson.annotations.JsonAdapter;
+import lk.ac.mrt.cse.cs4262.common.utils.ToStringSerializer;
 import lombok.AllArgsConstructor;
+import lombok.NonNull;
 import lombok.ToString;
 
 @ToString
 @AllArgsConstructor
 public class NewIdentityClientResponse {
-    public static final String TYPE = "newidentity";
+    private final String type = "newidentity";
 
-    private final String type;
-    private final String approved;
-
-    public NewIdentityClientResponse(boolean approved) {
-        this.type = TYPE;
-        this.approved = Boolean.toString(approved);
-    }
+    @NonNull
+    @JsonAdapter(ToStringSerializer.class)
+    private final Boolean approved;
 }

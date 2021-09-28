@@ -12,6 +12,11 @@ public class Main implements Callable<Integer> {
     @CommandLine.Option(names = {"-p", "--port"}, description = "Port to run", defaultValue = "4444")
     private int port;
 
+    /**
+     * Main entry point for the chat server application.
+     *
+     * @param args Command line args for the application.
+     */
     public static void main(String... args) {
         int exitCode = new CommandLine(new Main()).execute(args);
         System.exit(exitCode);

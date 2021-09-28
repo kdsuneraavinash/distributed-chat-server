@@ -1,24 +1,23 @@
 package lk.ac.mrt.cse.cs4262.components.client.messages.responses;
 
+import com.google.gson.annotations.JsonAdapter;
 import com.google.gson.annotations.SerializedName;
+import lk.ac.mrt.cse.cs4262.common.symbols.RoomId;
+import lk.ac.mrt.cse.cs4262.common.utils.ToStringSerializer;
 import lombok.AllArgsConstructor;
 import lombok.NonNull;
 import lombok.ToString;
-import lk.ac.mrt.cse.cs4262.common.symbols.RoomId;
 
 @ToString
 @AllArgsConstructor
 public class CreateRoomClientResponse {
-    public static final String TYPE = "createroom";
+    private final String type = "createroom";
 
-    private final String type;
-    private final String approved;
+    @NonNull
     @SerializedName("roomid")
-    private String roomId;
+    private final RoomId roomId;
 
-    public CreateRoomClientResponse(@NonNull RoomId roomId, boolean approved) {
-        this.type = TYPE;
-        this.roomId = roomId.getValue();
-        this.approved = Boolean.toString(approved);
-    }
+    @NonNull
+    @JsonAdapter(ToStringSerializer.class)
+    private final Boolean approved;
 }

@@ -1,13 +1,13 @@
 package lk.ac.mrt.cse.cs4262;
 
-import lombok.extern.log4j.Log4j2;
 import lk.ac.mrt.cse.cs4262.components.ServerComponent;
 import lk.ac.mrt.cse.cs4262.components.client.ClientComponent;
 import lk.ac.mrt.cse.cs4262.components.gossip.GossipComponent;
 import lk.ac.mrt.cse.cs4262.components.raft.RaftComponent;
+import lombok.extern.log4j.Log4j2;
 
 /**
- * Chat lk.ac.mrt.cse.cs4262.server main entry class. Contains of three primary components;
+ * Chat server main entry class. Contains of three primary components;
  * {@link ClientComponent}, {@link GossipComponent} and {@link RaftComponent}.
  */
 @Log4j2
@@ -21,17 +21,27 @@ public class ChatServer implements AutoCloseable {
     private final Thread gossipComponentThread;
     private final Thread raftComponentThread;
 
+    /**
+     * Creates a chat server. See {@link ChatServer}.
+     *
+     * @param port Port to operate.
+     */
     public ChatServer(int port) {
         // Components
         this.clientComponent = new ClientComponent(port);
-        this.gossipComponent = new GossipComponent(port);
-        this.raftComponent = new RaftComponent(port);
+        this.gossipComponent = new GossipComponent();
+        this.raftComponent = new RaftComponent();
         // Threads
         this.clientComponentThread = new Thread(clientComponent);
         this.gossipComponentThread = new Thread(gossipComponent);
         this.raftComponentThread = new Thread(raftComponent);
     }
 
+    /**
+     * Start all the components and listen for the clients.
+     *
+     * @throws InterruptedException If listening is interrupted.
+     */
     public void startListening() throws InterruptedException {
         // Start component threads
         raftComponentThread.start();

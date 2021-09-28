@@ -23,7 +23,7 @@ import java.util.Set;
  */
 @ToString
 @Log4j2
-public final class SystemStateImpl implements SystemState {
+public class SystemStateImpl implements SystemState {
     /**
      * A reserved participant name prefix for SYSTEM user.
      * This is the owner main rooms for each server.

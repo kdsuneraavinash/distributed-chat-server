@@ -1,34 +1,26 @@
 package lk.ac.mrt.cse.cs4262.components.client.messages.responses;
 
 import com.google.gson.annotations.SerializedName;
-import lombok.NonNull;
-import lombok.ToString;
 import lk.ac.mrt.cse.cs4262.common.symbols.ParticipantId;
 import lk.ac.mrt.cse.cs4262.common.symbols.RoomId;
+import lombok.AllArgsConstructor;
+import lombok.NonNull;
+import lombok.ToString;
 
 @ToString
+@AllArgsConstructor
 public class RoomChangeClientResponse {
-    public static final String TYPE = "roomchange";
+    private final String type = "roomchange";
 
-    private final String type;
+    @NonNull
     @SerializedName("identity")
-    private final String participantId;
+    private final ParticipantId participantId;
+
+    @NonNull
     @SerializedName("former")
-    private final String formerRoomId;
+    private final RoomId formerRoomId;
+
+    @NonNull
     @SerializedName("roomid")
-    private final String currentRoomId;
-
-    public RoomChangeClientResponse(@NonNull ParticipantId participantId, @NonNull RoomId formerRoomId, @NonNull RoomId currentRoomId) {
-        this.type = TYPE;
-        this.participantId = participantId.getValue();
-        this.formerRoomId = formerRoomId.getValue();
-        this.currentRoomId = currentRoomId.getValue();
-    }
-
-    public RoomChangeClientResponse(@NonNull ParticipantId participantId, @NonNull RoomId currentRoomId) {
-        this.type = TYPE;
-        this.participantId = participantId.getValue();
-        this.formerRoomId = "";
-        this.currentRoomId = currentRoomId.getValue();
-    }
+    private final RoomId currentRoomId;
 }
