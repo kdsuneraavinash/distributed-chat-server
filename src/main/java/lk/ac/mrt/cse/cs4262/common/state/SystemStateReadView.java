@@ -26,6 +26,12 @@ public interface SystemStateReadView {
     boolean hasRoom(@NonNull RoomId roomId);
 
     /**
+     * @param participantId ID of the participant.
+     * @return Whether the participant owns a room.
+     */
+    boolean ownsRoom(@NonNull ParticipantId participantId);
+
+    /**
      * @param serverId ID of the server.
      * @return A list of all the active room IDs in the specified server.
      */
@@ -53,6 +59,12 @@ public interface SystemStateReadView {
      * @return The ID of the main room of specified server.
      */
     @NonNull RoomId getMainRoomId(@NonNull ServerId serverId);
+
+    /**
+     * @param roomId ID of the room.
+     * @return The ID of the server with the room.
+     */
+    @NonNull ServerId getRoomServerId(@NonNull RoomId roomId);
 
     /**
      * Attaches a listener to listen state events.

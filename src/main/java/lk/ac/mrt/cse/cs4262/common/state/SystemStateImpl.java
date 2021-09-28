@@ -107,6 +107,12 @@ public class SystemStateImpl implements SystemState {
     }
 
     @Override
+    public boolean ownsRoom(@NonNull ParticipantId participantId) {
+        ServerId serverId = participantServerMap.get(participantId);
+        return state.get(serverId).get(participantId) != null;
+    }
+
+    @Override
     public @NonNull Collection<RoomId> serverRoomIds(@NonNull ServerId serverId) {
         Set<RoomId> roomIds = new HashSet<>();
         // TODO: Increase performance by maintaining a data structure?
@@ -137,6 +143,12 @@ public class SystemStateImpl implements SystemState {
     @Override
     public @NonNull RoomId getMainRoomId(@NonNull ServerId serverId) {
         return new RoomId(MAIN_ROOM_PREFIX + serverId.getValue());
+    }
+
+    @Override
+    public @NonNull ServerId getRoomServerId(@NonNull RoomId roomId) {
+        ParticipantId ownerId = roomOwnerMap.get(roomId);
+        return participantServerMap.get(ownerId);
     }
 
     @Override

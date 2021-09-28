@@ -5,6 +5,7 @@ import lk.ac.mrt.cse.cs4262.common.utils.TypedJsonDeserializer;
 import lk.ac.mrt.cse.cs4262.components.client.messages.requests.BaseClientRequest;
 import lk.ac.mrt.cse.cs4262.components.client.messages.requests.CreateRoomClientRequest;
 import lk.ac.mrt.cse.cs4262.components.client.messages.requests.DeleteRoomClientRequest;
+import lk.ac.mrt.cse.cs4262.components.client.messages.requests.JoinRoomClientRequest;
 import lk.ac.mrt.cse.cs4262.components.client.messages.requests.ListClientRequest;
 import lk.ac.mrt.cse.cs4262.components.client.messages.requests.MessageClientRequest;
 import lk.ac.mrt.cse.cs4262.components.client.messages.requests.NewIdentityClientRequest;
@@ -20,6 +21,7 @@ public class ClientMessageDeserializer extends TypedJsonDeserializer<BaseClientR
     private static final String WHO_TYPE = "who";
     private static final String CREATE_ROOM_TYPE = "createroom";
     private static final String DELETE_ROOM_TYPE = "deleteroom";
+    private static final String JOIN_ROOM_TYPE = "joinroom";
 
     protected ClientMessageDeserializer() {
         // Use field `type` to deserialization.
@@ -42,6 +44,8 @@ public class ClientMessageDeserializer extends TypedJsonDeserializer<BaseClientR
                 return CreateRoomClientRequest.class;
             case DELETE_ROOM_TYPE:
                 return DeleteRoomClientRequest.class;
+            case JOIN_ROOM_TYPE:
+                return JoinRoomClientRequest.class;
             default:
                 throw new JsonParseException("Unknown type: " + type);
         }
