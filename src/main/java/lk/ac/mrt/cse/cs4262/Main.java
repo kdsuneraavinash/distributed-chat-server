@@ -1,5 +1,6 @@
 package lk.ac.mrt.cse.cs4262;
 
+import lk.ac.mrt.cse.cs4262.common.utils.FileUtils;
 import lombok.Cleanup;
 import picocli.CommandLine;
 
@@ -23,6 +24,8 @@ public class Main implements Callable<Integer> {
     @Override
     public Integer call() throws Exception {
         // Start server on the specified configuration
+        System.out.println(FileUtils.readResource("header.txt"));
+
         @Cleanup ChatServer chatServer = new ChatServer(this.port);
         chatServer.startListening();
         return 0;
