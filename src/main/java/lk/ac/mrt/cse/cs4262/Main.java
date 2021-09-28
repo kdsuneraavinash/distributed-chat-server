@@ -4,7 +4,6 @@ import lombok.Cleanup;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.core.config.Configurator;
 import picocli.CommandLine;
-import lk.ac.mrt.cse.cs4262.server.ChatServer;
 
 import java.util.concurrent.Callable;
 
