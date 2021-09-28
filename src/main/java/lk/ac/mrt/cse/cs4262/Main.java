@@ -1,8 +1,6 @@
 package lk.ac.mrt.cse.cs4262;
 
 import lombok.Cleanup;
-import org.apache.logging.log4j.Level;
-import org.apache.logging.log4j.core.config.Configurator;
 import picocli.CommandLine;
 
 import java.util.concurrent.Callable;
@@ -24,8 +22,7 @@ public class Main implements Callable<Integer> {
 
     @Override
     public Integer call() throws Exception {
-        // Start lk.ac.mrt.cse.cs4262.server on the specified configuration
-        Configurator.setRootLevel(Level.ALL);
+        // Start server on the specified configuration
         @Cleanup ChatServer chatServer = new ChatServer(this.port);
         chatServer.startListening();
         return 0;
