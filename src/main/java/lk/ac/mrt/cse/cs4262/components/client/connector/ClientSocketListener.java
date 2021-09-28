@@ -26,23 +26,27 @@ public class ClientSocketListener implements Runnable {
 
     @Override
     public void run() {
-        reporter.clientConnected(clientId);
         try {
             @Cleanup InputStream inputStream = socket.getInputStream();
             @Cleanup InputStreamReader inputStreamReader = new InputStreamReader(inputStream, StandardCharsets.UTF_8);
             @Cleanup BufferedReader bufferedReader = new BufferedReader(inputStreamReader);
-            String inputLine;
-            while ((inputLine = bufferedReader.readLine()) != null) {
+            boolean exitByServer = false;
+            while (!exitByServer) {
+                String inputLine = bufferedReader.readLine();
+                if (inputLine == null) {
+                    throw new IOException("Closed connection");
+                }
                 log.info("Client({}) -> Server: {}", clientId, inputLine);
-                reporter.clientRequestReceived(clientId, inputLine);
+                exitByServer = reporter.processClientRequest(clientId, inputLine);
             }
-        } catch (IOException ignored) {
+        } catch (IOException e) {
+            log.error("Client({}) exit unexpectedly.", clientId);
+            reporter.clientSideDisconnect(clientId);
         } finally {
             try {
                 socket.close();
             } catch (IOException ignored) {
             }
-            reporter.clientDisconnected(clientId);
         }
     }
 
@@ -53,25 +57,19 @@ public class ClientSocketListener implements Runnable {
      */
     public interface Reporter {
         /**
-         * Report that a client connected.
-         *
-         * @param clientId ID of the connected client.
-         */
-        void clientConnected(ClientId clientId);
-
-        /**
          * Report that a client sent a message.
          *
          * @param clientId   ID of the Client.
          * @param rawRequest Raw message string.
+         * @return Whether to exit reporting. (Closes connection if true)
          */
-        void clientRequestReceived(ClientId clientId, String rawRequest);
+        boolean processClientRequest(ClientId clientId, String rawRequest);
 
         /**
-         * Report that a client disconnected.
+         * Report that client exited unexpectedly.
          *
-         * @param clientId ID of the Client.
+         * @param clientId Exited client.
          */
-        void clientDisconnected(ClientId clientId);
+        void clientSideDisconnect(ClientId clientId);
     }
 }

@@ -170,8 +170,8 @@ public class SystemStateImpl implements SystemState {
         ServerId serverId = new ServerId(logEntry.getServerId());
         state.get(serverId).put(participantId, null);
         participantServerMap.put(participantId, serverId);
-        if (reporter != null) {
-            reporter.participantIdCreated(serverId, participantId);
+        if (reporter != null && getCurrentServerId().equals(serverId)) {
+            reporter.participantIdCreated(participantId);
         }
     }
 
@@ -181,8 +181,8 @@ public class SystemStateImpl implements SystemState {
         ServerId serverId = participantServerMap.get(participantId);
         state.get(serverId).put(participantId, roomId);
         roomOwnerMap.put(roomId, participantId);
-        if (reporter != null) {
-            reporter.roomIdCreated(serverId, participantId, roomId);
+        if (reporter != null && getCurrentServerId().equals(serverId)) {
+            reporter.roomIdCreated(participantId, roomId);
         }
     }
 
@@ -193,8 +193,8 @@ public class SystemStateImpl implements SystemState {
         if (ownedRoomId != null) {
             roomOwnerMap.remove(ownedRoomId);
         }
-        if (reporter != null) {
-            reporter.participantIdDeleted(serverId, participantId, ownedRoomId);
+        if (reporter != null && getCurrentServerId().equals(serverId)) {
+            reporter.participantIdDeleted(participantId, ownedRoomId);
         }
     }
 
@@ -203,8 +203,8 @@ public class SystemStateImpl implements SystemState {
         ParticipantId ownerId = roomOwnerMap.remove(roomId);
         ServerId serverId = participantServerMap.get(ownerId);
         state.get(serverId).put(ownerId, null);
-        if (reporter != null) {
-            reporter.roomIdDeleted(serverId, roomId);
+        if (reporter != null && getCurrentServerId().equals(serverId)) {
+            reporter.roomIdDeleted(roomId);
         }
     }
 }

@@ -9,6 +9,7 @@ import lk.ac.mrt.cse.cs4262.components.client.messages.requests.JoinRoomClientRe
 import lk.ac.mrt.cse.cs4262.components.client.messages.requests.ListClientRequest;
 import lk.ac.mrt.cse.cs4262.components.client.messages.requests.MessageClientRequest;
 import lk.ac.mrt.cse.cs4262.components.client.messages.requests.NewIdentityClientRequest;
+import lk.ac.mrt.cse.cs4262.components.client.messages.requests.QuitClientRequest;
 import lk.ac.mrt.cse.cs4262.components.client.messages.requests.WhoClientRequest;
 
 /**
@@ -22,6 +23,7 @@ public class ClientMessageDeserializer extends TypedJsonDeserializer<BaseClientR
     private static final String CREATE_ROOM_TYPE = "createroom";
     private static final String DELETE_ROOM_TYPE = "deleteroom";
     private static final String JOIN_ROOM_TYPE = "joinroom";
+    private static final String QUIT_ROOM_TYPE = "quit";
 
     protected ClientMessageDeserializer() {
         // Use field `type` to deserialization.
@@ -46,6 +48,8 @@ public class ClientMessageDeserializer extends TypedJsonDeserializer<BaseClientR
                 return DeleteRoomClientRequest.class;
             case JOIN_ROOM_TYPE:
                 return JoinRoomClientRequest.class;
+            case QUIT_ROOM_TYPE:
+                return QuitClientRequest.class;
             default:
                 throw new JsonParseException("Unknown type: " + type);
         }
