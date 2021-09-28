@@ -18,11 +18,12 @@ import java.nio.charset.StandardCharsets;
  * A client that is connected to the current system.
  */
 @Log4j2
-@ToString
+@ToString(onlyExplicitlyIncluded = true)
 @AllArgsConstructor
 public class ChatClientImpl implements ChatClient {
     @NonNull
     @Getter
+    @ToString.Include
     private final ClientId clientId;
 
     /**
@@ -50,10 +51,10 @@ public class ChatClientImpl implements ChatClient {
             PrintWriter printWriter = new PrintWriter(socketOutputStream, false, StandardCharsets.UTF_8);
             printWriter.println(message);
             printWriter.flush();
-            log.info("Server -> {}: {}", this, message);
+            log.info("Server -> Client({}): {}", clientId, message);
         } catch (IOException e) {
             // Sending failed. Disconnect if socket closed. Otherwise ignore.
-            log.error("Server -X {}: {}", this, message);
+            log.error("Server -X Client({}): {}", clientId, message);
             log.throwing(e);
         }
     }

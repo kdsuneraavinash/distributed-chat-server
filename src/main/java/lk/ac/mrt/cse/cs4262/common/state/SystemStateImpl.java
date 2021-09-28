@@ -21,7 +21,7 @@ import java.util.Set;
 /**
  * Implementation for the {@link SystemState}.
  */
-@ToString
+@ToString(onlyExplicitlyIncluded = true)
 @Log4j2
 public class SystemStateImpl implements SystemState {
     /**
@@ -41,17 +41,20 @@ public class SystemStateImpl implements SystemState {
      * This is the primary state object.
      * Other objects are simply for performance-sake.
      */
+    @ToString.Include
     private final Map<@NonNull ServerId, HashMap<@NonNull ParticipantId, RoomId>> state;
 
     /**
      * Map for each participant to record the server that they are part of.
      * This is a derived value of {@code state}. Used for reverse relations.
      */
+    @ToString.Include
     private final Map<@NonNull ParticipantId, @NonNull ServerId> participantServerMap;
     /**
      * Map for each room to record their owner.
      * This is a derived value of {@code state}. Used for reverse relations.
      */
+    @ToString.Include
     private final Map<@NonNull RoomId, @NonNull ParticipantId> roomOwnerMap;
     /**
      * Listener to attach for the changes in the system.
@@ -74,6 +77,7 @@ public class SystemStateImpl implements SystemState {
 
     @Override
     public void apply(@NonNull BaseLog logEntry) {
+        log.info("Writing: {}", logEntry);
         if (logEntry instanceof CreateIdentityLog) {
             applyCreateIdentityLog((CreateIdentityLog) logEntry);
         } else if (logEntry instanceof CreateRoomLog) {

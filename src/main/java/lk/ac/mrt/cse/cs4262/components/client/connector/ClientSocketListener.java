@@ -3,6 +3,7 @@ package lk.ac.mrt.cse.cs4262.components.client.connector;
 import lk.ac.mrt.cse.cs4262.common.symbols.ClientId;
 import lombok.AllArgsConstructor;
 import lombok.Cleanup;
+import lombok.extern.log4j.Log4j2;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -16,6 +17,7 @@ import java.nio.charset.StandardCharsets;
  * Will use {@link Reporter} to delegate any messages.
  * Closing the socket would be done when thread exits.
  */
+@Log4j2
 @AllArgsConstructor
 public class ClientSocketListener implements Runnable {
     private final ClientId clientId;
@@ -31,6 +33,7 @@ public class ClientSocketListener implements Runnable {
             @Cleanup BufferedReader bufferedReader = new BufferedReader(inputStreamReader);
             String inputLine;
             while ((inputLine = bufferedReader.readLine()) != null) {
+                log.info("Client({}) -> Server: {}", clientId, inputLine);
                 reporter.clientRequestReceived(clientId, inputLine);
             }
         } catch (IOException ignored) {
