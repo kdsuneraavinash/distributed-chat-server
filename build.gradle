@@ -1,6 +1,7 @@
 plugins {
     id 'java'
     id "io.freefair.lombok" version "6.2.0"
+    id "checkstyle"
 }
 
 group 'org.example'
@@ -17,6 +18,14 @@ dependencies {
     implementation 'org.apache.logging.log4j:log4j-core:2.14.1'
     testImplementation 'org.junit.jupiter:junit-jupiter-api:5.8.0'
     testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.8.0'
+}
+
+checkstyle {
+    configFile = file("${rootDir}/config/checkstyle/checkstyle.xml")
+}
+
+checkstyleMain {
+    source ='src/main/java'
 }
 
 test {
