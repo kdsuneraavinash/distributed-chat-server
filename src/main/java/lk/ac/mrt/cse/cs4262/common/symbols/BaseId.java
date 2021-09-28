@@ -4,6 +4,7 @@ import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
+import lombok.NonNull;
 
 /**
  * A base ID for all the IDs in the system.
@@ -14,6 +15,7 @@ import lombok.Getter;
 @EqualsAndHashCode
 @AllArgsConstructor(access = AccessLevel.PACKAGE)
 public abstract class BaseId {
+    @NonNull
     private final String value;
 
     @Override

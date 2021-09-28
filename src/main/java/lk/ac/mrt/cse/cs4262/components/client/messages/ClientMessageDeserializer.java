@@ -1,7 +1,5 @@
 package lk.ac.mrt.cse.cs4262.components.client.messages;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonParseException;
 import lk.ac.mrt.cse.cs4262.common.utils.TypedJsonDeserializer;
 import lk.ac.mrt.cse.cs4262.components.client.messages.requests.BaseClientRequest;
@@ -24,16 +22,6 @@ public class ClientMessageDeserializer extends TypedJsonDeserializer<BaseClientR
     protected ClientMessageDeserializer() {
         // Use field `type` to deserialization.
         super("type");
-    }
-
-    /**
-     * @return A gson object with an instance of serializer attached.
-     */
-    public static Gson createAttachedSerializer() {
-        GsonBuilder gsonBuilder = new GsonBuilder();
-        gsonBuilder.registerTypeAdapter(BaseClientRequest.class, new ClientMessageDeserializer());
-        gsonBuilder.serializeNulls();
-        return gsonBuilder.create();
     }
 
     @Override

@@ -9,7 +9,6 @@ import lk.ac.mrt.cse.cs4262.common.symbols.ParticipantId;
 import lk.ac.mrt.cse.cs4262.common.symbols.RoomId;
 import lk.ac.mrt.cse.cs4262.common.symbols.ServerId;
 import lk.ac.mrt.cse.cs4262.components.ServerComponent;
-import lk.ac.mrt.cse.cs4262.components.client.messages.ClientMessageDeserializer;
 import lk.ac.mrt.cse.cs4262.components.client.messages.responses.CreateRoomClientResponse;
 import lk.ac.mrt.cse.cs4262.components.client.messages.responses.ListClientResponse;
 import lk.ac.mrt.cse.cs4262.components.client.messages.responses.MessageClientResponse;
@@ -48,7 +47,7 @@ public class ClientComponent implements ServerComponent, ClientListener.EventHan
         this.clients = new HashSet<>();
         this.serverState = new SystemStateImpl();
         this.participantRoom = new HashMap<>();
-        this.serializer = ClientMessageDeserializer.createAttachedSerializer();
+        this.serializer = new Gson();
         this.roomParticipants = new HashMap<>();
         this.roomParticipants.put(serverState.getMainRoomId(serverState.getCurrentServerId()), new HashSet<>());
     }

@@ -87,11 +87,14 @@ public class SystemStateImpl implements SystemState {
 
     @Override
     public boolean hasParticipant(@NonNull ParticipantId participantId) {
-        return false;
+        return participantServerMap.containsKey(participantId);
     }
 
     @Override
     public boolean hasRoom(@NonNull RoomId roomId) {
+        if (roomId == RoomId.NULL) {
+            return true;
+        }
         return roomOwnerMap.containsKey(roomId);
     }
 
