@@ -100,7 +100,7 @@ public class SystemStateImpl implements SystemState {
 
     @Override
     public boolean hasRoom(@NonNull RoomId roomId) {
-        if (roomId == RoomId.NULL) {
+        if (RoomId.NULL.equals(roomId)) {
             return true;
         }
         return roomOwnerMap.containsKey(roomId);
@@ -159,7 +159,7 @@ public class SystemStateImpl implements SystemState {
         state.get(serverId).put(participantId, null);
         participantServerMap.put(participantId, serverId);
         if (reporter != null) {
-            reporter.createdParticipantId(serverId, participantId);
+            reporter.participantIdCreated(serverId, participantId);
         }
     }
 
@@ -170,7 +170,7 @@ public class SystemStateImpl implements SystemState {
         state.get(serverId).put(participantId, roomId);
         roomOwnerMap.put(roomId, participantId);
         if (reporter != null) {
-            reporter.createdRoomId(serverId, participantId, roomId);
+            reporter.roomIdCreated(serverId, participantId, roomId);
         }
     }
 
@@ -182,7 +182,7 @@ public class SystemStateImpl implements SystemState {
             roomOwnerMap.remove(ownedRoomId);
         }
         if (reporter != null) {
-            reporter.deletedParticipantId(serverId, participantId, ownedRoomId);
+            reporter.participantIdDeleted(serverId, participantId, ownedRoomId);
         }
     }
 
@@ -192,7 +192,7 @@ public class SystemStateImpl implements SystemState {
         ServerId serverId = participantServerMap.get(ownerId);
         state.get(serverId).put(ownerId, null);
         if (reporter != null) {
-            reporter.deletedRoomId(serverId, roomId);
+            reporter.roomIdDeleted(serverId, roomId);
         }
     }
 }

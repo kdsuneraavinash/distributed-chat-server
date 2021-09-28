@@ -66,31 +66,31 @@ public interface SystemStateReadView {
      */
     interface Reporter {
         /**
-         * @param serverId      Owning server of the created identity.
-         * @param participantId Created identity.
+         * @param serverId            Owning server of the created identity.
+         * @param createParticipantId Created identity.
          */
-        void createdParticipantId(@NonNull ServerId serverId, @NonNull ParticipantId participantId);
+        void participantIdCreated(@NonNull ServerId serverId, @NonNull ParticipantId createParticipantId);
 
         /**
-         * @param serverId Owning server of the created room.
-         * @param ownerId  Owner id of created room.
-         * @param roomId   Created room id.
+         * @param serverId      Owning server of the created room.
+         * @param ownerId       Owner id of created room.
+         * @param createdRoomId Created room id.
          */
-        void createdRoomId(@NonNull ServerId serverId, @NonNull ParticipantId ownerId, @NonNull RoomId roomId);
+        void roomIdCreated(@NonNull ServerId serverId, @NonNull ParticipantId ownerId, @NonNull RoomId createdRoomId);
 
 
         /**
          * @param serverId      Owning server of the deleted identity.
-         * @param participantId Deleted identity.
+         * @param deletedId     Deleted identity.
          * @param deletedRoomId Room id owned by deleted participant. (if any)
          */
-        void deletedParticipantId(@NonNull ServerId serverId, @NonNull ParticipantId participantId,
+        void participantIdDeleted(@NonNull ServerId serverId, @NonNull ParticipantId deletedId,
                                   RoomId deletedRoomId);
 
         /**
          * @param serverId      Owning server of the deleted room.
          * @param deletedRoomId Deleted room id.
          */
-        void deletedRoomId(@NonNull ServerId serverId, RoomId deletedRoomId);
+        void roomIdDeleted(@NonNull ServerId serverId, RoomId deletedRoomId);
     }
 }

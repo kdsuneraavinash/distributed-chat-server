@@ -5,6 +5,7 @@ import lk.ac.mrt.cse.cs4262.common.state.SystemState;
 import lk.ac.mrt.cse.cs4262.common.state.SystemStateReadView;
 import lk.ac.mrt.cse.cs4262.common.state.logs.CreateIdentityLog;
 import lk.ac.mrt.cse.cs4262.common.state.logs.CreateRoomLog;
+import lk.ac.mrt.cse.cs4262.common.state.logs.DeleteRoomLog;
 import lk.ac.mrt.cse.cs4262.common.symbols.ClientId;
 import lk.ac.mrt.cse.cs4262.common.symbols.ParticipantId;
 import lk.ac.mrt.cse.cs4262.common.symbols.RoomId;
@@ -13,17 +14,20 @@ import lk.ac.mrt.cse.cs4262.components.client.connector.ChatClient;
 import lk.ac.mrt.cse.cs4262.components.client.connector.ClientSocketListener;
 import lk.ac.mrt.cse.cs4262.components.client.messages.requests.BaseClientRequest;
 import lk.ac.mrt.cse.cs4262.components.client.messages.requests.CreateRoomClientRequest;
+import lk.ac.mrt.cse.cs4262.components.client.messages.requests.DeleteRoomClientRequest;
 import lk.ac.mrt.cse.cs4262.components.client.messages.requests.ListClientRequest;
 import lk.ac.mrt.cse.cs4262.components.client.messages.requests.MessageClientRequest;
 import lk.ac.mrt.cse.cs4262.components.client.messages.requests.NewIdentityClientRequest;
 import lk.ac.mrt.cse.cs4262.components.client.messages.requests.WhoClientRequest;
 import lk.ac.mrt.cse.cs4262.components.client.messages.responses.CreateRoomClientResponse;
+import lk.ac.mrt.cse.cs4262.components.client.messages.responses.DeleteRoomClientResponse;
 import lk.ac.mrt.cse.cs4262.components.client.messages.responses.ListClientResponse;
-import lk.ac.mrt.cse.cs4262.components.client.messages.responses.MessageClientResponse;
+import lk.ac.mrt.cse.cs4262.components.client.messages.responses.MessageBroadcastResponse;
 import lk.ac.mrt.cse.cs4262.components.client.messages.responses.NewIdentityClientResponse;
-import lk.ac.mrt.cse.cs4262.components.client.messages.responses.RoomChangeClientResponse;
+import lk.ac.mrt.cse.cs4262.components.client.messages.responses.RoomChangeBroadcastResponse;
 import lk.ac.mrt.cse.cs4262.components.client.messages.responses.WhoClientResponse;
 import lombok.NonNull;
+import lombok.Synchronized;
 import lombok.extern.log4j.Log4j2;
 
 import java.util.ArrayList;
@@ -62,12 +66,17 @@ public class ChatConnector implements ClientSocketListener.Reporter, SystemState
     /**
      * Clients that are waiting for a participant id to be accepted.
      */
-    private final Map<@NonNull ParticipantId, @NonNull ClientId> waitingForParticipantId;
+    private final Map<@NonNull ParticipantId, @NonNull ClientId> waitingForParticipantIdCreation;
 
     /**
      * Clients that are waiting for a new room id to be accepted.
      */
-    private final Map<@NonNull RoomId, @NonNull ClientId> waitingForRoomId;
+    private final Map<@NonNull RoomId, @NonNull ClientId> waitingForRoomIdCreation;
+
+    /**
+     * Clients that are waiting for a new room id deletion to be accepted.
+     */
+    private final Map<@NonNull RoomId, @NonNull ClientId> waitingForRoomIdDeletion;
 
     /**
      * Serializer used to convert to/from json.
@@ -92,8 +101,9 @@ public class ChatConnector implements ClientSocketListener.Reporter, SystemState
         this.participantRoomMap = new HashMap<>();
 
         this.serializer = new Gson();
-        this.waitingForParticipantId = new HashMap<>();
-        this.waitingForRoomId = new HashMap<>();
+        this.waitingForParticipantIdCreation = new HashMap<>();
+        this.waitingForRoomIdCreation = new HashMap<>();
+        this.waitingForRoomIdDeletion = new HashMap<>();
     }
 
     /**
@@ -129,11 +139,14 @@ public class ChatConnector implements ClientSocketListener.Reporter, SystemState
         } else if (baseRequest instanceof MessageClientRequest) {
             MessageClientRequest request = (MessageClientRequest) baseRequest;
             processMessageRequest(clientId, request.getContent());
+        } else if (baseRequest instanceof WhoClientRequest) {
+            processWhoRequest(clientId);
         } else if (baseRequest instanceof CreateRoomClientRequest) {
             CreateRoomClientRequest request = (CreateRoomClientRequest) baseRequest;
             processCreateRoomRequest(clientId, new RoomId(request.getRoomId()));
-        } else if (baseRequest instanceof WhoClientRequest) {
-            processWhoRequest(clientId);
+        } else if (baseRequest instanceof DeleteRoomClientRequest) {
+            DeleteRoomClientRequest request = (DeleteRoomClientRequest) baseRequest;
+            processDeleteRoomRequest(clientId, new RoomId(request.getRoomId()));
         } else {
             throw new UnsupportedOperationException();
         }
@@ -160,9 +173,10 @@ public class ChatConnector implements ClientSocketListener.Reporter, SystemState
      */
 
     @Override
-    public void createdParticipantId(@NonNull ServerId serverId, @NonNull ParticipantId participantId) {
+    @Synchronized
+    public void participantIdCreated(@NonNull ServerId serverId, @NonNull ParticipantId createParticipantId) {
         // Remove client from waiting list.
-        ClientId clientId = waitingForParticipantId.remove(participantId);
+        ClientId clientId = waitingForParticipantIdCreation.remove(createParticipantId);
         ChatClient chatClient = allClients.get(clientId);
 
         // Send APPROVED message to client.
@@ -172,13 +186,13 @@ public class ChatConnector implements ClientSocketListener.Reporter, SystemState
         chatClient.sendMessage(message1);
 
         // Update chat room maps.
-        clientParticipantMap.put(clientId, participantId);
+        clientParticipantMap.put(clientId, createParticipantId);
         roomClientListMap.get(mainRoomId).add(clientId);
-        participantRoomMap.put(participantId, mainRoomId);
+        participantRoomMap.put(createParticipantId, mainRoomId);
 
         // Send room change to all in main room.
-        RoomChangeClientResponse response2 = RoomChangeClientResponse.builder()
-                .participantId(participantId)
+        RoomChangeBroadcastResponse response2 = RoomChangeBroadcastResponse.builder()
+                .participantId(createParticipantId)
                 .currentRoomId(mainRoomId)
                 .formerRoomId(RoomId.NULL).build();
         String message2 = serializer.toJson(response2);
@@ -186,44 +200,79 @@ public class ChatConnector implements ClientSocketListener.Reporter, SystemState
     }
 
     @Override
-    public void createdRoomId(@NonNull ServerId serverId, @NonNull ParticipantId ownerId, @NonNull RoomId roomId) {
+    @Synchronized
+    public void roomIdCreated(@NonNull ServerId serverId, @NonNull ParticipantId ownerId,
+                              @NonNull RoomId createdRoomId) {
         // Remove owner from waiting list
-        ClientId ownerClientId = waitingForRoomId.remove(roomId);
+        ClientId ownerClientId = waitingForRoomIdCreation.remove(createdRoomId);
         ChatClient ownerChatClient = allClients.get(ownerClientId);
 
-
         // Update chat room maps.
+        RoomId formerRoomId = participantRoomMap.get(ownerId);
         List<ClientId> newRoomClients = new ArrayList<>();
         newRoomClients.add(ownerClientId);
-        roomClientListMap.put(roomId, newRoomClients);
-        participantRoomMap.put(ownerId, roomId);
+        roomClientListMap.get(formerRoomId).remove(ownerClientId);
+        roomClientListMap.put(createdRoomId, newRoomClients);
+        participantRoomMap.put(ownerId, createdRoomId);
 
         // Send APPROVED message.
         CreateRoomClientResponse response1 = CreateRoomClientResponse.builder()
+                .roomId(createdRoomId)
                 .approved(true).build();
         String message1 = serializer.toJson(response1);
         ownerChatClient.sendMessage(message1);
 
         // Send room change to previous room.
-        RoomId formerRoomId = participantRoomMap.get(ownerId);
-        RoomChangeClientResponse response2 = RoomChangeClientResponse.builder()
-                .currentRoomId(roomId)
+        RoomChangeBroadcastResponse response2 = RoomChangeBroadcastResponse.builder()
+                .currentRoomId(createdRoomId)
                 .formerRoomId(formerRoomId)
                 .participantId(ownerId).build();
         String message2 = serializer.toJson(response2);
+        ownerChatClient.sendMessage(message2);
         sendMessageToRoom(formerRoomId, message2);
     }
 
     @Override
-    public void deletedParticipantId(@NonNull ServerId serverId,
-                                     @NonNull ParticipantId participantId,
+    @Synchronized
+    public void participantIdDeleted(@NonNull ServerId serverId,
+                                     @NonNull ParticipantId deletedId,
                                      RoomId deletedRoomId) {
         // TODO
     }
 
     @Override
-    public void deletedRoomId(@NonNull ServerId serverId, RoomId deletedRoomId) {
-        // TODO
+    @Synchronized
+    public void roomIdDeleted(@NonNull ServerId serverId, RoomId deletedRoomId) {
+        // Remove owner from waiting list
+        ClientId ownerClientId = waitingForRoomIdDeletion.remove(deletedRoomId);
+        ChatClient ownerChatClient = allClients.get(ownerClientId);
+
+        // Update chat room maps.
+        // Remove old participants from room and add to main room.
+        List<ClientId> prevClientIds = roomClientListMap.remove(deletedRoomId);
+        roomClientListMap.get(mainRoomId).addAll(prevClientIds);
+        for (ClientId prevClientId : prevClientIds) {
+            ParticipantId prevParticipantId = clientParticipantMap.get(prevClientId);
+            participantRoomMap.put(prevParticipantId, mainRoomId);
+        }
+
+        // Send APPROVED message.
+        DeleteRoomClientResponse response1 = DeleteRoomClientResponse.builder()
+                .roomId(deletedRoomId)
+                .approved(true).build();
+        String message1 = serializer.toJson(response1);
+        ownerChatClient.sendMessage(message1);
+
+        // Send room change to all old users.
+        for (ClientId prevClientId : prevClientIds) {
+            ParticipantId prevParticipantId = clientParticipantMap.get(prevClientId);
+            RoomChangeBroadcastResponse response2 = RoomChangeBroadcastResponse.builder()
+                    .currentRoomId(mainRoomId)
+                    .formerRoomId(deletedRoomId)
+                    .participantId(prevParticipantId).build();
+            String message2 = serializer.toJson(response2);
+            sendMessageToRoom(mainRoomId, message2);
+        }
     }
 
     /*
@@ -232,20 +281,21 @@ public class ChatConnector implements ClientSocketListener.Reporter, SystemState
     ========================================================
      */
 
+    @Synchronized
     private void processNewIdentityRequest(ClientId clientId, ParticipantId participantId) {
         ChatClient chatClient = allClients.get(clientId);
 
         // If participant id is invalid locally, REJECT.
         if (systemState.hasParticipant(participantId)) {
-            NewIdentityClientResponse request1 = NewIdentityClientResponse.builder()
+            NewIdentityClientResponse response1 = NewIdentityClientResponse.builder()
                     .approved(false).build();
-            String message1 = serializer.toJson(request1);
+            String message1 = serializer.toJson(response1);
             chatClient.sendMessage(message1);
             return;
         }
 
         // Add client to waiting list.
-        waitingForParticipantId.put(participantId, clientId);
+        waitingForParticipantIdCreation.put(participantId, clientId);
 
         // TODO: Send to leader via RAFT.
         // Placeholder - put a log manually.
@@ -265,9 +315,9 @@ public class ChatConnector implements ClientSocketListener.Reporter, SystemState
         Collection<RoomId> roomIds = systemState.serverRoomIds(currentServerId);
 
         // Send room list.
-        ListClientResponse request1 = ListClientResponse.builder()
+        ListClientResponse response1 = ListClientResponse.builder()
                 .rooms(roomIds).build();
-        String message1 = serializer.toJson(request1);
+        String message1 = serializer.toJson(response1);
         chatClient.sendMessage(message1);
     }
 
@@ -280,14 +330,10 @@ public class ChatConnector implements ClientSocketListener.Reporter, SystemState
 
         // Send message to everyone (except originator) in room.
         RoomId currentRoomId = participantRoomMap.get(participantId);
-        MessageClientResponse request1 = MessageClientResponse.builder()
+        MessageBroadcastResponse response1 = MessageBroadcastResponse.builder()
                 .content(content).participantId(participantId).build();
-        String message1 = serializer.toJson(request1);
-        for (ClientId friendId : roomClientListMap.get(currentRoomId)) {
-            if (friendId != clientId) {
-                allClients.get(friendId).sendMessage(message1);
-            }
-        }
+        String message1 = serializer.toJson(response1);
+        sendMessageToRoomExceptOriginator(currentRoomId, message1, clientId);
     }
 
     private void processWhoRequest(ClientId clientId) {
@@ -309,14 +355,15 @@ public class ChatConnector implements ClientSocketListener.Reporter, SystemState
         }
 
         // Send who data list.
-        WhoClientResponse request1 = WhoClientResponse.builder()
+        WhoClientResponse response1 = WhoClientResponse.builder()
                 .ownerId(roomOwnerId)
                 .roomId(currentRoomId)
                 .participantIds(friendIds).build();
-        String message1 = serializer.toJson(request1);
+        String message1 = serializer.toJson(response1);
         chatClient.sendMessage(message1);
     }
 
+    @Synchronized
     private void processCreateRoomRequest(ClientId clientId, RoomId roomId) {
         ChatClient chatClient = allClients.get(clientId);
 
@@ -328,23 +375,58 @@ public class ChatConnector implements ClientSocketListener.Reporter, SystemState
 
         // If room id is invalid locally, REJECT.
         if (systemState.hasRoom(roomId)) {
-            CreateRoomClientResponse request1 = CreateRoomClientResponse.builder()
+            CreateRoomClientResponse response1 = CreateRoomClientResponse.builder()
                     .approved(false).build();
-            String message1 = serializer.toJson(request1);
+            String message1 = serializer.toJson(response1);
             chatClient.sendMessage(message1);
             return;
         }
         // Add client to waiting list.
-        waitingForRoomId.put(roomId, clientId);
+        waitingForRoomIdCreation.put(roomId, clientId);
 
         // TODO: Send to leader via RAFT.
         // Placeholder - put a log manually.
         systemState.apply(new CreateRoomLog(roomId.getValue(), participantId.getValue()));
     }
 
+    @Synchronized
+    private void processDeleteRoomRequest(ClientId clientId, RoomId roomId) {
+        ChatClient chatClient = allClients.get(clientId);
+
+        // If client does not have a participant id, ignore.
+        ParticipantId participantId = clientParticipantMap.get(clientId);
+        if (participantId == null) {
+            return;
+        }
+        // If the room does not exist or client is not the owner of the room, REJECT
+        if (!systemState.hasRoom(roomId) || !participantId.equals(systemState.getOwnerId(roomId))) {
+            DeleteRoomClientResponse response1 = DeleteRoomClientResponse.builder()
+                    .approved(false)
+                    .roomId(roomId).build();
+            String message1 = serializer.toJson(response1);
+            chatClient.sendMessage(message1);
+            return;
+        }
+
+        // Add client to waiting list.
+        waitingForRoomIdDeletion.put(roomId, clientId);
+
+        // TODO: Send to leader via RAFT.
+        // Placeholder - put a log manually.
+        systemState.apply(new DeleteRoomLog(roomId.getValue()));
+    }
+
     private void sendMessageToRoom(RoomId roomId, String message) {
         for (ClientId clientId : roomClientListMap.get(roomId)) {
             allClients.get(clientId).sendMessage(message);
+        }
+    }
+
+    private void sendMessageToRoomExceptOriginator(RoomId roomId, String message, ClientId originatorId) {
+        for (ClientId clientId : roomClientListMap.get(roomId)) {
+            if (!originatorId.equals(clientId)) {
+                allClients.get(clientId).sendMessage(message);
+            }
         }
     }
 

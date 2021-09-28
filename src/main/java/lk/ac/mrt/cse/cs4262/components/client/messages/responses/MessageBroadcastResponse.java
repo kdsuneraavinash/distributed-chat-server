@@ -2,25 +2,19 @@ package lk.ac.mrt.cse.cs4262.components.client.messages.responses;
 
 import com.google.gson.annotations.SerializedName;
 import lk.ac.mrt.cse.cs4262.common.symbols.ParticipantId;
-import lk.ac.mrt.cse.cs4262.common.symbols.RoomId;
 import lombok.Builder;
 import lombok.NonNull;
 import lombok.ToString;
 
 @ToString
 @Builder
-public class RoomChangeClientResponse {
-    private final String type = "roomchange";
+public class MessageBroadcastResponse {
+    private final String type = "message";
 
     @NonNull
     @SerializedName("identity")
     private final ParticipantId participantId;
 
     @NonNull
-    @SerializedName("former")
-    private final RoomId formerRoomId;
-
-    @NonNull
-    @SerializedName("roomid")
-    private final RoomId currentRoomId;
+    private final String content;
 }

@@ -4,6 +4,7 @@ import com.google.gson.JsonParseException;
 import lk.ac.mrt.cse.cs4262.common.utils.TypedJsonDeserializer;
 import lk.ac.mrt.cse.cs4262.components.client.messages.requests.BaseClientRequest;
 import lk.ac.mrt.cse.cs4262.components.client.messages.requests.CreateRoomClientRequest;
+import lk.ac.mrt.cse.cs4262.components.client.messages.requests.DeleteRoomClientRequest;
 import lk.ac.mrt.cse.cs4262.components.client.messages.requests.ListClientRequest;
 import lk.ac.mrt.cse.cs4262.components.client.messages.requests.MessageClientRequest;
 import lk.ac.mrt.cse.cs4262.components.client.messages.requests.NewIdentityClientRequest;
@@ -18,6 +19,7 @@ public class ClientMessageDeserializer extends TypedJsonDeserializer<BaseClientR
     private static final String MESSAGE_TYPE = "message";
     private static final String WHO_TYPE = "who";
     private static final String CREATE_ROOM_TYPE = "createroom";
+    private static final String DELETE_ROOM_TYPE = "deleteroom";
 
     protected ClientMessageDeserializer() {
         // Use field `type` to deserialization.
@@ -38,6 +40,8 @@ public class ClientMessageDeserializer extends TypedJsonDeserializer<BaseClientR
                 return WhoClientRequest.class;
             case CREATE_ROOM_TYPE:
                 return CreateRoomClientRequest.class;
+            case DELETE_ROOM_TYPE:
+                return DeleteRoomClientRequest.class;
             default:
                 throw new JsonParseException("Unknown type: " + type);
         }
