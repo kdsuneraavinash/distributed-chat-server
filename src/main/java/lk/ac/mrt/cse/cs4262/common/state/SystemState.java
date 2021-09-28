@@ -17,11 +17,4 @@ public interface SystemState extends SystemStateReadView {
      * @param logEntry Log entry to apply to the system.
      */
     void apply(@NonNull BaseLog logEntry);
-
-    /**
-     * Attaches a listener to listen state events.
-     *
-     * @param newListener Listener to attach.
-     */
-    void attachListener(@NonNull Listener newListener);
 }

@@ -1,5 +1,6 @@
-package lk.ac.mrt.cse.cs4262.components.client;
+package lk.ac.mrt.cse.cs4262.components.client.connector;
 
+import lk.ac.mrt.cse.cs4262.common.symbols.ClientId;
 import lombok.AllArgsConstructor;
 import lombok.Cleanup;
 
@@ -7,31 +8,38 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.net.Socket;
+import java.nio.charset.StandardCharsets;
 
 /**
  * Listens on a client for any inputs.
  * Will use {@link Reporter} to delegate any messages.
+ * Closing the socket would be done when thread exits.
  */
 @AllArgsConstructor
 public class ClientSocketListener implements Runnable {
-    private final Client client;
+    private final ClientId clientId;
+    private final Socket socket;
     private final Reporter reporter;
 
     @Override
     public void run() {
-        reporter.connectClient(client);
+        reporter.clientConnected(clientId);
         try {
-            @Cleanup InputStream inputStream = client.getSocket().getInputStream();
-            @Cleanup InputStreamReader inputStreamReader = new InputStreamReader(inputStream);
+            @Cleanup InputStream inputStream = socket.getInputStream();
+            @Cleanup InputStreamReader inputStreamReader = new InputStreamReader(inputStream, StandardCharsets.UTF_8);
             @Cleanup BufferedReader bufferedReader = new BufferedReader(inputStreamReader);
             String inputLine;
             while ((inputLine = bufferedReader.readLine()) != null) {
-                // TODO: Process messages on a new thread?
-                reporter.receiveRequest(client, inputLine);
+                reporter.clientRequestReceived(clientId, inputLine);
             }
         } catch (IOException ignored) {
         } finally {
-            reporter.disconnectClient(client);
+            try {
+                socket.close();
+            } catch (IOException ignored) {
+            }
+            reporter.clientDisconnected(clientId);
         }
     }
 
@@ -44,23 +52,23 @@ public class ClientSocketListener implements Runnable {
         /**
          * Report that a client connected.
          *
-         * @param client Connected client.
+         * @param clientId ID of the connected client.
          */
-        void connectClient(Client client);
+        void clientConnected(ClientId clientId);
 
         /**
          * Report that a client sent a message.
          *
-         * @param client     Client.
+         * @param clientId   ID of the Client.
          * @param rawRequest Raw message string.
          */
-        void receiveRequest(Client client, String rawRequest);
+        void clientRequestReceived(ClientId clientId, String rawRequest);
 
         /**
          * Report that a client disconnected.
          *
-         * @param client Client.
+         * @param clientId ID of the Client.
          */
-        void disconnectClient(Client client);
+        void clientDisconnected(ClientId clientId);
     }
 }

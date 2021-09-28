@@ -55,9 +55,16 @@ public interface SystemStateReadView {
     @NonNull RoomId getMainRoomId(@NonNull ServerId serverId);
 
     /**
+     * Attaches a listener to listen state events.
+     *
+     * @param newReporter Listener to attach.
+     */
+    void attachListener(@NonNull SystemStateReadView.Reporter newReporter);
+
+    /**
      * Listener for System state change events.
      */
-    interface Listener {
+    interface Reporter {
         /**
          * @param serverId      Owning server of the created identity.
          * @param participantId Created identity.
@@ -69,7 +76,7 @@ public interface SystemStateReadView {
          * @param ownerId  Owner id of created room.
          * @param roomId   Created room id.
          */
-        void createdRoom(@NonNull ServerId serverId, @NonNull ParticipantId ownerId, @NonNull RoomId roomId);
+        void createdRoomId(@NonNull ServerId serverId, @NonNull ParticipantId ownerId, @NonNull RoomId roomId);
 
 
         /**
@@ -77,12 +84,13 @@ public interface SystemStateReadView {
          * @param participantId Deleted identity.
          * @param deletedRoomId Room id owned by deleted participant. (if any)
          */
-        void deletedIdentity(@NonNull ServerId serverId, @NonNull ParticipantId participantId, RoomId deletedRoomId);
+        void deletedParticipantId(@NonNull ServerId serverId, @NonNull ParticipantId participantId,
+                                  RoomId deletedRoomId);
 
         /**
          * @param serverId      Owning server of the deleted room.
          * @param deletedRoomId Deleted room id.
          */
-        void deletedRoom(@NonNull ServerId serverId, RoomId deletedRoomId);
+        void deletedRoomId(@NonNull ServerId serverId, RoomId deletedRoomId);
     }
 }

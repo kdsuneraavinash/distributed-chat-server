@@ -56,7 +56,7 @@ public class SystemStateImpl implements SystemState {
     /**
      * Listener to attach for the changes in the system.
      */
-    private Listener listener;
+    private Reporter reporter;
 
     /**
      * Create a system state. See {@link SystemStateImpl}.
@@ -136,8 +136,8 @@ public class SystemStateImpl implements SystemState {
     }
 
     @Override
-    public void attachListener(@NonNull Listener newListener) {
-        this.listener = newListener;
+    public void attachListener(@NonNull SystemStateReadView.Reporter newReporter) {
+        this.reporter = newReporter;
     }
 
     private void createReservedIdsForServer(@NonNull ServerId serverId) {
@@ -154,8 +154,8 @@ public class SystemStateImpl implements SystemState {
         ServerId serverId = new ServerId(logEntry.getServerId());
         state.get(serverId).put(participantId, null);
         participantServerMap.put(participantId, serverId);
-        if (listener != null) {
-            listener.createdParticipantId(serverId, participantId);
+        if (reporter != null) {
+            reporter.createdParticipantId(serverId, participantId);
         }
     }
 
@@ -165,8 +165,8 @@ public class SystemStateImpl implements SystemState {
         ServerId serverId = participantServerMap.get(participantId);
         state.get(serverId).put(participantId, roomId);
         roomOwnerMap.put(roomId, participantId);
-        if (listener != null) {
-            listener.createdRoom(serverId, participantId, roomId);
+        if (reporter != null) {
+            reporter.createdRoomId(serverId, participantId, roomId);
         }
     }
 
@@ -177,8 +177,8 @@ public class SystemStateImpl implements SystemState {
         if (ownedRoomId != null) {
             roomOwnerMap.remove(ownedRoomId);
         }
-        if (listener != null) {
-            listener.deletedIdentity(serverId, participantId, ownedRoomId);
+        if (reporter != null) {
+            reporter.deletedParticipantId(serverId, participantId, ownedRoomId);
         }
     }
 
@@ -187,8 +187,8 @@ public class SystemStateImpl implements SystemState {
         ParticipantId ownerId = roomOwnerMap.remove(roomId);
         ServerId serverId = participantServerMap.get(ownerId);
         state.get(serverId).put(ownerId, null);
-        if (listener != null) {
-            listener.deletedRoom(serverId, roomId);
+        if (reporter != null) {
+            reporter.deletedRoomId(serverId, roomId);
         }
     }
 }

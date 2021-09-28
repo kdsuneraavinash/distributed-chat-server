@@ -37,7 +37,6 @@ public class ChatServer implements AutoCloseable {
         this.clientComponentThread = new Thread(clientComponent);
         this.gossipComponentThread = new Thread(gossipComponent);
         this.raftComponentThread = new Thread(raftComponent);
-        systemState.attachListener(this.clientComponent);
     }
 
     /**
