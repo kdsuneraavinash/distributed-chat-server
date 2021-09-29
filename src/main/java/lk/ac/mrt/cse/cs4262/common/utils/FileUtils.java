@@ -9,6 +9,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Scanner;
 import java.util.stream.Collectors;
 
@@ -25,15 +26,22 @@ public final class FileUtils {
      * Reads the file content from the resources.
      *
      * @param path Path of the file to read.
-     * @return Read text.
+     * @return Read text. Empty if reading failed.
      */
-    public static String readResource(String path) {
+    public static Optional<String> readResource(String path) {
         ClassLoader classLoader = FileUtils.class.getClassLoader();
-        InputStream inputStream = classLoader.getResourceAsStream(path);
-        Objects.requireNonNull(inputStream, "File does not exist: " + path);
-        InputStreamReader reader = new InputStreamReader(inputStream, StandardCharsets.UTF_8);
-        Scanner scanner = new Scanner(reader).useDelimiter(SPECIAL_DELIMITER);
-        return scanner.hasNext() ? scanner.next() : "";
+        if (classLoader != null) {
+            InputStream inputStream = classLoader.getResourceAsStream(path);
+            if (inputStream != null) {
+                Objects.requireNonNull(inputStream, "File does not exist: " + path);
+                InputStreamReader reader = new InputStreamReader(inputStream, StandardCharsets.UTF_8);
+                Scanner scanner = new Scanner(reader).useDelimiter(SPECIAL_DELIMITER);
+                String content = scanner.hasNext() ? scanner.next() : "";
+                return Optional.of(content);
+            }
+        }
+        // Fallback to empty string
+        return Optional.empty();
     }
 
     /**

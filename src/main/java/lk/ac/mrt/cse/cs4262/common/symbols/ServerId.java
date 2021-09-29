@@ -3,7 +3,6 @@ package lk.ac.mrt.cse.cs4262.common.symbols;
 
 import com.google.gson.annotations.JsonAdapter;
 import lk.ac.mrt.cse.cs4262.common.utils.ToStringSerializer;
-import lombok.NonNull;
 
 /**
  * The ID of a server in the system.
@@ -18,7 +17,7 @@ public class ServerId extends BaseId {
      *
      * @param value ID value.
      */
-    public ServerId(@NonNull String value) {
+    public ServerId(String value) {
         super(value);
     }
 }

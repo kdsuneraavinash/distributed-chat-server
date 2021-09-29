@@ -3,7 +3,6 @@ package lk.ac.mrt.cse.cs4262.common.state;
 import lk.ac.mrt.cse.cs4262.common.symbols.ParticipantId;
 import lk.ac.mrt.cse.cs4262.common.symbols.RoomId;
 import lk.ac.mrt.cse.cs4262.common.symbols.ServerId;
-import lombok.NonNull;
 
 import java.util.Collection;
 
@@ -17,61 +16,61 @@ public interface SystemStateReadView {
      * @param participantId ID of the participant.
      * @return Whether the participant is active in the system.
      */
-    boolean hasParticipant(@NonNull ParticipantId participantId);
+    boolean hasParticipant(ParticipantId participantId);
 
     /**
      * @param roomId ID of the room.
      * @return Whether the room is active in the system.
      */
-    boolean hasRoom(@NonNull RoomId roomId);
+    boolean hasRoom(RoomId roomId);
 
     /**
      * @param participantId ID of the participant.
      * @return Room ID if the participant owns a room. Otherwise null.
      */
-    RoomId owningRoom(@NonNull ParticipantId participantId);
+    RoomId owningRoom(ParticipantId participantId);
 
     /**
      * @param serverId ID of the server.
      * @return A list of all the active room IDs in the specified server.
      */
-    @NonNull Collection<RoomId> serverRoomIds(@NonNull ServerId serverId);
+    Collection<RoomId> serverRoomIds(ServerId serverId);
 
     /**
      * @param roomId ID of the room.
      * @return Participant ID of the owner of the room.
      */
-    @NonNull ParticipantId getOwnerId(@NonNull RoomId roomId);
+    ParticipantId getOwnerId(RoomId roomId);
 
     /**
      * @return The ID of the current active server.
      */
-    @NonNull ServerId getCurrentServerId();
+    ServerId getCurrentServerId();
 
     /**
      * @param serverId ID of the server.
      * @return The ID of the system user of specified server.
      */
-    @NonNull ParticipantId getSystemUserId(@NonNull ServerId serverId);
+    ParticipantId getSystemUserId(ServerId serverId);
 
     /**
      * @param serverId ID of the server.
      * @return The ID of the main room of specified server.
      */
-    @NonNull RoomId getMainRoomId(@NonNull ServerId serverId);
+    RoomId getMainRoomId(ServerId serverId);
 
     /**
      * @param roomId ID of the room.
      * @return The ID of the server with the room.
      */
-    @NonNull ServerId getRoomServerId(@NonNull RoomId roomId);
+    ServerId getRoomServerId(RoomId roomId);
 
     /**
      * Attaches a listener to listen state events.
      *
      * @param newReporter Listener to attach.
      */
-    void attachListener(@NonNull SystemStateReadView.Reporter newReporter);
+    void attachListener(SystemStateReadView.Reporter newReporter);
 
     /**
      * Listener for System state change events.
@@ -80,20 +79,20 @@ public interface SystemStateReadView {
         /**
          * @param createParticipantId Created identity.
          */
-        void participantIdCreated(@NonNull ParticipantId createParticipantId);
+        void participantIdCreated(ParticipantId createParticipantId);
 
         /**
          * @param ownerId       Owner id of created room.
          * @param createdRoomId Created room id.
          */
-        void roomIdCreated(@NonNull ParticipantId ownerId, @NonNull RoomId createdRoomId);
+        void roomIdCreated(ParticipantId ownerId, RoomId createdRoomId);
 
 
         /**
          * @param deletedId     Deleted identity.
          * @param deletedRoomId Room id owned by deleted participant. (if any)
          */
-        void participantIdDeleted(@NonNull ParticipantId deletedId,
+        void participantIdDeleted(ParticipantId deletedId,
                                   RoomId deletedRoomId);
 
         /**

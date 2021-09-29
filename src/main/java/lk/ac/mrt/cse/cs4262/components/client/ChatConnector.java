@@ -11,6 +11,7 @@ import lk.ac.mrt.cse.cs4262.common.symbols.ClientId;
 import lk.ac.mrt.cse.cs4262.common.symbols.ParticipantId;
 import lk.ac.mrt.cse.cs4262.common.symbols.RoomId;
 import lk.ac.mrt.cse.cs4262.common.symbols.ServerId;
+import lk.ac.mrt.cse.cs4262.components.client.chat.ChatRoomState;
 import lk.ac.mrt.cse.cs4262.components.client.connector.ChatClient;
 import lk.ac.mrt.cse.cs4262.components.client.connector.ClientSocketListener;
 import lk.ac.mrt.cse.cs4262.components.client.messages.requests.BaseClientRequest;
@@ -31,7 +32,6 @@ import lk.ac.mrt.cse.cs4262.components.client.messages.responses.RoomChangeBroad
 import lk.ac.mrt.cse.cs4262.components.client.messages.responses.WhoClientResponse;
 import lombok.Builder;
 import lombok.Getter;
-import lombok.NonNull;
 import lombok.Synchronized;
 import lombok.ToString;
 import lombok.extern.log4j.Log4j2;
@@ -39,7 +39,6 @@ import lombok.extern.log4j.Log4j2;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -52,38 +51,24 @@ public class ChatConnector implements ClientSocketListener.Reporter, SystemState
     /**
      * Data structure to track all the clients.
      */
-    private final Map<@NonNull ClientId, @NonNull ChatClient> allClients;
+    private final Map<ClientId, ChatClient> allClients;
 
-    /**
-     * Data structure to track participant id of clients.
-     */
-    private final Map<@NonNull ClientId, @NonNull ParticipantId> clientParticipantMap;
-
-    /**
-     * Data structure to track all the participants in a given room.
-     * The clients in the map should have a participant id.
-     */
-    private final Map<@NonNull RoomId, List<@NonNull ClientId>> roomClientListMap;
-
-    /**
-     * Data structure to track the current room of a given participant.
-     */
-    private final Map<@NonNull ParticipantId, @NonNull RoomId> participantRoomMap;
+    private final ChatRoomState chatRoomState;
 
     /**
      * Clients that are waiting for a participant id to be accepted.
      */
-    private final Map<@NonNull ParticipantId, @NonNull ClientId> waitingForParticipantIdCreation;
+    private final Map<ParticipantId, ClientId> waitingForParticipantIdCreation;
 
     /**
      * Clients that are waiting for a new room id to be accepted.
      */
-    private final Map<@NonNull RoomId, @NonNull ClientId> waitingForRoomIdCreation;
+    private final Map<RoomId, ClientId> waitingForRoomIdCreation;
 
     /**
      * Clients that are waiting for a new room id deletion to be accepted.
      */
-    private final Map<@NonNull RoomId, @NonNull ClientId> waitingForRoomIdDeletion;
+    private final Map<RoomId, ClientId> waitingForRoomIdDeletion;
 
     /**
      * Serializer used to convert to/from json.
@@ -101,11 +86,7 @@ public class ChatConnector implements ClientSocketListener.Reporter, SystemState
         this.systemState = systemState;
 
         this.allClients = new HashMap<>();
-
-        this.clientParticipantMap = new HashMap<>();
-        this.roomClientListMap = new HashMap<>();
-        this.roomClientListMap.put(this.mainRoomId, new ArrayList<>());
-        this.participantRoomMap = new HashMap<>();
+        chatRoomState = new ChatRoomState(mainRoomId);
 
         this.serializer = new Gson();
         this.waitingForParticipantIdCreation = new HashMap<>();
@@ -216,6 +197,7 @@ public class ChatConnector implements ClientSocketListener.Reporter, SystemState
      */
     private void processChatRoomListRequest(ParticipantClient participantClient) {
         log.trace("Processing: participantClient={}", participantClient);
+        // TODO: Integrate Gossip state
         Collection<RoomId> roomIds = systemState.serverRoomIds(currentServerId);
         ListClientResponse response = ListClientResponse.builder()
                 .rooms(roomIds).build();
@@ -253,9 +235,8 @@ public class ChatConnector implements ClientSocketListener.Reporter, SystemState
         RoomId currentRoomId = participantClient.getCurrentRoomId();
         ParticipantId roomOwnerId = systemState.getOwnerId(currentRoomId);
         Collection<ParticipantId> friendIds = new ArrayList<>();
-        for (ClientId friendClientId : roomClientListMap.get(currentRoomId)) {
-            ParticipantId fiendParticipantId = clientParticipantMap.get(friendClientId);
-            friendIds.add(fiendParticipantId);
+        for (ClientId friendClientId : chatRoomState.getClientIdsOf(currentRoomId)) {
+            chatRoomState.getParticipantIdOf(friendClientId).ifPresent(friendIds::add);
         }
         // Send who data list.
         WhoClientResponse response = WhoClientResponse.builder()
@@ -353,9 +334,7 @@ public class ChatConnector implements ClientSocketListener.Reporter, SystemState
             return;
         }
         // Update chat room maps.
-        participantRoomMap.put(participantId, roomId);
-        roomClientListMap.get(formerRoomId).remove(clientId);
-        roomClientListMap.get(roomId).add(clientId);
+        chatRoomState.roomJoinInternal(clientId, roomId);
         // Send room change to all in new/old room.
         RoomChangeBroadcastResponse response2 = RoomChangeBroadcastResponse.builder()
                 .participantId(participantId)
@@ -377,10 +356,9 @@ public class ChatConnector implements ClientSocketListener.Reporter, SystemState
         ClientId clientId = participantClient.getClientId();
         RoomId currentRoomId = participantClient.getCurrentRoomId();
 
+        // FIXME
         allClients.remove(clientId);
-        clientParticipantMap.remove(clientId);
-        participantRoomMap.remove(participantClient.getParticipantId());
-        roomClientListMap.get(currentRoomId).remove(clientId);
+        chatRoomState.participantQuit(clientId);
 
         RoomChangeBroadcastResponse response = RoomChangeBroadcastResponse.builder()
                 .participantId(participantClient.getParticipantId())
@@ -407,7 +385,7 @@ public class ChatConnector implements ClientSocketListener.Reporter, SystemState
 
     @Override
     @Synchronized
-    public void participantIdCreated(@NonNull ParticipantId createParticipantId) {
+    public void participantIdCreated(ParticipantId createParticipantId) {
         log.trace("Processing: createParticipantId={}", createParticipantId);
         // Remove client from waiting list.
         ClientId clientId = waitingForParticipantIdCreation.remove(createParticipantId);
@@ -419,10 +397,8 @@ public class ChatConnector implements ClientSocketListener.Reporter, SystemState
         String message1 = serializer.toJson(response1);
         chatClient.sendMessage(message1);
 
-        // Update chat room maps.
-        clientParticipantMap.put(clientId, createParticipantId);
-        roomClientListMap.get(mainRoomId).add(clientId);
-        participantRoomMap.put(createParticipantId, mainRoomId);
+        // FIXME: Update chat room maps.
+        chatRoomState.participantCreate(clientId, createParticipantId);
 
         // Send room change to all in main room.
         RoomChangeBroadcastResponse response2 = RoomChangeBroadcastResponse.builder()
@@ -435,19 +411,15 @@ public class ChatConnector implements ClientSocketListener.Reporter, SystemState
 
     @Override
     @Synchronized
-    public void roomIdCreated(@NonNull ParticipantId ownerId, @NonNull RoomId createdRoomId) {
+    public void roomIdCreated(ParticipantId ownerId, RoomId createdRoomId) {
         log.trace("Processing: ownerId={} createdRoomId={}", ownerId, createdRoomId);
         // Remove owner from waiting list
         ClientId ownerClientId = waitingForRoomIdCreation.remove(createdRoomId);
         ChatClient ownerChatClient = allClients.get(ownerClientId);
 
-        // Update chat room maps.
-        RoomId formerRoomId = participantRoomMap.get(ownerId);
-        List<ClientId> newRoomClients = new ArrayList<>();
-        newRoomClients.add(ownerClientId);
-        roomClientListMap.get(formerRoomId).remove(ownerClientId);
-        roomClientListMap.put(createdRoomId, newRoomClients);
-        participantRoomMap.put(ownerId, createdRoomId);
+        // FIXME Update chat room maps.
+        RoomId formerRoomId = chatRoomState.getCurrentRoomIdOf(ownerId).get();
+        chatRoomState.roomCreate(ownerClientId, createdRoomId);
 
         // Send APPROVED message.
         CreateRoomClientResponse response1 = CreateRoomClientResponse.builder()
@@ -468,7 +440,7 @@ public class ChatConnector implements ClientSocketListener.Reporter, SystemState
 
     @Override
     @Synchronized
-    public void participantIdDeleted(@NonNull ParticipantId deletedId, RoomId deletedRoomId) {
+    public void participantIdDeleted(ParticipantId deletedId, RoomId deletedRoomId) {
         log.trace("Processing: deletedId={} deletedRoomId={}", deletedId, deletedRoomId);
         if (deletedRoomId == null) {
             // Nothing more to do
@@ -476,23 +448,19 @@ public class ChatConnector implements ClientSocketListener.Reporter, SystemState
         }
 
         // Update chat room maps.
-        // Remove old participants from room and add to main room.
-        List<ClientId> prevClientIds = roomClientListMap.remove(deletedRoomId);
-        roomClientListMap.get(mainRoomId).addAll(prevClientIds);
-        for (ClientId prevClientId : prevClientIds) {
-            ParticipantId prevParticipantId = clientParticipantMap.get(prevClientId);
-            participantRoomMap.put(prevParticipantId, mainRoomId);
-        }
+        // FIXME Remove old participants from room and add to main room.
+        Collection<ClientId> prevClientIds = chatRoomState.roomDelete(deletedRoomId);
 
         // Send room change to all old users.
         for (ClientId prevClientId : prevClientIds) {
-            ParticipantId prevParticipantId = clientParticipantMap.get(prevClientId);
-            RoomChangeBroadcastResponse response2 = RoomChangeBroadcastResponse.builder()
-                    .currentRoomId(mainRoomId)
-                    .formerRoomId(deletedRoomId)
-                    .participantId(prevParticipantId).build();
-            String message2 = serializer.toJson(response2);
-            sendMessageToRoom(mainRoomId, message2);
+            chatRoomState.getParticipantIdOf(prevClientId).ifPresent((prevParticipantId) -> {
+                RoomChangeBroadcastResponse response2 = RoomChangeBroadcastResponse.builder()
+                        .currentRoomId(mainRoomId)
+                        .formerRoomId(deletedRoomId)
+                        .participantId(prevParticipantId).build();
+                String message2 = serializer.toJson(response2);
+                sendMessageToRoom(mainRoomId, message2);
+            });
         }
     }
 
@@ -505,13 +473,8 @@ public class ChatConnector implements ClientSocketListener.Reporter, SystemState
         ChatClient ownerChatClient = allClients.get(ownerClientId);
 
         // Update chat room maps.
-        // Remove old participants from room and add to main room.
-        List<ClientId> prevClientIds = roomClientListMap.remove(deletedRoomId);
-        roomClientListMap.get(mainRoomId).addAll(prevClientIds);
-        for (ClientId prevClientId : prevClientIds) {
-            ParticipantId prevParticipantId = clientParticipantMap.get(prevClientId);
-            participantRoomMap.put(prevParticipantId, mainRoomId);
-        }
+        // FIXME Remove old participants from room and add to main room.
+        Collection<ClientId> prevClientIds = chatRoomState.roomDelete(deletedRoomId);
 
         // Send APPROVED message.
         DeleteRoomClientResponse response1 = DeleteRoomClientResponse.builder()
@@ -522,13 +485,14 @@ public class ChatConnector implements ClientSocketListener.Reporter, SystemState
 
         // Send room change to all old users.
         for (ClientId prevClientId : prevClientIds) {
-            ParticipantId prevParticipantId = clientParticipantMap.get(prevClientId);
-            RoomChangeBroadcastResponse response2 = RoomChangeBroadcastResponse.builder()
-                    .currentRoomId(mainRoomId)
-                    .formerRoomId(deletedRoomId)
-                    .participantId(prevParticipantId).build();
-            String message2 = serializer.toJson(response2);
-            sendMessageToRoom(mainRoomId, message2);
+            chatRoomState.getParticipantIdOf(prevClientId).ifPresent((prevParticipantId) -> {
+                RoomChangeBroadcastResponse response2 = RoomChangeBroadcastResponse.builder()
+                        .currentRoomId(mainRoomId)
+                        .formerRoomId(deletedRoomId)
+                        .participantId(prevParticipantId).build();
+                String message2 = serializer.toJson(response2);
+                sendMessageToRoom(mainRoomId, message2);
+            });
         }
     }
 
@@ -554,14 +518,21 @@ public class ChatConnector implements ClientSocketListener.Reporter, SystemState
     private Optional<ParticipantClient> getParticipantClient(ClientId clientId) {
         // Participant ID required section.
         // If client does not have a participant id, ignore.
-        ParticipantId participantId = clientParticipantMap.get(clientId);
-        if (participantId == null) {
+        Optional<ParticipantId> participantIdOptional = chatRoomState.getParticipantIdOf(clientId);
+        if (participantIdOptional.isEmpty()) {
             log.warn("Ignoring: Client({})", clientId);
             return Optional.empty();
         }
+        ParticipantId participantId = participantIdOptional.get();
+
         // Ignore if not from this server.
         // This should not happen technically.
-        RoomId currentRoomId = participantRoomMap.get(participantId);
+        Optional<RoomId> currentRoomIdOptional = chatRoomState.getCurrentRoomIdOf(participantId);
+        if (currentRoomIdOptional.isEmpty()) {
+            log.warn("Ignoring: Client({})", clientId);
+            return Optional.empty();
+        }
+        RoomId currentRoomId = currentRoomIdOptional.get();
         ServerId serverId = systemState.getRoomServerId(currentRoomId);
         if (!currentServerId.equals(serverId)) {
             log.warn("Wrong Server: Client({}) expected Server({})", clientId, serverId);
@@ -582,13 +553,13 @@ public class ChatConnector implements ClientSocketListener.Reporter, SystemState
     }
 
     private void sendMessageToRoom(RoomId roomId, String message) {
-        for (ClientId clientId : roomClientListMap.get(roomId)) {
+        for (ClientId clientId : chatRoomState.getClientIdsOf(roomId)) {
             allClients.get(clientId).sendMessage(message);
         }
     }
 
     private void sendMessageToRoomExceptOriginator(RoomId roomId, String message, ClientId originatorId) {
-        for (ClientId clientId : roomClientListMap.get(roomId)) {
+        for (ClientId clientId : chatRoomState.getClientIdsOf(roomId)) {
             if (!originatorId.equals(clientId)) {
                 allClients.get(clientId).sendMessage(message);
             }
@@ -599,15 +570,10 @@ public class ChatConnector implements ClientSocketListener.Reporter, SystemState
     @Getter
     @Builder
     private static class ParticipantClient {
-        @NonNull
         private final ClientId clientId;
-        @NonNull
         private final ChatClient chatClient;
-        @NonNull
         private final ParticipantId participantId;
-        @NonNull
         private final ServerId serverId;
-        @NonNull
         private final RoomId currentRoomId;
         private final RoomId owningRoomId;
 

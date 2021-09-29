@@ -8,7 +8,6 @@ import lk.ac.mrt.cse.cs4262.common.state.logs.DeleteRoomLog;
 import lk.ac.mrt.cse.cs4262.common.symbols.ParticipantId;
 import lk.ac.mrt.cse.cs4262.common.symbols.RoomId;
 import lk.ac.mrt.cse.cs4262.common.symbols.ServerId;
-import lombok.NonNull;
 import lombok.ToString;
 import lombok.extern.log4j.Log4j2;
 
@@ -42,20 +41,20 @@ public class SystemStateImpl implements SystemState {
      * Other objects are simply for performance-sake.
      */
     @ToString.Include
-    private final Map<@NonNull ServerId, HashMap<@NonNull ParticipantId, RoomId>> state;
+    private final Map<ServerId, HashMap<ParticipantId, RoomId>> state;
 
     /**
      * Map for each participant to record the server that they are part of.
      * This is a derived value of {@code state}. Used for reverse relations.
      */
     @ToString.Include
-    private final Map<@NonNull ParticipantId, @NonNull ServerId> participantServerMap;
+    private final Map<ParticipantId, ServerId> participantServerMap;
     /**
      * Map for each room to record their owner.
      * This is a derived value of {@code state}. Used for reverse relations.
      */
     @ToString.Include
-    private final Map<@NonNull RoomId, @NonNull ParticipantId> roomOwnerMap;
+    private final Map<RoomId, ParticipantId> roomOwnerMap;
     /**
      * Listener to attach for the changes in the system.
      */
@@ -76,7 +75,7 @@ public class SystemStateImpl implements SystemState {
     }
 
     @Override
-    public void apply(@NonNull BaseLog logEntry) {
+    public void apply(BaseLog logEntry) {
         log.info("Log: {}", logEntry);
         if (logEntry instanceof CreateIdentityLog) {
             applyCreateIdentityLog((CreateIdentityLog) logEntry);
@@ -94,12 +93,12 @@ public class SystemStateImpl implements SystemState {
     }
 
     @Override
-    public boolean hasParticipant(@NonNull ParticipantId participantId) {
+    public boolean hasParticipant(ParticipantId participantId) {
         return participantServerMap.containsKey(participantId);
     }
 
     @Override
-    public boolean hasRoom(@NonNull RoomId roomId) {
+    public boolean hasRoom(RoomId roomId) {
         if (RoomId.NULL.equals(roomId)) {
             return true;
         }
@@ -107,13 +106,13 @@ public class SystemStateImpl implements SystemState {
     }
 
     @Override
-    public RoomId owningRoom(@NonNull ParticipantId participantId) {
+    public RoomId owningRoom(ParticipantId participantId) {
         ServerId serverId = participantServerMap.get(participantId);
         return state.get(serverId).get(participantId);
     }
 
     @Override
-    public @NonNull Collection<RoomId> serverRoomIds(@NonNull ServerId serverId) {
+    public Collection<RoomId> serverRoomIds(ServerId serverId) {
         Set<RoomId> roomIds = new HashSet<>();
         // TODO: Increase performance by maintaining a data structure?
         state.get(serverId).forEach((key, value) -> {
@@ -125,38 +124,38 @@ public class SystemStateImpl implements SystemState {
     }
 
     @Override
-    public @NonNull ParticipantId getOwnerId(@NonNull RoomId roomId) {
+    public ParticipantId getOwnerId(RoomId roomId) {
         return roomOwnerMap.get(roomId);
     }
 
     @Override
-    public @NonNull ServerId getCurrentServerId() {
+    public ServerId getCurrentServerId() {
         // TODO: Implement this using configurations.
         return new ServerId("SERVER");
     }
 
     @Override
-    public @NonNull ParticipantId getSystemUserId(@NonNull ServerId serverId) {
+    public ParticipantId getSystemUserId(ServerId serverId) {
         return new ParticipantId(SYSTEM_USER_PREFIX + serverId.getValue());
     }
 
     @Override
-    public @NonNull RoomId getMainRoomId(@NonNull ServerId serverId) {
+    public RoomId getMainRoomId(ServerId serverId) {
         return new RoomId(MAIN_ROOM_PREFIX + serverId.getValue());
     }
 
     @Override
-    public @NonNull ServerId getRoomServerId(@NonNull RoomId roomId) {
+    public ServerId getRoomServerId(RoomId roomId) {
         ParticipantId ownerId = roomOwnerMap.get(roomId);
         return participantServerMap.get(ownerId);
     }
 
     @Override
-    public void attachListener(@NonNull SystemStateReadView.Reporter newReporter) {
+    public void attachListener(SystemStateReadView.Reporter newReporter) {
         this.reporter = newReporter;
     }
 
-    private void createReservedIdsForServer(@NonNull ServerId serverId) {
+    private void createReservedIdsForServer(ServerId serverId) {
         RoomId mainRoomId = getMainRoomId(serverId);
         ParticipantId systemUserId = getSystemUserId(serverId);
         this.state.put(serverId, new HashMap<>());
@@ -165,7 +164,7 @@ public class SystemStateImpl implements SystemState {
         this.roomOwnerMap.put(mainRoomId, systemUserId);
     }
 
-    private void applyCreateIdentityLog(@NonNull CreateIdentityLog logEntry) {
+    private void applyCreateIdentityLog(CreateIdentityLog logEntry) {
         ParticipantId participantId = new ParticipantId(logEntry.getIdentity());
         ServerId serverId = new ServerId(logEntry.getServerId());
         state.get(serverId).put(participantId, null);
@@ -175,7 +174,7 @@ public class SystemStateImpl implements SystemState {
         }
     }
 
-    private void applyCreateRoomLog(@NonNull CreateRoomLog logEntry) {
+    private void applyCreateRoomLog(CreateRoomLog logEntry) {
         ParticipantId participantId = new ParticipantId(logEntry.getParticipantId());
         RoomId roomId = new RoomId(logEntry.getRoomId());
         ServerId serverId = participantServerMap.get(participantId);
@@ -186,7 +185,7 @@ public class SystemStateImpl implements SystemState {
         }
     }
 
-    private void applyDeleteIdentityLog(@NonNull DeleteIdentityLog logEntry) {
+    private void applyDeleteIdentityLog(DeleteIdentityLog logEntry) {
         ParticipantId participantId = new ParticipantId(logEntry.getIdentity());
         ServerId serverId = participantServerMap.remove(participantId);
         RoomId ownedRoomId = state.get(serverId).remove(participantId);
@@ -198,7 +197,7 @@ public class SystemStateImpl implements SystemState {
         }
     }
 
-    private void applyDeleteRoomLog(@NonNull DeleteRoomLog logEntry) {
+    private void applyDeleteRoomLog(DeleteRoomLog logEntry) {
         RoomId roomId = new RoomId(logEntry.getRoomId());
         ParticipantId ownerId = roomOwnerMap.remove(roomId);
         ServerId serverId = participantServerMap.get(ownerId);

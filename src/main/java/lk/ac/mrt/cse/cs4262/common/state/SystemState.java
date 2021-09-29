@@ -1,7 +1,6 @@
 package lk.ac.mrt.cse.cs4262.common.state;
 
 import lk.ac.mrt.cse.cs4262.common.state.logs.BaseLog;
-import lombok.NonNull;
 
 /**
  * The State containing the primary system state.
@@ -16,5 +15,5 @@ public interface SystemState extends SystemStateReadView {
      *
      * @param logEntry Log entry to apply to the system.
      */
-    void apply(@NonNull BaseLog logEntry);
+    void apply(BaseLog logEntry);
 }

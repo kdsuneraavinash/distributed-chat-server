@@ -3,6 +3,7 @@ plugins {
     id "io.freefair.lombok" version "6.2.0"
     id "checkstyle"
     id 'com.github.johnrengelman.shadow' version '7.0.0'
+    id 'org.checkerframework' version '0.6.1'
 }
 
 group 'org.example'
@@ -29,6 +30,12 @@ checkstyleMain {
     source = 'src/main/java'
 }
 
+checkerFramework {
+    checkers = [
+            'org.checkerframework.checker.nullness.NullnessChecker',
+    ]
+}
+
 shadowJar {
     //noinspection GroovyAssignabilityCheck
     manifest {
@@ -39,3 +46,5 @@ shadowJar {
 test {
     useJUnitPlatform()
 }
+
+apply plugin: 'org.checkerframework'

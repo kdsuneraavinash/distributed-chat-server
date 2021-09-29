@@ -1,7 +1,5 @@
 package lk.ac.mrt.cse.cs4262.common.symbols;
 
-import lombok.NonNull;
-
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -17,7 +15,7 @@ public final class ClientId extends BaseId {
      *
      * @param value ID value.
      */
-    private ClientId(@NonNull String value) {
+    private ClientId(String value) {
         super(value);
     }
 
