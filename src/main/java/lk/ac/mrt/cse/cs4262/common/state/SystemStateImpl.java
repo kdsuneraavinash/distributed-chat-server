@@ -77,7 +77,7 @@ public class SystemStateImpl implements SystemState {
 
     @Override
     public void apply(@NonNull BaseLog logEntry) {
-        log.info("Writing: {}", logEntry);
+        log.info("Log: {}", logEntry);
         if (logEntry instanceof CreateIdentityLog) {
             applyCreateIdentityLog((CreateIdentityLog) logEntry);
         } else if (logEntry instanceof CreateRoomLog) {
@@ -90,7 +90,7 @@ public class SystemStateImpl implements SystemState {
             throw new UnsupportedOperationException();
         }
         // TODO: Persist state.
-        log.info(this);
+        log.trace("State after Log: {}", this);
     }
 
     @Override

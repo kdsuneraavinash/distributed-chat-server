@@ -161,7 +161,7 @@ public class ChatConnector implements ClientSocketListener.Reporter, SystemState
                 processQuitRequest(participantClientOptional.get());
                 return true;
             } else {
-                log.error("Unknown command from Client({}): {}", clientId, rawRequest);
+                log.warn("Unknown command from Client({}): {}", clientId, rawRequest);
             }
         }
         return false;
@@ -191,7 +191,7 @@ public class ChatConnector implements ClientSocketListener.Reporter, SystemState
      */
     @Synchronized
     private void processNewIdentityRequest(ClientId clientId, ParticipantId participantId) {
-        log.info("Processing new identity message: {} {}", clientId, participantId);
+        log.trace("Processing: clientId={} participantId={}", clientId, participantId);
         ChatClient chatClient = allClients.get(clientId);
         // If participant id is invalid locally, REJECT.
         if (systemState.hasParticipant(participantId)) {
@@ -215,7 +215,7 @@ public class ChatConnector implements ClientSocketListener.Reporter, SystemState
      * @param participantClient Participant client.
      */
     private void processChatRoomListRequest(ParticipantClient participantClient) {
-        log.info("Processing list message: {}", participantClient);
+        log.trace("Processing: participantClient={}", participantClient);
         Collection<RoomId> roomIds = systemState.serverRoomIds(currentServerId);
         ListClientResponse response = ListClientResponse.builder()
                 .rooms(roomIds).build();
@@ -231,7 +231,7 @@ public class ChatConnector implements ClientSocketListener.Reporter, SystemState
      * @param content           Content to broadcast.
      */
     private void processMessageRequest(ParticipantClient participantClient, String content) {
-        log.info("Processing broadcast message: {} {}", participantClient, content);
+        log.trace("Processing: participantClient={} content={}", participantClient, content);
         MessageBroadcastResponse response = MessageBroadcastResponse.builder()
                 .participantId(participantClient.getParticipantId())
                 .content(content).build();
@@ -248,7 +248,7 @@ public class ChatConnector implements ClientSocketListener.Reporter, SystemState
      * @param participantClient Participant client.
      */
     private void processWhoRequest(ParticipantClient participantClient) {
-        log.info("Processing who message: {}", participantClient);
+        log.trace("Processing: participantClient={}", participantClient);
         // Find information for the response.
         RoomId currentRoomId = participantClient.getCurrentRoomId();
         ParticipantId roomOwnerId = systemState.getOwnerId(currentRoomId);
@@ -277,7 +277,7 @@ public class ChatConnector implements ClientSocketListener.Reporter, SystemState
      */
     @Synchronized
     private void processCreateRoomRequest(ParticipantClient participantClient, RoomId roomId) {
-        log.info("Processing create room message: {} {}", participantClient, roomId);
+        log.trace("Processing: participantClient={} roomId={}", participantClient, roomId);
         // If room id is invalid locally, REJECT.
         if (systemState.hasRoom(roomId)) {
             CreateRoomClientResponse response = CreateRoomClientResponse.builder()
@@ -305,7 +305,7 @@ public class ChatConnector implements ClientSocketListener.Reporter, SystemState
      */
     @Synchronized
     private void processDeleteRoomRequest(ParticipantClient participantClient, RoomId roomId) {
-        log.info("Processing delete room message: {} {}", participantClient, roomId);
+        log.trace("Processing: participantClient={} roomId={}", participantClient, roomId);
         // If the room does not exist or client is not the owner of the room, REJECT
         if (!systemState.hasRoom(roomId)
                 || !participantClient.getParticipantId().equals(systemState.getOwnerId(roomId))) {
@@ -335,7 +335,7 @@ public class ChatConnector implements ClientSocketListener.Reporter, SystemState
      */
     @Synchronized
     private void processJoinRoomRequest(ParticipantClient participantClient, RoomId roomId) {
-        log.info("Processing join room message: {} {}", participantClient, roomId);
+        log.trace("Processing: participantClient={} roomId={}", participantClient, roomId);
         // Cant change if owns a room or room id is invalid.
         RoomId formerRoomId = participantClient.getCurrentRoomId();
         ParticipantId participantId = participantClient.getParticipantId();
@@ -372,7 +372,7 @@ public class ChatConnector implements ClientSocketListener.Reporter, SystemState
      */
     @Synchronized
     private void processQuitRequest(ParticipantClient participantClient) {
-        log.info("Processing quit message: {}", participantClient);
+        log.trace("Processing: participantClient={}", participantClient);
         ClientId clientId = participantClient.getClientId();
         RoomId currentRoomId = participantClient.getCurrentRoomId();
 
@@ -407,7 +407,7 @@ public class ChatConnector implements ClientSocketListener.Reporter, SystemState
     @Override
     @Synchronized
     public void participantIdCreated(@NonNull ParticipantId createParticipantId) {
-        log.info("Processing participant id created event: {}", createParticipantId);
+        log.trace("Processing: createParticipantId={}", createParticipantId);
         // Remove client from waiting list.
         ClientId clientId = waitingForParticipantIdCreation.remove(createParticipantId);
         ChatClient chatClient = allClients.get(clientId);
@@ -435,7 +435,7 @@ public class ChatConnector implements ClientSocketListener.Reporter, SystemState
     @Override
     @Synchronized
     public void roomIdCreated(@NonNull ParticipantId ownerId, @NonNull RoomId createdRoomId) {
-        log.info("Processing room id created event: {} {}", ownerId, createdRoomId);
+        log.trace("Processing: ownerId={} createdRoomId={}", ownerId, createdRoomId);
         // Remove owner from waiting list
         ClientId ownerClientId = waitingForRoomIdCreation.remove(createdRoomId);
         ChatClient ownerChatClient = allClients.get(ownerClientId);
@@ -468,7 +468,7 @@ public class ChatConnector implements ClientSocketListener.Reporter, SystemState
     @Override
     @Synchronized
     public void participantIdDeleted(@NonNull ParticipantId deletedId, RoomId deletedRoomId) {
-        log.info("Processing identity id created event: {} {}", deletedId, deletedRoomId);
+        log.trace("Processing: deletedId={} deletedRoomId={}", deletedId, deletedRoomId);
         if (deletedRoomId == null) {
             // Nothing more to do
             return;
@@ -498,7 +498,7 @@ public class ChatConnector implements ClientSocketListener.Reporter, SystemState
     @Override
     @Synchronized
     public void roomIdDeleted(RoomId deletedRoomId) {
-        log.info("Processing room id deleted event: {}", deletedRoomId);
+        log.trace("Processing: deletedRoomId={}", deletedRoomId);
         // Remove owner from waiting list
         ClientId ownerClientId = waitingForRoomIdDeletion.remove(deletedRoomId);
         ChatClient ownerChatClient = allClients.get(ownerClientId);
@@ -555,7 +555,7 @@ public class ChatConnector implements ClientSocketListener.Reporter, SystemState
         // If client does not have a participant id, ignore.
         ParticipantId participantId = clientParticipantMap.get(clientId);
         if (participantId == null) {
-            log.info("Ignoring Client({})", clientId);
+            log.warn("Ignoring: Client({})", clientId);
             return Optional.empty();
         }
         // Ignore if not from this server.
@@ -563,7 +563,7 @@ public class ChatConnector implements ClientSocketListener.Reporter, SystemState
         RoomId currentRoomId = participantRoomMap.get(participantId);
         ServerId serverId = systemState.getRoomServerId(currentRoomId);
         if (!currentServerId.equals(serverId)) {
-            log.info("Connected to Wrong Server Client({}) < {}", clientId, serverId);
+            log.warn("Wrong Server: Client({}) expected Server({})", clientId, serverId);
             return Optional.empty();
         }
 

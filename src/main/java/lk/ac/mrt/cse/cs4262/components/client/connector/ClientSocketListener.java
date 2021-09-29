@@ -40,7 +40,7 @@ public class ClientSocketListener implements Runnable {
                 exitByServer = reporter.processClientRequest(clientId, inputLine);
             }
         } catch (IOException e) {
-            log.error("Client({}) exit unexpectedly.", clientId);
+            log.error("Client({}) -X Server", clientId);
             reporter.clientSideDisconnect(clientId);
         } finally {
             try {
