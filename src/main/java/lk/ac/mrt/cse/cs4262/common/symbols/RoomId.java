@@ -3,7 +3,6 @@ package lk.ac.mrt.cse.cs4262.common.symbols;
 
 import com.google.gson.annotations.JsonAdapter;
 import lk.ac.mrt.cse.cs4262.common.utils.ToStringSerializer;
-import lombok.NonNull;
 
 /**
  * The ID of a room in the system.
@@ -22,7 +21,7 @@ public class RoomId extends BaseId {
      *
      * @param value ID value.
      */
-    public RoomId(@NonNull String value) {
+    public RoomId(String value) {
         super(value);
     }
 }

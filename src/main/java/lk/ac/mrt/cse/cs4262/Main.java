@@ -24,8 +24,7 @@ public class Main implements Callable<Integer> {
     @Override
     public Integer call() throws Exception {
         // Start server on the specified configuration
-        System.out.println(FileUtils.readResource("header.txt"));
-
+        FileUtils.readResource("header.txt").ifPresent(System.out::println);
         @Cleanup ChatServer chatServer = new ChatServer(this.port);
         chatServer.startListening();
         return 0;

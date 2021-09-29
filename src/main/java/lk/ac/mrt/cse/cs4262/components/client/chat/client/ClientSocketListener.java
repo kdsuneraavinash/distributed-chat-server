@@ -1,4 +1,4 @@
-package lk.ac.mrt.cse.cs4262.components.client.connector;
+package lk.ac.mrt.cse.cs4262.components.client.chat.client;
 
 import lk.ac.mrt.cse.cs4262.common.symbols.ClientId;
 import lombok.AllArgsConstructor;
@@ -14,7 +14,7 @@ import java.nio.charset.StandardCharsets;
 
 /**
  * Listens on a client for any inputs.
- * Will use {@link Reporter} to delegate any messages.
+ * Will use {@link EventHandler} to delegate any messages.
  * Closing the socket would be done when thread exits.
  */
 @Log4j2
@@ -22,7 +22,7 @@ import java.nio.charset.StandardCharsets;
 public class ClientSocketListener implements Runnable {
     private final ClientId clientId;
     private final Socket socket;
-    private final Reporter reporter;
+    private final EventHandler eventHandler;
 
     @Override
     public void run() {
@@ -37,11 +37,11 @@ public class ClientSocketListener implements Runnable {
                     throw new IOException("Closed connection");
                 }
                 log.info("Client({}) -> Server: {}", clientId, inputLine);
-                exitByServer = reporter.processClientRequest(clientId, inputLine);
+                exitByServer = eventHandler.processClientRequest(clientId, inputLine);
             }
         } catch (IOException e) {
             log.error("Client({}) -X Server", clientId);
-            reporter.clientSideDisconnect(clientId);
+            eventHandler.clientSideDisconnect(clientId);
         } finally {
             try {
                 socket.close();
@@ -51,11 +51,11 @@ public class ClientSocketListener implements Runnable {
     }
 
     /**
-     * Reporter interface for handling any inputs/events from the client.
+     * Event handler interface for handling any inputs/events from the client.
      * Note that, these events are fired only on actions from client side.
      * For example, disconnecting on server side will not fire this.
      */
-    public interface Reporter {
+    public interface EventHandler {
         /**
          * Report that a client sent a message.
          *

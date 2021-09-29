@@ -5,7 +5,6 @@ import com.google.gson.annotations.SerializedName;
 import lk.ac.mrt.cse.cs4262.common.symbols.RoomId;
 import lk.ac.mrt.cse.cs4262.common.utils.ToStringSerializer;
 import lombok.Builder;
-import lombok.NonNull;
 import lombok.ToString;
 
 @ToString
@@ -13,11 +12,9 @@ import lombok.ToString;
 public class CreateRoomClientResponse {
     private final String type = "createroom";
 
-    @NonNull
     @SerializedName("roomid")
     private final RoomId roomId;
 
-    @NonNull
     @JsonAdapter(ToStringSerializer.class)
     private final Boolean approved;
 }

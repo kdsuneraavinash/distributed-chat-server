@@ -3,7 +3,6 @@ package lk.ac.mrt.cse.cs4262.common.symbols;
 
 import com.google.gson.annotations.JsonAdapter;
 import lk.ac.mrt.cse.cs4262.common.utils.ToStringSerializer;
-import lombok.NonNull;
 
 /**
  * The ID of a participant in the system.
@@ -17,7 +16,7 @@ public class ParticipantId extends BaseId {
      *
      * @param value ID value.
      */
-    public ParticipantId(@NonNull String value) {
+    public ParticipantId(String value) {
         super(value);
     }
 }
