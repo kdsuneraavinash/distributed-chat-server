@@ -3,6 +3,7 @@ package lk.ac.mrt.cse.cs4262.common.state;
 import lk.ac.mrt.cse.cs4262.common.symbols.ParticipantId;
 import lk.ac.mrt.cse.cs4262.common.symbols.RoomId;
 import lk.ac.mrt.cse.cs4262.common.symbols.ServerId;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.util.Collection;
 
@@ -77,23 +78,24 @@ public interface SystemStateReadView {
      */
     interface Reporter {
         /**
-         * @param createParticipantId Created identity.
+         * @param createdParticipantId Created identity.
          */
-        void participantIdCreated(ParticipantId createParticipantId);
+        void participantIdCreated(ParticipantId createdParticipantId);
 
         /**
-         * @param ownerId       Owner id of created room.
-         * @param createdRoomId Created room id.
+         * @param ownerParticipantId Owner id of created room.
+         * @param createdRoomId      Created room id.
          */
-        void roomIdCreated(ParticipantId ownerId, RoomId createdRoomId);
+        void roomIdCreated(ParticipantId ownerParticipantId, RoomId createdRoomId);
 
 
         /**
-         * @param deletedId     Deleted identity.
-         * @param deletedRoomId Room id owned by deleted participant. (if any)
+         * TODO: Use optional?
+         *
+         * @param deletedParticipantId Deleted identity.
+         * @param deletedRoomId        Room id owned by deleted participant. (if any)
          */
-        void participantIdDeleted(ParticipantId deletedId,
-                                  RoomId deletedRoomId);
+        void participantIdDeleted(ParticipantId deletedParticipantId, @Nullable RoomId deletedRoomId);
 
         /**
          * @param deletedRoomId Deleted room id.

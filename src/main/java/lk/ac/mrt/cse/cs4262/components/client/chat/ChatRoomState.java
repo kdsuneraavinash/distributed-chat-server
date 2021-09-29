@@ -4,6 +4,8 @@ import lk.ac.mrt.cse.cs4262.common.symbols.ClientId;
 import lk.ac.mrt.cse.cs4262.common.symbols.ParticipantId;
 import lk.ac.mrt.cse.cs4262.common.symbols.RoomId;
 import lombok.Synchronized;
+import lombok.ToString;
+import lombok.extern.log4j.Log4j2;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -15,6 +17,8 @@ import java.util.Optional;
 /**
  * Class tracking the state of chat rooms.
  */
+@Log4j2
+@ToString
 public class ChatRoomState {
     /**
      * ID of the main room.
@@ -65,12 +69,14 @@ public class ChatRoomState {
      */
     @Synchronized
     public void participantCreate(ClientId clientId, ParticipantId participantId) {
+        log.traceEntry("clientId={} participantId={}", clientId, participantId);
         if (!roomClientListMap.containsKey(mainRoomId)) {
             throw new IllegalStateException("main room does not exist");
         }
         clientParticipantMap.put(clientId, participantId);
         roomClientListMap.get(mainRoomId).add(clientId);
         participantRoomMap.put(participantId, mainRoomId);
+        log.traceExit("state modified: {}", this);
     }
 
     /**
@@ -80,6 +86,7 @@ public class ChatRoomState {
      */
     @Synchronized
     public void participantQuit(ClientId clientId) {
+        log.traceEntry("clientId={}", clientId);
         getParticipantIdOf(clientId) // get participant id
                 .flatMap(this::getCurrentRoomIdOf) // get current room of each participant
                 .ifPresent(formerRoomId -> {
@@ -88,6 +95,7 @@ public class ChatRoomState {
                         roomClientListMap.get(formerRoomId).remove(clientId);
                     }
                 });
+        log.traceExit("state modified: {}", this);
     }
 
     /**
@@ -99,6 +107,7 @@ public class ChatRoomState {
      */
     @Synchronized
     public void roomJoinInternal(ClientId clientId, RoomId roomId) {
+        log.traceEntry("clientId={} roomId={}", clientId, roomId);
         if (!roomClientListMap.containsKey(roomId)) {
             throw new IllegalArgumentException("next room does not exist");
         }
@@ -111,6 +120,7 @@ public class ChatRoomState {
                     }
                     roomClientListMap.get(roomId).add(clientId);
                 }));
+        log.traceExit("state modified: {}", this);
     }
 
     /**
@@ -121,6 +131,7 @@ public class ChatRoomState {
      */
     @Synchronized
     public void roomCreate(ClientId clientId, RoomId roomId) {
+        log.traceEntry("clientId={} roomId={}", clientId, roomId);
         getParticipantIdOf(clientId).ifPresent(participantId -> // get participant id
                 getCurrentRoomIdOf(participantId).ifPresent(formerRoomId -> { // get former room id
                     List<ClientId> newRoomClients = new ArrayList<>();
@@ -132,6 +143,7 @@ public class ChatRoomState {
                     roomClientListMap.put(roomId, newRoomClients);
                     participantRoomMap.put(participantId, roomId);
                 }));
+        log.traceExit("state modified: {}", this);
     }
 
     /**
@@ -143,6 +155,7 @@ public class ChatRoomState {
      */
     @Synchronized
     public Collection<ClientId> roomDelete(RoomId deletedRoomId) {
+        log.traceEntry("deletedRoomId={}", deletedRoomId);
         if (!roomClientListMap.containsKey(mainRoomId)) {
             throw new IllegalStateException("main room does not exist");
         }
@@ -159,6 +172,7 @@ public class ChatRoomState {
             getParticipantIdOf(prevClientId)
                     .ifPresent(pId -> participantRoomMap.put(pId, mainRoomId));
         }
+        log.traceExit("state modified: {}", this);
         return prevClientIds;
     }
 

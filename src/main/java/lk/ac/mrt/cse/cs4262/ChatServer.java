@@ -33,6 +33,7 @@ public class ChatServer implements AutoCloseable {
         this.clientComponent = new ClientComponent(port, systemState);
         this.gossipComponent = new GossipComponent();
         this.raftComponent = new RaftComponent();
+        this.clientComponent.connect();
         // Threads
         this.clientComponentThread = new Thread(clientComponent);
         this.gossipComponentThread = new Thread(gossipComponent);
