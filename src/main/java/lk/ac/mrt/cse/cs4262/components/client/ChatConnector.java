@@ -281,6 +281,7 @@ public class ChatConnector implements ClientSocketListener.Reporter, SystemState
         // If room id is invalid locally, REJECT.
         if (systemState.hasRoom(roomId)) {
             CreateRoomClientResponse response = CreateRoomClientResponse.builder()
+                    .roomId(roomId)
                     .approved(false).build();
             String message = serializer.toJson(response);
             participantClient.sendMessage(message);
@@ -310,8 +311,8 @@ public class ChatConnector implements ClientSocketListener.Reporter, SystemState
         if (!systemState.hasRoom(roomId)
                 || !participantClient.getParticipantId().equals(systemState.getOwnerId(roomId))) {
             DeleteRoomClientResponse response = DeleteRoomClientResponse.builder()
-                    .approved(false)
-                    .roomId(roomId).build();
+                    .roomId(roomId)
+                    .approved(false).build();
             String message = serializer.toJson(response);
             participantClient.sendMessage(message);
             return;
