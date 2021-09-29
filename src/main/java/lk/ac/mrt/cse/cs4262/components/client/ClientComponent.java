@@ -66,9 +66,13 @@ public class ClientComponent implements ServerComponent, MessageSender {
                 .serializer(serializer).build();
     }
 
+    /**
+     * Connect all the sub-components together.
+     * Must be called after initialization.
+     */
     public void connect() {
         chatSocketReporter.attachMessageSender(this);
-        chatSocketReporter.attachMessageSender(this);
+        stateReporter.attachMessageSender(this);
         systemState.attachListener(stateReporter);
     }
 

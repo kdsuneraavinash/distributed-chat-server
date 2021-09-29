@@ -51,7 +51,7 @@ public class ClientMessageDeserializer extends TypedJsonDeserializer<BaseClientR
             case QUIT_ROOM_TYPE:
                 return QuitClientRequest.class;
             default:
-                throw new JsonParseException("Unknown type: " + type);
+                throw new JsonParseException("unknown type: " + type);
         }
     }
 }

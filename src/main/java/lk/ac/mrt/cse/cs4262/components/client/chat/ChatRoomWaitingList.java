@@ -67,7 +67,7 @@ public class ChatRoomWaitingList {
      * @return Whether the client was added.
      */
     @Synchronized
-    public boolean waitForCreation(ClientId clientId, ParticipantId participantId) {
+    public boolean waitForParticipantCreation(ClientId clientId, ParticipantId participantId) {
         return addToMapIfNotExists(waitingForParticipantIdCreation, clientId, participantId);
     }
 
@@ -79,7 +79,7 @@ public class ChatRoomWaitingList {
      * @return Whether the client was added.
      */
     @Synchronized
-    public boolean waitForCreation(ClientId clientId, RoomId roomId) {
+    public boolean waitForRoomCreation(ClientId clientId, RoomId roomId) {
         return addToMapIfNotExists(waitingForRoomIdCreation, clientId, roomId);
     }
 
@@ -91,7 +91,7 @@ public class ChatRoomWaitingList {
      * @return Whether the client was added.
      */
     @Synchronized
-    public boolean waitForDeletion(ClientId clientId, RoomId roomId) {
+    public boolean waitForRoomDeletion(ClientId clientId, RoomId roomId) {
         return addToMapIfNotExists(waitingForRoomIdDeletion, clientId, roomId);
     }
 
@@ -102,7 +102,7 @@ public class ChatRoomWaitingList {
      * @return ID of waiting Client (if any)
      */
     @Synchronized
-    public Optional<ClientId> getWaitingForCreation(ParticipantId participantId) {
+    public Optional<ClientId> getWaitingForParticipantCreation(ParticipantId participantId) {
         return Optional.ofNullable(waitingForParticipantIdCreation.remove(participantId));
     }
 
@@ -113,7 +113,7 @@ public class ChatRoomWaitingList {
      * @return ID of waiting Client (if any)
      */
     @Synchronized
-    public Optional<ClientId> getWaitingForCreation(RoomId roomId) {
+    public Optional<ClientId> getWaitingForRoomCreation(RoomId roomId) {
         return Optional.ofNullable(waitingForRoomIdCreation.remove(roomId));
     }
 

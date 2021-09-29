@@ -28,12 +28,14 @@ public class ChatServer implements AutoCloseable {
      * @param port Port to operate.
      */
     public ChatServer(int port) {
+        // System State
         SystemState systemState = new SystemStateImpl();
+        systemState.initialize();
         // Components
         this.clientComponent = new ClientComponent(port, systemState);
+        this.clientComponent.connect();
         this.gossipComponent = new GossipComponent();
         this.raftComponent = new RaftComponent();
-        this.clientComponent.connect();
         // Threads
         this.clientComponentThread = new Thread(clientComponent);
         this.gossipComponentThread = new Thread(gossipComponent);

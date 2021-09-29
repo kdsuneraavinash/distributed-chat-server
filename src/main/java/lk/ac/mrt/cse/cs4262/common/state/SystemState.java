@@ -9,6 +9,11 @@ import lk.ac.mrt.cse.cs4262.common.state.logs.BaseLog;
  */
 public interface SystemState extends SystemStateReadView {
     /**
+     * Initializes state by applying all persisted logs.
+     */
+    void initialize();
+
+    /**
      * Adds a log to the state. This can alter the state.
      * Any changes done to the state will be persisted.
      * TODO: change log entry to wrapped log entry with term.

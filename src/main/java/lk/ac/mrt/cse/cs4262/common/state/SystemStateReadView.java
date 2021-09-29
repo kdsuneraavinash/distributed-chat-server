@@ -6,6 +6,7 @@ import lk.ac.mrt.cse.cs4262.common.symbols.ServerId;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.util.Collection;
+import java.util.Optional;
 
 /**
  * The State containing the primary system state read view.
@@ -29,19 +30,31 @@ public interface SystemStateReadView {
      * @param participantId ID of the participant.
      * @return Room ID if the participant owns a room. Otherwise null.
      */
-    RoomId owningRoom(ParticipantId participantId);
+    Optional<RoomId> getRoomOwnedByParticipant(ParticipantId participantId);
 
     /**
      * @param serverId ID of the server.
      * @return A list of all the active room IDs in the specified server.
      */
-    Collection<RoomId> serverRoomIds(ServerId serverId);
+    Collection<RoomId> getRoomsInServer(ServerId serverId);
 
     /**
      * @param roomId ID of the room.
      * @return Participant ID of the owner of the room.
      */
-    ParticipantId getOwnerId(RoomId roomId);
+    Optional<ParticipantId> getOwnerOfRoom(RoomId roomId);
+
+    /**
+     * @param roomId ID of the room.
+     * @return The ID of the server with the room.
+     */
+    Optional<ServerId> getServerOfRoom(RoomId roomId);
+
+    /**
+     * @param participantId ID of the participant.
+     * @return The ID of the server with the participant.
+     */
+    Optional<ServerId> getServerOfParticipant(ParticipantId participantId);
 
     /**
      * @return The ID of the current active server.
@@ -59,12 +72,6 @@ public interface SystemStateReadView {
      * @return The ID of the main room of specified server.
      */
     RoomId getMainRoomId(ServerId serverId);
-
-    /**
-     * @param roomId ID of the room.
-     * @return The ID of the server with the room.
-     */
-    ServerId getRoomServerId(RoomId roomId);
 
     /**
      * Attaches a listener to listen state events.
@@ -90,8 +97,6 @@ public interface SystemStateReadView {
 
 
         /**
-         * TODO: Use optional?
-         *
          * @param deletedParticipantId Deleted identity.
          * @param deletedRoomId        Room id owned by deleted participant. (if any)
          */

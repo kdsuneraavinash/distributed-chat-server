@@ -51,10 +51,10 @@ public class ChatSocketReporter implements ClientSocketListener.Reporter {
     /**
      * Attach a message sender to this reporter.
      *
-     * @param messageSender Message Sender.
+     * @param newMessageSender Message Sender.
      */
-    public void attachMessageSender(MessageSender messageSender) {
-        this.messageSender = messageSender;
+    public void attachMessageSender(MessageSender newMessageSender) {
+        this.messageSender = newMessageSender;
     }
 
     /*
@@ -72,17 +72,14 @@ public class ChatSocketReporter implements ClientSocketListener.Reporter {
     private Optional<AuthenticatedClient> authenticate(ClientId clientId) {
         return chatRoomState.getParticipantIdOf(clientId).flatMap(participantId ->
                 chatRoomState.getCurrentRoomIdOf(participantId).map(currentRoomId -> {
-                    ServerId serverId = systemState.getRoomServerId(currentRoomId);
-                    if (!currentServerId.equals(serverId)) {
-                        throw new IllegalStateException("Client connected to wrong server.");
-                    }
-                    RoomId owningRoomId = systemState.owningRoom(participantId);
+                    ServerId serverId = systemState.getServerOfRoom(currentRoomId).orElseThrow();
+                    Optional<RoomId> owningRoomId = systemState.getRoomOwnedByParticipant(participantId);
                     AuthenticatedClient authenticatedClient = AuthenticatedClient.builder()
                             .clientId(clientId)
                             .participantId(participantId)
                             .serverId(serverId)
                             .currentRoomId(currentRoomId)
-                            .owningRoomId(owningRoomId).build();
+                            .owningRoomId(owningRoomId.orElse(null)).build();
                     return Optional.of(authenticatedClient);
                 }).orElse(Optional.empty()));
     }
@@ -181,7 +178,7 @@ public class ChatSocketReporter implements ClientSocketListener.Reporter {
         // If participant id is invalid locally, REJECT
         // Add client to waiting list. If someone is already waiting, REJECT
         boolean acceptedLocally = !systemState.hasParticipant(participantId)
-                && waitingList.waitForCreation(clientId, participantId);
+                && waitingList.waitForParticipantCreation(clientId, participantId);
         if (acceptedLocally) {
             String message = createParticipantCreateRejectedMsg();
             sendToClient(clientId, message);
@@ -201,7 +198,7 @@ public class ChatSocketReporter implements ClientSocketListener.Reporter {
     private void processChatRoomListRequest(AuthenticatedClient authenticatedClient) {
         log.traceEntry("authenticatedClient={}", authenticatedClient);
         // TODO: Integrate Gossip state
-        Collection<RoomId> roomIds = systemState.serverRoomIds(currentServerId);
+        Collection<RoomId> roomIds = systemState.getRoomsInServer(currentServerId);
         String message = createRoomListMsg(roomIds);
         sendToClient(authenticatedClient.getClientId(), message);
     }
@@ -228,13 +225,14 @@ public class ChatSocketReporter implements ClientSocketListener.Reporter {
         log.traceEntry("authenticatedClient={}", authenticatedClient);
         // Find information for the response.
         RoomId currentRoomId = authenticatedClient.getCurrentRoomId();
-        ParticipantId roomOwnerId = systemState.getOwnerId(currentRoomId);
-        Collection<ParticipantId> friendIds = new ArrayList<>();
-        for (ClientId friendClientId : chatRoomState.getClientIdsOf(currentRoomId)) {
-            chatRoomState.getParticipantIdOf(friendClientId).ifPresent(friendIds::add);
-        }
-        String message = createWhoMsg(roomOwnerId, friendIds, currentRoomId);
-        sendToClient(authenticatedClient.getClientId(), message);
+        systemState.getOwnerOfRoom(currentRoomId).ifPresent(roomOwnerId -> {
+            Collection<ParticipantId> friendIds = new ArrayList<>();
+            for (ClientId friendClientId : chatRoomState.getClientIdsOf(currentRoomId)) {
+                chatRoomState.getParticipantIdOf(friendClientId).ifPresent(friendIds::add);
+            }
+            String message = createWhoMsg(roomOwnerId, friendIds, currentRoomId);
+            sendToClient(authenticatedClient.getClientId(), message);
+        });
     }
 
     /**
@@ -250,7 +248,7 @@ public class ChatSocketReporter implements ClientSocketListener.Reporter {
         // If room id is invalid locally, REJECT
         // Add client to waiting list. If someone is already waiting, REJECT
         boolean acceptedLocally = !systemState.hasRoom(roomId)
-                && waitingList.waitForCreation(clientId, roomId);
+                && waitingList.waitForRoomCreation(clientId, roomId);
         if (!acceptedLocally) {
             String message = createRoomCreateRejectedMsg(roomId);
             sendToClient(clientId, message);
@@ -275,9 +273,11 @@ public class ChatSocketReporter implements ClientSocketListener.Reporter {
         // If the room does not exist, REJECT
         // If client is not the owner of the room, REJECT
         // Add client to waiting list. If someone is already waiting, REJECT
+        boolean isSameOwner = systemState.getOwnerOfRoom(roomId)
+                .map(authenticatedClient.getParticipantId()::equals).orElse(false);
         boolean acceptedLocally = !systemState.hasRoom(roomId)
-                && authenticatedClient.getParticipantId().equals(systemState.getOwnerId(roomId))
-                && waitingList.waitForDeletion(clientId, roomId);
+                && isSameOwner
+                && waitingList.waitForRoomDeletion(clientId, roomId);
         if (acceptedLocally) {
             String message = createRoomDeleteRejectedMsg(roomId);
             sendToClient(clientId, message);
@@ -305,9 +305,11 @@ public class ChatSocketReporter implements ClientSocketListener.Reporter {
         // If the room does not exist, REJECT
         // If client owns a room, REJECT
         // If the room not in same server, REJECT
+        boolean isSameServer = systemState.getServerOfRoom(roomId)
+                .map(currentServerId::equals).orElse(false);
         boolean acceptedLocally = systemState.hasRoom(roomId)
-                && systemState.owningRoom(participantId) != null
-                && currentServerId.equals(systemState.getRoomServerId(roomId));
+                && systemState.getRoomOwnedByParticipant(participantId).isPresent()
+                && isSameServer;
         if (acceptedLocally) {
             String message = createRoomChangeBroadcastMsg(participantId, formerRoomId, formerRoomId);
             sendToClient(clientId, message);

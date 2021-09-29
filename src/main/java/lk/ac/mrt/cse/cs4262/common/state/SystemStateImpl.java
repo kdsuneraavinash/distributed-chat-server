@@ -10,12 +10,15 @@ import lk.ac.mrt.cse.cs4262.common.symbols.RoomId;
 import lk.ac.mrt.cse.cs4262.common.symbols.ServerId;
 import lombok.ToString;
 import lombok.extern.log4j.Log4j2;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
-import java.util.Set;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * Implementation for the {@link SystemState}.
@@ -41,7 +44,7 @@ public class SystemStateImpl implements SystemState {
      * Other objects are simply for performance-sake.
      */
     @ToString.Include
-    private final Map<ServerId, HashMap<ParticipantId, RoomId>> state;
+    private final Map<ServerId, HashMap<ParticipantId, @Nullable RoomId>> state;
 
     /**
      * Map for each participant to record the server that they are part of.
@@ -58,6 +61,7 @@ public class SystemStateImpl implements SystemState {
     /**
      * Listener to attach for the changes in the system.
      */
+    @Nullable
     private Reporter reporter;
 
     /**
@@ -67,12 +71,27 @@ public class SystemStateImpl implements SystemState {
         this.state = new HashMap<>();
         this.participantServerMap = new HashMap<>();
         this.roomOwnerMap = new HashMap<>();
+    }
 
+    @Override
+    public void initialize() {
+        ServerId serverId = getCurrentServerId();
         // TODO: Do this for all the servers.
-        createReservedIdsForServer(getCurrentServerId());
+        RoomId mainRoomId = getMainRoomId(serverId);
+        ParticipantId systemUserId = getSystemUserId(serverId);
+        this.state.put(serverId, new HashMap<>());
+        this.state.get(serverId).put(systemUserId, mainRoomId);
+        this.participantServerMap.put(systemUserId, serverId);
+        this.roomOwnerMap.put(mainRoomId, systemUserId);
 
         // TODO: Restore persisted state.
     }
+
+    /*
+    ========================================================
+    Write Methods
+    ========================================================
+     */
 
     @Override
     public void apply(BaseLog logEntry) {
@@ -92,6 +111,12 @@ public class SystemStateImpl implements SystemState {
         log.trace("State after Log: {}", this);
     }
 
+    /*
+    ========================================================
+    Read Methods
+    ========================================================
+     */
+
     @Override
     public boolean hasParticipant(ParticipantId participantId) {
         return participantServerMap.containsKey(participantId);
@@ -106,26 +131,42 @@ public class SystemStateImpl implements SystemState {
     }
 
     @Override
-    public RoomId owningRoom(ParticipantId participantId) {
-        ServerId serverId = participantServerMap.get(participantId);
-        return state.get(serverId).get(participantId);
-    }
-
-    @Override
-    public Collection<RoomId> serverRoomIds(ServerId serverId) {
-        Set<RoomId> roomIds = new HashSet<>();
-        // TODO: Increase performance by maintaining a data structure?
-        state.get(serverId).forEach((key, value) -> {
-            if (value != null) {
-                roomIds.add(value);
+    public Optional<RoomId> getRoomOwnedByParticipant(ParticipantId participantId) {
+        if (participantServerMap.containsKey(participantId)) {
+            ServerId serverId = participantServerMap.get(participantId);
+            if (state.containsKey(serverId)) {
+                Map<ParticipantId, @Nullable RoomId> prMap = state.get(serverId);
+                if (prMap.containsKey(participantId)) {
+                    return Optional.ofNullable(prMap.get(participantId));
+                }
             }
-        });
-        return roomIds;
+        }
+        return Optional.empty();
     }
 
     @Override
-    public ParticipantId getOwnerId(RoomId roomId) {
-        return roomOwnerMap.get(roomId);
+    public Collection<RoomId> getRoomsInServer(ServerId serverId) {
+        if (state.containsKey(serverId)) {
+            return state.get(serverId).values().stream()
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toList());
+        }
+        return List.of();
+    }
+
+    @Override
+    public Optional<ParticipantId> getOwnerOfRoom(RoomId roomId) {
+        return Optional.ofNullable(roomOwnerMap.get(roomId));
+    }
+
+    @Override
+    public Optional<ServerId> getServerOfRoom(RoomId roomId) {
+        return getOwnerOfRoom(roomId).map(participantServerMap::get);
+    }
+
+    @Override
+    public Optional<ServerId> getServerOfParticipant(ParticipantId participantId) {
+        return Optional.ofNullable(participantServerMap.get(participantId));
     }
 
     @Override
@@ -145,31 +186,25 @@ public class SystemStateImpl implements SystemState {
     }
 
     @Override
-    public ServerId getRoomServerId(RoomId roomId) {
-        ParticipantId ownerId = roomOwnerMap.get(roomId);
-        return participantServerMap.get(ownerId);
-    }
-
-    @Override
-    public void attachListener(SystemStateReadView.Reporter newReporter) {
+    public void attachListener(Reporter newReporter) {
         this.reporter = newReporter;
     }
 
-    private void createReservedIdsForServer(ServerId serverId) {
-        RoomId mainRoomId = getMainRoomId(serverId);
-        ParticipantId systemUserId = getSystemUserId(serverId);
-        this.state.put(serverId, new HashMap<>());
-        this.state.get(serverId).put(systemUserId, mainRoomId);
-        this.participantServerMap.put(systemUserId, serverId);
-        this.roomOwnerMap.put(mainRoomId, systemUserId);
-    }
+    /*
+    ========================================================
+    Write Helper Methods
+    ========================================================
+     */
 
     private void applyCreateIdentityLog(CreateIdentityLog logEntry) {
         ParticipantId participantId = new ParticipantId(logEntry.getIdentity());
         ServerId serverId = new ServerId(logEntry.getServerId());
+        if (!state.containsKey(serverId)) {
+            throw new IllegalStateException("unknown server id");
+        }
         state.get(serverId).put(participantId, null);
         participantServerMap.put(participantId, serverId);
-        if (reporter != null && getCurrentServerId().equals(serverId)) {
+        if (getCurrentServerId().equals(serverId) && reporter != null) {
             reporter.participantIdCreated(participantId);
         }
     }
@@ -178,9 +213,12 @@ public class SystemStateImpl implements SystemState {
         ParticipantId participantId = new ParticipantId(logEntry.getParticipantId());
         RoomId roomId = new RoomId(logEntry.getRoomId());
         ServerId serverId = participantServerMap.get(participantId);
+        if (serverId == null || !state.containsKey(serverId)) {
+            throw new IllegalStateException("unknown server id");
+        }
         state.get(serverId).put(participantId, roomId);
         roomOwnerMap.put(roomId, participantId);
-        if (reporter != null && getCurrentServerId().equals(serverId)) {
+        if (getCurrentServerId().equals(serverId) && reporter != null) {
             reporter.roomIdCreated(participantId, roomId);
         }
     }
@@ -188,11 +226,14 @@ public class SystemStateImpl implements SystemState {
     private void applyDeleteIdentityLog(DeleteIdentityLog logEntry) {
         ParticipantId participantId = new ParticipantId(logEntry.getIdentity());
         ServerId serverId = participantServerMap.remove(participantId);
+        if (serverId == null || !state.containsKey(serverId)) {
+            throw new IllegalStateException("unknown server id");
+        }
         RoomId ownedRoomId = state.get(serverId).remove(participantId);
         if (ownedRoomId != null) {
             roomOwnerMap.remove(ownedRoomId);
         }
-        if (reporter != null && getCurrentServerId().equals(serverId)) {
+        if (getCurrentServerId().equals(serverId) && reporter != null) {
             reporter.participantIdDeleted(participantId, ownedRoomId);
         }
     }
@@ -200,9 +241,15 @@ public class SystemStateImpl implements SystemState {
     private void applyDeleteRoomLog(DeleteRoomLog logEntry) {
         RoomId roomId = new RoomId(logEntry.getRoomId());
         ParticipantId ownerId = roomOwnerMap.remove(roomId);
+        if (ownerId == null) {
+            throw new IllegalStateException("owner cannot be null");
+        }
         ServerId serverId = participantServerMap.get(ownerId);
+        if (serverId == null || !state.containsKey(serverId)) {
+            throw new IllegalStateException("unknown server id");
+        }
         state.get(serverId).put(ownerId, null);
-        if (reporter != null && getCurrentServerId().equals(serverId)) {
+        if (getCurrentServerId().equals(serverId) && reporter != null) {
             reporter.roomIdDeleted(roomId);
         }
     }

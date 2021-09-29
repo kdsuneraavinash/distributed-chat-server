@@ -33,10 +33,10 @@ public class ChatSystemStateReporter implements SystemStateReadView.Reporter {
     /**
      * Attach a message sender to this reporter.
      *
-     * @param messageSender Message Sender.
+     * @param newMessageSender Message Sender.
      */
-    public void attachMessageSender(MessageSender messageSender) {
-        this.messageSender = messageSender;
+    public void attachMessageSender(MessageSender newMessageSender) {
+        this.messageSender = newMessageSender;
     }
 
     private void sendToClient(ClientId clientId, String message) {
@@ -61,7 +61,7 @@ public class ChatSystemStateReporter implements SystemStateReadView.Reporter {
     @Override
     public void participantIdCreated(ParticipantId createdParticipantId) {
         // Get client from waiting list.
-        waitingList.getWaitingForCreation(createdParticipantId).ifPresent(clientId -> {
+        waitingList.getWaitingForParticipantCreation(createdParticipantId).ifPresent(clientId -> {
             log.traceEntry("createdParticipantId={}", createdParticipantId);
             // Update chat room maps.
             chatRoomState.participantCreate(clientId, createdParticipantId);
@@ -76,7 +76,7 @@ public class ChatSystemStateReporter implements SystemStateReadView.Reporter {
 
     @Override
     public void roomIdCreated(ParticipantId ownerParticipantId, RoomId createdRoomId) {
-        waitingList.getWaitingForCreation(createdRoomId).ifPresent(ownerClientId ->
+        waitingList.getWaitingForRoomCreation(createdRoomId).ifPresent(ownerClientId ->
                 chatRoomState.getCurrentRoomIdOf(ownerParticipantId).ifPresent(formerRoomId -> {
                     log.traceEntry("ownerId={} createdRoomId={}", ownerParticipantId, createdRoomId);
                     // Update chat room maps.
