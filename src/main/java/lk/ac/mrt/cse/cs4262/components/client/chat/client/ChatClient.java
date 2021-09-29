@@ -1,4 +1,4 @@
-package lk.ac.mrt.cse.cs4262.components.client.connector;
+package lk.ac.mrt.cse.cs4262.components.client.chat.client;
 
 import lk.ac.mrt.cse.cs4262.common.symbols.ClientId;
 

@@ -10,7 +10,7 @@ import lk.ac.mrt.cse.cs4262.common.symbols.ClientId;
 import lk.ac.mrt.cse.cs4262.common.symbols.ParticipantId;
 import lk.ac.mrt.cse.cs4262.common.symbols.RoomId;
 import lk.ac.mrt.cse.cs4262.common.symbols.ServerId;
-import lk.ac.mrt.cse.cs4262.components.client.connector.ClientSocketListener;
+import lk.ac.mrt.cse.cs4262.components.client.chat.client.ClientSocketListener;
 import lk.ac.mrt.cse.cs4262.components.client.messages.requests.BaseClientRequest;
 import lk.ac.mrt.cse.cs4262.components.client.messages.requests.CreateRoomClientRequest;
 import lk.ac.mrt.cse.cs4262.components.client.messages.requests.DeleteRoomClientRequest;
@@ -27,7 +27,6 @@ import lk.ac.mrt.cse.cs4262.components.client.messages.responses.MessageBroadcas
 import lk.ac.mrt.cse.cs4262.components.client.messages.responses.NewIdentityClientResponse;
 import lk.ac.mrt.cse.cs4262.components.client.messages.responses.RoomChangeBroadcastResponse;
 import lk.ac.mrt.cse.cs4262.components.client.messages.responses.WhoClientResponse;
-import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Synchronized;
 import lombok.extern.log4j.Log4j2;

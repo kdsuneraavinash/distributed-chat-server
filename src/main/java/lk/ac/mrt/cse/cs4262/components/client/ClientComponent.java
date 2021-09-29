@@ -11,9 +11,9 @@ import lk.ac.mrt.cse.cs4262.components.client.chat.ChatRoomWaitingList;
 import lk.ac.mrt.cse.cs4262.components.client.chat.ChatSocketReporter;
 import lk.ac.mrt.cse.cs4262.components.client.chat.ChatSystemStateReporter;
 import lk.ac.mrt.cse.cs4262.components.client.chat.MessageSender;
-import lk.ac.mrt.cse.cs4262.components.client.connector.ChatClient;
-import lk.ac.mrt.cse.cs4262.components.client.connector.ChatClientImpl;
-import lk.ac.mrt.cse.cs4262.components.client.connector.ClientSocketListener;
+import lk.ac.mrt.cse.cs4262.components.client.chat.client.ChatClient;
+import lk.ac.mrt.cse.cs4262.components.client.chat.client.ChatClientImpl;
+import lk.ac.mrt.cse.cs4262.components.client.chat.client.ClientSocketListener;
 import lombok.Cleanup;
 import lombok.extern.log4j.Log4j2;
 
