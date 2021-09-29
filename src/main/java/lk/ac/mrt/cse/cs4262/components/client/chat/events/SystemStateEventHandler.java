@@ -1,54 +1,53 @@
-package lk.ac.mrt.cse.cs4262.components.client.chat;
+package lk.ac.mrt.cse.cs4262.components.client.chat.events;
 
 import com.google.gson.Gson;
 import lk.ac.mrt.cse.cs4262.common.state.SystemStateReadView;
 import lk.ac.mrt.cse.cs4262.common.symbols.ClientId;
 import lk.ac.mrt.cse.cs4262.common.symbols.ParticipantId;
 import lk.ac.mrt.cse.cs4262.common.symbols.RoomId;
+import lk.ac.mrt.cse.cs4262.components.client.chat.ChatRoomState;
+import lk.ac.mrt.cse.cs4262.components.client.chat.ChatRoomWaitingList;
+import lk.ac.mrt.cse.cs4262.components.client.chat.MessageSender;
 import lk.ac.mrt.cse.cs4262.components.client.messages.responses.CreateRoomClientResponse;
 import lk.ac.mrt.cse.cs4262.components.client.messages.responses.DeleteRoomClientResponse;
 import lk.ac.mrt.cse.cs4262.components.client.messages.responses.NewIdentityClientResponse;
 import lk.ac.mrt.cse.cs4262.components.client.messages.responses.RoomChangeBroadcastResponse;
 import lombok.Builder;
+import lombok.Synchronized;
 import lombok.extern.log4j.Log4j2;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.util.Collection;
 
 /**
- * A reporter that will listen to updates from system state.
+ * An event handler that will listen to updates from system state.
  * This will deque waiting list and send messages to them.
  */
 @Log4j2
-@Builder
-public class ChatSystemStateReporter implements SystemStateReadView.Reporter {
+public class SystemStateEventHandler extends AbstractEventHandler implements SystemStateReadView.EventHandler {
     private final RoomId mainRoomId;
     private final ChatRoomState chatRoomState;
     private final ChatRoomWaitingList waitingList;
     private final Gson serializer;
 
-    @Nullable
-    private MessageSender messageSender;
-
     /**
-     * Attach a message sender to this reporter.
+     * Create a Event Handler for System State. See {@link SystemStateEventHandler}.
      *
-     * @param newMessageSender Message Sender.
+     * @param mainRoomId    ID of main room
+     * @param chatRoomState Chat room state object
+     * @param waitingList   Waiting list
+     * @param serializer    Serializer
+     * @param messageSender Message Sender
      */
-    public void attachMessageSender(MessageSender newMessageSender) {
-        this.messageSender = newMessageSender;
-    }
-
-    private void sendToClient(ClientId clientId, String message) {
-        if (messageSender != null) {
-            messageSender.sendToClient(clientId, message);
-        }
-    }
-
-    private void sendToRoom(RoomId roomId, String message) {
-        if (messageSender != null) {
-            messageSender.sendToRoom(roomId, message);
-        }
+    @Builder
+    public SystemStateEventHandler(RoomId mainRoomId,
+                                   ChatRoomState chatRoomState, ChatRoomWaitingList waitingList,
+                                   Gson serializer, @Nullable MessageSender messageSender) {
+        super(messageSender);
+        this.mainRoomId = mainRoomId;
+        this.chatRoomState = chatRoomState;
+        this.waitingList = waitingList;
+        this.serializer = serializer;
     }
 
     /*
@@ -58,6 +57,7 @@ public class ChatSystemStateReporter implements SystemStateReadView.Reporter {
     ========================================================
     */
 
+    @Synchronized
     @Override
     public void participantIdCreated(ParticipantId createdParticipantId) {
         // Get client from waiting list.
@@ -74,6 +74,7 @@ public class ChatSystemStateReporter implements SystemStateReadView.Reporter {
         });
     }
 
+    @Synchronized
     @Override
     public void roomIdCreated(ParticipantId ownerParticipantId, RoomId createdRoomId) {
         waitingList.getWaitingForRoomCreation(createdRoomId).ifPresent(ownerClientId ->
@@ -84,12 +85,14 @@ public class ChatSystemStateReporter implements SystemStateReadView.Reporter {
                     // Send APPROVED message to client.
                     String message1 = createRoomCreateAcceptedMsg(createdRoomId);
                     sendToClient(ownerClientId, message1);
-                    // Send room change to all in former room.
+                    // Send room change to all in former room and client.
                     String message2 = createRoomChangeBroadcastMsg(ownerParticipantId, formerRoomId, createdRoomId);
-                    sendToRoom(mainRoomId, message2);
+                    sendToClient(ownerClientId, message2);
+                    sendToRoom(formerRoomId, message2);
                 }));
     }
 
+    @Synchronized
     @Override
     public void participantIdDeleted(ParticipantId deletedParticipantId, @Nullable RoomId deletedRoomId) {
         if (deletedRoomId == null) {
@@ -108,6 +111,7 @@ public class ChatSystemStateReporter implements SystemStateReadView.Reporter {
         }
     }
 
+    @Synchronized
     @Override
     public void roomIdDeleted(RoomId deletedRoomId) {
         log.traceEntry("deletedRoomId={}", deletedRoomId);

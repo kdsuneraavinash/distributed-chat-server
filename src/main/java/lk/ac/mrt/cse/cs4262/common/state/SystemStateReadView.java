@@ -76,14 +76,14 @@ public interface SystemStateReadView {
     /**
      * Attaches a listener to listen state events.
      *
-     * @param newReporter Listener to attach.
+     * @param newEventHandler Listener to attach.
      */
-    void attachListener(SystemStateReadView.Reporter newReporter);
+    void attachListener(EventHandler newEventHandler);
 
     /**
      * Listener for System state change events.
      */
-    interface Reporter {
+    interface EventHandler {
         /**
          * @param createdParticipantId Created identity.
          */

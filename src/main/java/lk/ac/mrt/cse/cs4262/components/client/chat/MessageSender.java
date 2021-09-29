@@ -25,6 +25,15 @@ public interface MessageSender {
     void sendToRoom(RoomId roomId, String message);
 
     /**
+     * Sends a message to all clients in a room except for one.
+     *
+     * @param roomId          ID of room.
+     * @param message         Message to send.
+     * @param excludeClientId Client to exclude.
+     */
+    void sendToRoom(RoomId roomId, String message, ClientId excludeClientId);
+
+    /**
      * Disconnects a client from server side.
      *
      * @param clientId ID of client.

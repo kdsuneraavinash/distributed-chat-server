@@ -62,7 +62,7 @@ public class SystemStateImpl implements SystemState {
      * Listener to attach for the changes in the system.
      */
     @Nullable
-    private Reporter reporter;
+    private EventHandler eventHandler;
 
     /**
      * Create a system state. See {@link SystemStateImpl}.
@@ -95,7 +95,7 @@ public class SystemStateImpl implements SystemState {
 
     @Override
     public void apply(BaseLog logEntry) {
-        log.info("Log: {}", logEntry);
+        log.info("log: {}", logEntry);
         if (logEntry instanceof CreateIdentityLog) {
             applyCreateIdentityLog((CreateIdentityLog) logEntry);
         } else if (logEntry instanceof CreateRoomLog) {
@@ -108,7 +108,7 @@ public class SystemStateImpl implements SystemState {
             throw new UnsupportedOperationException();
         }
         // TODO: Persist state.
-        log.trace("State after Log: {}", this);
+        log.debug("state after: {}", this);
     }
 
     /*
@@ -186,8 +186,8 @@ public class SystemStateImpl implements SystemState {
     }
 
     @Override
-    public void attachListener(Reporter newReporter) {
-        this.reporter = newReporter;
+    public void attachListener(EventHandler newEventHandler) {
+        this.eventHandler = newEventHandler;
     }
 
     /*
@@ -204,8 +204,8 @@ public class SystemStateImpl implements SystemState {
         }
         state.get(serverId).put(participantId, null);
         participantServerMap.put(participantId, serverId);
-        if (getCurrentServerId().equals(serverId) && reporter != null) {
-            reporter.participantIdCreated(participantId);
+        if (getCurrentServerId().equals(serverId) && eventHandler != null) {
+            eventHandler.participantIdCreated(participantId);
         }
     }
 
@@ -218,8 +218,8 @@ public class SystemStateImpl implements SystemState {
         }
         state.get(serverId).put(participantId, roomId);
         roomOwnerMap.put(roomId, participantId);
-        if (getCurrentServerId().equals(serverId) && reporter != null) {
-            reporter.roomIdCreated(participantId, roomId);
+        if (getCurrentServerId().equals(serverId) && eventHandler != null) {
+            eventHandler.roomIdCreated(participantId, roomId);
         }
     }
 
@@ -233,8 +233,8 @@ public class SystemStateImpl implements SystemState {
         if (ownedRoomId != null) {
             roomOwnerMap.remove(ownedRoomId);
         }
-        if (getCurrentServerId().equals(serverId) && reporter != null) {
-            reporter.participantIdDeleted(participantId, ownedRoomId);
+        if (getCurrentServerId().equals(serverId) && eventHandler != null) {
+            eventHandler.participantIdDeleted(participantId, ownedRoomId);
         }
     }
 
@@ -249,8 +249,8 @@ public class SystemStateImpl implements SystemState {
             throw new IllegalStateException("unknown server id");
         }
         state.get(serverId).put(ownerId, null);
-        if (getCurrentServerId().equals(serverId) && reporter != null) {
-            reporter.roomIdDeleted(roomId);
+        if (getCurrentServerId().equals(serverId) && eventHandler != null) {
+            eventHandler.roomIdDeleted(roomId);
         }
     }
 }

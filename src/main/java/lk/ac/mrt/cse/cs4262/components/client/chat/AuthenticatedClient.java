@@ -7,6 +7,7 @@ import lk.ac.mrt.cse.cs4262.common.symbols.ServerId;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
+import lombok.ToString;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -15,6 +16,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 @Builder
 @Getter
 @AllArgsConstructor
+@ToString
 public class AuthenticatedClient {
     private final ClientId clientId;
     private final ParticipantId participantId;

@@ -8,12 +8,12 @@ import lk.ac.mrt.cse.cs4262.common.symbols.ServerId;
 import lk.ac.mrt.cse.cs4262.components.ServerComponent;
 import lk.ac.mrt.cse.cs4262.components.client.chat.ChatRoomState;
 import lk.ac.mrt.cse.cs4262.components.client.chat.ChatRoomWaitingList;
-import lk.ac.mrt.cse.cs4262.components.client.chat.ChatSocketReporter;
-import lk.ac.mrt.cse.cs4262.components.client.chat.ChatSystemStateReporter;
 import lk.ac.mrt.cse.cs4262.components.client.chat.MessageSender;
 import lk.ac.mrt.cse.cs4262.components.client.chat.client.ChatClient;
 import lk.ac.mrt.cse.cs4262.components.client.chat.client.ChatClientImpl;
 import lk.ac.mrt.cse.cs4262.components.client.chat.client.ClientSocketListener;
+import lk.ac.mrt.cse.cs4262.components.client.chat.events.SocketEventHandler;
+import lk.ac.mrt.cse.cs4262.components.client.chat.events.SystemStateEventHandler;
 import lombok.Cleanup;
 import lombok.extern.log4j.Log4j2;
 
@@ -30,9 +30,9 @@ import java.util.Map;
  */
 @Log4j2
 public class ClientComponent implements ServerComponent, MessageSender {
-    private final ChatSystemStateReporter stateReporter;
+    private final SystemStateEventHandler systemStateEventHandler;
     private final SystemState systemState;
-    private final ChatSocketReporter chatSocketReporter;
+    private final SocketEventHandler socketEventHandler;
     private final Map<ClientId, ChatClient> allClients;
     private final ChatRoomState chatRoomState;
     private final int port;
@@ -53,13 +53,13 @@ public class ClientComponent implements ServerComponent, MessageSender {
         this.allClients = new HashMap<>();
         this.systemState = systemState;
         this.chatRoomState = new ChatRoomState(mainRoomId);
-        this.chatSocketReporter = ChatSocketReporter.builder()
+        this.socketEventHandler = SocketEventHandler.builder()
                 .currentServerId(currentServerId)
                 .systemState(systemState)
                 .chatRoomState(chatRoomState)
                 .waitingList(waitingList)
                 .serializer(serializer).build();
-        this.stateReporter = ChatSystemStateReporter.builder()
+        this.systemStateEventHandler = SystemStateEventHandler.builder()
                 .mainRoomId(mainRoomId)
                 .chatRoomState(chatRoomState)
                 .waitingList(waitingList)
@@ -71,9 +71,9 @@ public class ClientComponent implements ServerComponent, MessageSender {
      * Must be called after initialization.
      */
     public void connect() {
-        chatSocketReporter.attachMessageSender(this);
-        stateReporter.attachMessageSender(this);
-        systemState.attachListener(stateReporter);
+        socketEventHandler.attachMessageSender(this);
+        systemStateEventHandler.attachMessageSender(this);
+        systemState.attachListener(systemStateEventHandler);
     }
 
     @Override
@@ -85,7 +85,7 @@ public class ClientComponent implements ServerComponent, MessageSender {
                 // Create a new client from each socket connection.
                 Socket socket = serverSocket.accept();
                 ClientId clientId = ClientId.unique();
-                Thread thread = new Thread(new ClientSocketListener(clientId, socket, chatSocketReporter));
+                Thread thread = new Thread(new ClientSocketListener(clientId, socket, socketEventHandler));
                 ChatClient client = new ChatClientImpl(clientId, socket, thread);
                 allClients.put(clientId, client);
                 thread.start();
@@ -120,6 +120,15 @@ public class ClientComponent implements ServerComponent, MessageSender {
     public void sendToRoom(RoomId roomId, String message) {
         for (ClientId clientId : chatRoomState.getClientIdsOf(roomId)) {
             if (allClients.containsKey(clientId)) {
+                allClients.get(clientId).sendMessage(message);
+            }
+        }
+    }
+
+    @Override
+    public void sendToRoom(RoomId roomId, String message, ClientId excludeClientId) {
+        for (ClientId clientId : chatRoomState.getClientIdsOf(roomId)) {
+            if (clientId != excludeClientId && allClients.containsKey(clientId)) {
                 allClients.get(clientId).sendMessage(message);
             }
         }

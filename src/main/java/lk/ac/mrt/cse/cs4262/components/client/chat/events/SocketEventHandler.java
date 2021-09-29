@@ -1,4 +1,4 @@
-package lk.ac.mrt.cse.cs4262.components.client.chat;
+package lk.ac.mrt.cse.cs4262.components.client.chat.events;
 
 import com.google.gson.Gson;
 import lk.ac.mrt.cse.cs4262.common.state.SystemState;
@@ -10,6 +10,10 @@ import lk.ac.mrt.cse.cs4262.common.symbols.ClientId;
 import lk.ac.mrt.cse.cs4262.common.symbols.ParticipantId;
 import lk.ac.mrt.cse.cs4262.common.symbols.RoomId;
 import lk.ac.mrt.cse.cs4262.common.symbols.ServerId;
+import lk.ac.mrt.cse.cs4262.components.client.chat.AuthenticatedClient;
+import lk.ac.mrt.cse.cs4262.components.client.chat.ChatRoomState;
+import lk.ac.mrt.cse.cs4262.components.client.chat.ChatRoomWaitingList;
+import lk.ac.mrt.cse.cs4262.components.client.chat.MessageSender;
 import lk.ac.mrt.cse.cs4262.components.client.chat.client.ClientSocketListener;
 import lk.ac.mrt.cse.cs4262.components.client.messages.requests.BaseClientRequest;
 import lk.ac.mrt.cse.cs4262.components.client.messages.requests.CreateRoomClientRequest;
@@ -37,24 +41,34 @@ import java.util.Collection;
 import java.util.Optional;
 
 @Log4j2
-@Builder
-public class ChatSocketReporter implements ClientSocketListener.Reporter {
+public class SocketEventHandler extends AbstractEventHandler implements ClientSocketListener.EventHandler {
     private final ServerId currentServerId;
     private final SystemState systemState;
     private final ChatRoomState chatRoomState;
     private final ChatRoomWaitingList waitingList;
     private final Gson serializer;
 
-    @Nullable
-    private MessageSender messageSender;
 
     /**
-     * Attach a message sender to this reporter.
+     * Create a Event Handler for client socket. See {@link SocketEventHandler}.
      *
-     * @param newMessageSender Message Sender.
+     * @param currentServerId ID of current server
+     * @param systemState     System state
+     * @param chatRoomState   Chat room state object
+     * @param waitingList     Waiting list
+     * @param serializer      Serializer
+     * @param messageSender   Message Sender
      */
-    public void attachMessageSender(MessageSender newMessageSender) {
-        this.messageSender = newMessageSender;
+    @Builder
+    public SocketEventHandler(ServerId currentServerId, SystemState systemState,
+                              ChatRoomState chatRoomState, ChatRoomWaitingList waitingList,
+                              Gson serializer, @Nullable MessageSender messageSender) {
+        super(messageSender);
+        this.currentServerId = currentServerId;
+        this.systemState = systemState;
+        this.chatRoomState = chatRoomState;
+        this.waitingList = waitingList;
+        this.serializer = serializer;
     }
 
     /*
@@ -82,24 +96,6 @@ public class ChatSocketReporter implements ClientSocketListener.Reporter {
                             .owningRoomId(owningRoomId.orElse(null)).build();
                     return Optional.of(authenticatedClient);
                 }).orElse(Optional.empty()));
-    }
-
-    private void sendToClient(ClientId clientId, String message) {
-        if (messageSender != null) {
-            messageSender.sendToClient(clientId, message);
-        }
-    }
-
-    private void sendToRoom(RoomId roomId, String message) {
-        if (messageSender != null) {
-            messageSender.sendToRoom(roomId, message);
-        }
-    }
-
-    private void disconnectClient(ClientId clientId) {
-        if (messageSender != null) {
-            messageSender.disconnect(clientId);
-        }
     }
 
     /*
@@ -179,7 +175,7 @@ public class ChatSocketReporter implements ClientSocketListener.Reporter {
         // Add client to waiting list. If someone is already waiting, REJECT
         boolean acceptedLocally = !systemState.hasParticipant(participantId)
                 && waitingList.waitForParticipantCreation(clientId, participantId);
-        if (acceptedLocally) {
+        if (!acceptedLocally) {
             String message = createParticipantCreateRejectedMsg();
             sendToClient(clientId, message);
             return;
@@ -213,7 +209,7 @@ public class ChatSocketReporter implements ClientSocketListener.Reporter {
     private void processMessageRequest(AuthenticatedClient authenticatedClient, String content) {
         log.traceEntry("authenticatedClient={} content={}", authenticatedClient, content);
         String message = createMessageBroadcastMsg(authenticatedClient.getParticipantId(), content);
-        sendToClient(authenticatedClient.getClientId(), message);
+        sendToRoom(authenticatedClient.getCurrentRoomId(), message, authenticatedClient.getClientId());
     }
 
     /**
@@ -245,9 +241,12 @@ public class ChatSocketReporter implements ClientSocketListener.Reporter {
     private void processCreateRoomRequest(AuthenticatedClient authenticatedClient, RoomId roomId) {
         log.traceEntry("authenticatedClient={} roomId={}", authenticatedClient, roomId);
         ClientId clientId = authenticatedClient.getClientId();
+        ParticipantId participantId = authenticatedClient.getParticipantId();
         // If room id is invalid locally, REJECT
+        // If client already has a room, REJECT
         // Add client to waiting list. If someone is already waiting, REJECT
         boolean acceptedLocally = !systemState.hasRoom(roomId)
+                && systemState.getRoomOwnedByParticipant(participantId).isEmpty()
                 && waitingList.waitForRoomCreation(clientId, roomId);
         if (!acceptedLocally) {
             String message = createRoomCreateRejectedMsg(roomId);
@@ -256,8 +255,7 @@ public class ChatSocketReporter implements ClientSocketListener.Reporter {
         }
         // TODO: Send to leader via RAFT.
         // For now put a log manually.
-        systemState.apply(new CreateRoomLog(roomId.getValue(),
-                authenticatedClient.getParticipantId().getValue()));
+        systemState.apply(new CreateRoomLog(roomId.getValue(), participantId.getValue()));
     }
 
     /**
@@ -275,10 +273,10 @@ public class ChatSocketReporter implements ClientSocketListener.Reporter {
         // Add client to waiting list. If someone is already waiting, REJECT
         boolean isSameOwner = systemState.getOwnerOfRoom(roomId)
                 .map(authenticatedClient.getParticipantId()::equals).orElse(false);
-        boolean acceptedLocally = !systemState.hasRoom(roomId)
+        boolean acceptedLocally = systemState.hasRoom(roomId)
                 && isSameOwner
                 && waitingList.waitForRoomDeletion(clientId, roomId);
-        if (acceptedLocally) {
+        if (!acceptedLocally) {
             String message = createRoomDeleteRejectedMsg(roomId);
             sendToClient(clientId, message);
             return;
@@ -308,9 +306,9 @@ public class ChatSocketReporter implements ClientSocketListener.Reporter {
         boolean isSameServer = systemState.getServerOfRoom(roomId)
                 .map(currentServerId::equals).orElse(false);
         boolean acceptedLocally = systemState.hasRoom(roomId)
-                && systemState.getRoomOwnedByParticipant(participantId).isPresent()
+                && systemState.getRoomOwnedByParticipant(participantId).isEmpty()
                 && isSameServer;
-        if (acceptedLocally) {
+        if (!acceptedLocally) {
             String message = createRoomChangeBroadcastMsg(participantId, formerRoomId, formerRoomId);
             sendToClient(clientId, message);
             return;
