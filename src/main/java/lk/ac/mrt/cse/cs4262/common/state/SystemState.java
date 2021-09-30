@@ -1,7 +1,6 @@
 package lk.ac.mrt.cse.cs4262.common.state;
 
 import lk.ac.mrt.cse.cs4262.ServerConfiguration;
-import lk.ac.mrt.cse.cs4262.common.state.logs.BaseLog;
 
 /**
  * The State containing the primary system state.
@@ -19,9 +18,8 @@ public interface SystemState extends SystemStateReadView {
     /**
      * Adds a log to the state. This can alter the state.
      * Any changes done to the state will be persisted.
-     * TODO: change log entry to wrapped log entry with term.
      *
      * @param logEntry Log entry to apply to the system.
      */
-    void apply(BaseLog logEntry);
+    void commit(RaftLog logEntry);
 }

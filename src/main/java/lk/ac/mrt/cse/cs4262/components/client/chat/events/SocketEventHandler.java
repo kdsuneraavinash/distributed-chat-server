@@ -1,7 +1,9 @@
 package lk.ac.mrt.cse.cs4262.components.client.chat.events;
 
 import com.google.gson.Gson;
+import lk.ac.mrt.cse.cs4262.common.state.RaftLog;
 import lk.ac.mrt.cse.cs4262.common.state.SystemState;
+import lk.ac.mrt.cse.cs4262.common.state.logs.BaseLog;
 import lk.ac.mrt.cse.cs4262.common.state.logs.CreateIdentityLog;
 import lk.ac.mrt.cse.cs4262.common.state.logs.CreateRoomLog;
 import lk.ac.mrt.cse.cs4262.common.state.logs.DeleteIdentityLog;
@@ -182,7 +184,8 @@ public class SocketEventHandler extends AbstractEventHandler implements ClientSo
         }
         // TODO: Send to leader via RAFT.
         // For now put a log manually.
-        systemState.apply(new CreateIdentityLog(currentServerId.getValue(), participantId.getValue()));
+        BaseLog baseLog = new CreateIdentityLog(currentServerId.getValue(), participantId.getValue());
+        systemState.commit(new RaftLog(baseLog, -1));
     }
 
     /**
@@ -255,7 +258,8 @@ public class SocketEventHandler extends AbstractEventHandler implements ClientSo
         }
         // TODO: Send to leader via RAFT.
         // For now put a log manually.
-        systemState.apply(new CreateRoomLog(roomId.getValue(), participantId.getValue()));
+        BaseLog baseLog = new CreateRoomLog(roomId.getValue(), participantId.getValue());
+        systemState.commit(new RaftLog(baseLog, -1));
     }
 
     /**
@@ -283,7 +287,8 @@ public class SocketEventHandler extends AbstractEventHandler implements ClientSo
         }
         // TODO: Send to leader via RAFT.
         // For now put a log manually.
-        systemState.apply(new DeleteRoomLog(roomId.getValue()));
+        BaseLog baseLog = new DeleteRoomLog(roomId.getValue());
+        systemState.commit(new RaftLog(baseLog, -1));
     }
 
     /**
@@ -341,7 +346,8 @@ public class SocketEventHandler extends AbstractEventHandler implements ClientSo
         disconnectClient(clientId);
         // TODO: Send to leader via RAFT.
         // For now put a log manually.
-        systemState.apply(new DeleteIdentityLog(participantId.getValue()));
+        BaseLog baseLog = new DeleteIdentityLog(participantId.getValue());
+        systemState.commit(new RaftLog(baseLog, -1));
     }
 
     /*

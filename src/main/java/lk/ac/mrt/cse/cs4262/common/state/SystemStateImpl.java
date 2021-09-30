@@ -103,8 +103,15 @@ public class SystemStateImpl implements SystemState {
      */
 
     @Override
-    public void apply(BaseLog logEntry) {
+    public void commit(RaftLog logEntry) {
         log.info("log: {}", logEntry);
+        // TODO: Validate with term
+        commit(logEntry.getCommand());
+        // TODO: Persist state.
+        log.debug("state after: {}", this);
+    }
+
+    private void commit(BaseLog logEntry) {
         if (logEntry instanceof CreateIdentityLog) {
             applyCreateIdentityLog((CreateIdentityLog) logEntry);
         } else if (logEntry instanceof CreateRoomLog) {
@@ -116,8 +123,6 @@ public class SystemStateImpl implements SystemState {
         } else {
             throw new UnsupportedOperationException();
         }
-        // TODO: Persist state.
-        log.debug("state after: {}", this);
     }
 
     /*
