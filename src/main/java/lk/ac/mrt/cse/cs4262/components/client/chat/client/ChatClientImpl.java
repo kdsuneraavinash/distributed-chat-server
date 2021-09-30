@@ -32,8 +32,6 @@ public class ChatClientImpl implements ChatClient {
     @Getter(AccessLevel.PROTECTED)
     private final Socket socket;
 
-    private final Thread thread;
-
     @Override
     public void sendMessage(String message) {
         // No messages sent if disconnected
@@ -47,10 +45,9 @@ public class ChatClientImpl implements ChatClient {
             PrintWriter printWriter = new PrintWriter(socketOutputStream, false, StandardCharsets.UTF_8);
             printWriter.println(message);
             printWriter.flush();
-            log.info("Server -> Client({}): {}", clientId, message);
         } catch (IOException e) {
             // Sending failed. Disconnect if socket closed. Otherwise ignore.
-            log.error("Server -X Client({}): {}", clientId, message);
+            log.error("Client({}) X<- {}", clientId, message);
             log.throwing(e);
         }
     }
@@ -60,7 +57,5 @@ public class ChatClientImpl implements ChatClient {
         if (!socket.isClosed()) {
             socket.close();
         }
-        thread.interrupt();
-        thread.join();
     }
 }

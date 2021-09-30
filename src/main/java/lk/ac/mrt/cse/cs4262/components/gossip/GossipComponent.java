@@ -63,6 +63,6 @@ public class GossipComponent implements ServerComponent, SharedTcpRequestHandler
     @Override
     public void handleTimedEvent() {
         // Can use TcpClient.request()
-        log.info("Ping from gossip timer");
+        log.trace("Ping from gossip timer");
     }
 }

@@ -36,11 +36,11 @@ public class ClientSocketListener implements Runnable {
                 if (inputLine == null) {
                     throw new IOException("Closed connection");
                 }
-                log.info("Client({}) -> Server: {}", clientId, inputLine);
+                log.info("Client({}) -> {}", clientId, inputLine);
                 exitByServer = eventHandler.processClientRequest(clientId, inputLine);
             }
         } catch (IOException e) {
-            log.error("Client({}) -X Server", clientId);
+            log.error("disconnected Client({})", clientId);
             eventHandler.clientSideDisconnect(clientId);
         } finally {
             try {

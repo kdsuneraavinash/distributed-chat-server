@@ -25,20 +25,21 @@ public abstract class AbstractEventHandler {
     protected void sendToClient(ClientId clientId, String message) {
         if (messageSender != null) {
             messageSender.sendToClient(clientId, message);
+            log.info("Client({}) <- {}", clientId, message);
         }
     }
 
     protected void sendToRoom(RoomId roomId, String message) {
-        log.info("Server >> Room({}): {}", roomId, message);
         if (messageSender != null) {
             messageSender.sendToRoom(roomId, message);
+            log.info("Room({}) <- {}", roomId, message);
         }
     }
 
     protected void sendToRoom(RoomId roomId, String message, ClientId excludeClientId) {
-        log.info("Server >> Room({}) exc Client({}): {}", roomId, excludeClientId, message);
         if (messageSender != null) {
             messageSender.sendToRoom(roomId, message, excludeClientId);
+            log.info("Room({} - Client({})) <- {}", roomId, excludeClientId, message);
         }
     }
 

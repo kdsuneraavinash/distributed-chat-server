@@ -52,6 +52,8 @@ public class ChatServer implements AutoCloseable {
         // Threads and Coordination server
         this.clientComponentThread = new Thread(clientComponent);
         this.coordinationServerThread = new Thread(coordinationServer);
+        this.clientComponentThread.setName("client-component");
+        this.coordinationServerThread.setName("coord-component");
     }
 
     /**

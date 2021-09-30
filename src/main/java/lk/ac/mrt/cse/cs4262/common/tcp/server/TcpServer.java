@@ -6,6 +6,8 @@ import lombok.extern.log4j.Log4j2;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * Simple TCP server that accepts a connection and responds.
@@ -15,6 +17,7 @@ import java.net.Socket;
 public class TcpServer implements Runnable {
     private final int port;
     private final TcpRequestHandler requestHandler;
+    private final ExecutorService executorService;
 
     /**
      * See {@link TcpServer}.
@@ -25,6 +28,7 @@ public class TcpServer implements Runnable {
     public TcpServer(int port, TcpRequestHandler requestHandler) {
         this.port = port;
         this.requestHandler = requestHandler;
+        this.executorService = Executors.newCachedThreadPool();
     }
 
     @Override
@@ -35,12 +39,13 @@ public class TcpServer implements Runnable {
             while (!Thread.currentThread().isInterrupted()) {
                 // Create a new client from each socket connection.
                 Socket socket = serverSocket.accept();
-                Thread thread = new Thread(new TcpSocketListener(socket, requestHandler));
-                thread.start();
+                this.executorService.submit(new TcpSocketListener(socket, requestHandler));
             }
         } catch (IOException e) {
             log.error("server socket opening failed on port {}.", port);
             log.throwing(e);
+        } finally {
+            this.executorService.shutdown();
         }
     }
 }

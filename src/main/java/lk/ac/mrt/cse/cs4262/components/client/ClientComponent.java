@@ -22,6 +22,8 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * Server component that handles client requests.
@@ -35,6 +37,7 @@ public class ClientComponent implements ServerComponent, Runnable, AutoCloseable
     private final SocketEventHandler socketEventHandler;
     private final Map<ClientId, ChatClient> allClients;
     private final ChatRoomState chatRoomState;
+    private final ExecutorService executorService;
     private final int port;
 
     /**
@@ -64,6 +67,8 @@ public class ClientComponent implements ServerComponent, Runnable, AutoCloseable
                 .chatRoomState(chatRoomState)
                 .waitingList(waitingList)
                 .serializer(serializer).build();
+
+        this.executorService = Executors.newCachedThreadPool();
     }
 
     @Override
@@ -84,14 +89,15 @@ public class ClientComponent implements ServerComponent, Runnable, AutoCloseable
                 // Create a new client from each socket connection.
                 Socket socket = serverSocket.accept();
                 ClientId clientId = ClientId.unique();
-                Thread thread = new Thread(new ClientSocketListener(clientId, socket, socketEventHandler));
-                ChatClient client = new ChatClientImpl(clientId, socket, thread);
+                ChatClient client = new ChatClientImpl(clientId, socket);
                 allClients.put(clientId, client);
-                thread.start();
+                this.executorService.submit(new ClientSocketListener(clientId, socket, socketEventHandler));
             }
         } catch (IOException e) {
             log.error("Server socket opening failed on port {}.", port);
             log.throwing(e);
+        } finally {
+            this.executorService.shutdown();
         }
     }
 
