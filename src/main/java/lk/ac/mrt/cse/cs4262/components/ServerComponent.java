@@ -5,5 +5,5 @@ package lk.ac.mrt.cse.cs4262.components;
  * Server component is an independent entity listening and
  * responding to external requests.
  */
-public interface ServerComponent extends Runnable, AutoCloseable {
+public interface ServerComponent {
 }

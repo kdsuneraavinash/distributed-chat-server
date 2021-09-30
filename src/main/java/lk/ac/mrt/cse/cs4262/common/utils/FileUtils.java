@@ -7,6 +7,7 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -18,6 +19,7 @@ import java.util.stream.Collectors;
  */
 public final class FileUtils {
     private static final String SPECIAL_DELIMITER = "\\A";
+    private static final String TAB_DELIMITER = "\t";
 
     private FileUtils() {
     }
@@ -47,13 +49,19 @@ public final class FileUtils {
     /**
      * Reads a tsv file.
      *
-     * @param path TSV file path.
+     * @param path    TSV file path.
+     * @param columns Number of columns to expect.
      * @return TSV content.
      * @throws IOException If file opening failed.
      */
-    public static List<String[]> readTsv(String path) throws IOException {
-        return Files.lines(Path.of(path))
-                .map(line -> line.split("\t"))
-                .collect(Collectors.toList());
+    public static List<List<String>> readTsv(Path path, int columns) throws IOException {
+        return Files.lines(path).filter(line -> !line.isBlank()).map(line -> {
+            String[] rowArray = line.split(TAB_DELIMITER);
+            if (rowArray.length != columns) {
+                String errorMessage = "expected " + columns + " columns in row: " + Arrays.deepToString(rowArray);
+                throw new IllegalArgumentException(errorMessage);
+            }
+            return Arrays.asList(rowArray);
+        }).collect(Collectors.toList());
     }
 }
