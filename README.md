@@ -19,13 +19,16 @@ Architecture             |  Components
 
 ## Building
 
-> In Linux, simply run `run.sh` file. It should launch the server on port 4444.
+In Linux, simply run `run.sh ` file. It should launch the server on port 4444.
+```bash
+./run.sh -s MAIN -f default.tsv
+```
 
 Run following commands in order.
 
 ```bash
 ./gradlew shadowJar
-LOG4J_LEVEL="INFO" java -jar build/libs/chat-lk.ac.mrt.cse.cs4262.server-1.0-SNAPSHOT-all.jar
+LOG4J_LEVEL="INFO" java -jar build/libs/chat-lk.ac.mrt.cse.cs4262.server-1.0-SNAPSHOT-all.jar [PARAMS]
 ```
 
 To Run the chat client,

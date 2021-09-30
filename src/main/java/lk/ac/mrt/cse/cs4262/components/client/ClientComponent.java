@@ -29,7 +29,7 @@ import java.util.Map;
  * Command messages will be proxied to other servers.
  */
 @Log4j2
-public class ClientComponent implements ServerComponent, MessageSender {
+public class ClientComponent implements ServerComponent, Runnable, AutoCloseable, MessageSender {
     private final SystemStateEventHandler systemStateEventHandler;
     private final SystemState systemState;
     private final SocketEventHandler socketEventHandler;
@@ -74,10 +74,12 @@ public class ClientComponent implements ServerComponent, MessageSender {
         socketEventHandler.attachMessageSender(this);
         systemStateEventHandler.attachMessageSender(this);
         systemState.attachListener(systemStateEventHandler);
+        log.info("client component connected");
     }
 
     @Override
     public void run() {
+        log.info("starting client server on port {}", port);
         try {
             // Listen on client port and connect each new client to the manager.
             @Cleanup ServerSocket serverSocket = new ServerSocket(port);

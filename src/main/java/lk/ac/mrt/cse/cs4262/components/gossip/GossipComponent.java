@@ -1,13 +1,16 @@
 package lk.ac.mrt.cse.cs4262.components.gossip;
 
+import lk.ac.mrt.cse.cs4262.common.tcp.server.shared.SharedTcpRequestHandler;
 import lk.ac.mrt.cse.cs4262.components.ServerComponent;
 
-public class GossipComponent implements ServerComponent {
-    @Override
-    public void run() {
-    }
+import java.util.Optional;
 
+public class GossipComponent implements ServerComponent, SharedTcpRequestHandler {
     @Override
-    public void close() {
+    public Optional<String> handleRequest(String request) {
+        if (request.startsWith("G")) {
+            return Optional.of("GOSSIP EH?");
+        }
+        return Optional.empty();
     }
 }

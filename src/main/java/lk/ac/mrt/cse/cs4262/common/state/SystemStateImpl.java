@@ -1,5 +1,6 @@
 package lk.ac.mrt.cse.cs4262.common.state;
 
+import lk.ac.mrt.cse.cs4262.ServerConfiguration;
 import lk.ac.mrt.cse.cs4262.common.state.logs.BaseLog;
 import lk.ac.mrt.cse.cs4262.common.state.logs.CreateIdentityLog;
 import lk.ac.mrt.cse.cs4262.common.state.logs.CreateRoomLog;
@@ -38,6 +39,10 @@ public class SystemStateImpl implements SystemState {
     private static final String MAIN_ROOM_PREFIX = "MainHall-";
 
     /**
+     * ID of current server.
+     */
+    private final ServerId currentServerId;
+    /**
      * Map for each server containing its participants.
      * If the participant owns a room, it will also be recorded.
      * This is the primary state object.
@@ -66,23 +71,27 @@ public class SystemStateImpl implements SystemState {
 
     /**
      * Create a system state. See {@link SystemStateImpl}.
+     *
+     * @param currentServerId Current Server ID.
      */
-    public SystemStateImpl() {
+    public SystemStateImpl(ServerId currentServerId) {
+        this.currentServerId = currentServerId;
         this.state = new HashMap<>();
         this.participantServerMap = new HashMap<>();
         this.roomOwnerMap = new HashMap<>();
     }
 
     @Override
-    public void initialize() {
-        ServerId serverId = getCurrentServerId();
-        // TODO: Do this for all the servers.
-        RoomId mainRoomId = getMainRoomId(serverId);
-        ParticipantId systemUserId = getSystemUserId(serverId);
-        this.state.put(serverId, new HashMap<>());
-        this.state.get(serverId).put(systemUserId, mainRoomId);
-        this.participantServerMap.put(systemUserId, serverId);
-        this.roomOwnerMap.put(mainRoomId, systemUserId);
+    public void initialize(ServerConfiguration serverConfiguration) {
+        // Add main rooms and system users
+        for (ServerId serverId : serverConfiguration.allServerIds()) {
+            RoomId mainRoomId = getMainRoomId(serverId);
+            ParticipantId systemUserId = getSystemUserId(serverId);
+            this.state.put(serverId, new HashMap<>());
+            this.state.get(serverId).put(systemUserId, mainRoomId);
+            this.participantServerMap.put(systemUserId, serverId);
+            this.roomOwnerMap.put(mainRoomId, systemUserId);
+        }
 
         // TODO: Restore persisted state.
     }
@@ -171,8 +180,7 @@ public class SystemStateImpl implements SystemState {
 
     @Override
     public ServerId getCurrentServerId() {
-        // TODO: Implement this using configurations.
-        return new ServerId("SERVER");
+        return this.currentServerId;
     }
 
     @Override

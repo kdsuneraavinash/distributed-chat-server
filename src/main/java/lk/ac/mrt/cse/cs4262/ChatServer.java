@@ -2,6 +2,8 @@ package lk.ac.mrt.cse.cs4262;
 
 import lk.ac.mrt.cse.cs4262.common.state.SystemState;
 import lk.ac.mrt.cse.cs4262.common.state.SystemStateImpl;
+import lk.ac.mrt.cse.cs4262.common.symbols.ServerId;
+import lk.ac.mrt.cse.cs4262.common.tcp.server.shared.SharedTcpServer;
 import lk.ac.mrt.cse.cs4262.components.client.ClientComponent;
 import lk.ac.mrt.cse.cs4262.components.gossip.GossipComponent;
 import lk.ac.mrt.cse.cs4262.components.raft.RaftComponent;
@@ -13,33 +15,41 @@ import lombok.extern.log4j.Log4j2;
  */
 @Log4j2
 public class ChatServer implements AutoCloseable {
+    // Coordination server
+    private final SharedTcpServer coordinationServer;
     // Components
     private final ClientComponent clientComponent;
     private final GossipComponent gossipComponent;
     private final RaftComponent raftComponent;
     // Threads
+    private final Thread coordinationServerThread;
     private final Thread clientComponentThread;
-    private final Thread gossipComponentThread;
-    private final Thread raftComponentThread;
 
     /**
      * Creates a chat server. See {@link ChatServer}.
      *
-     * @param port Port to operate.
+     * @param currentServerId     Current Server ID.
+     * @param serverConfiguration Server configuration obj.
      */
-    public ChatServer(int port) {
+    public ChatServer(ServerId currentServerId, ServerConfiguration serverConfiguration) {
+        log.info("starting server {}", currentServerId);
+        log.trace("configuration: {}", serverConfiguration);
+        int clientPort = serverConfiguration.getClientPort(currentServerId).orElseThrow();
+        int coordinationPort = serverConfiguration.getCoordinationPort(currentServerId).orElseThrow();
+
         // System State
-        SystemState systemState = new SystemStateImpl();
-        systemState.initialize();
+        SystemState systemState = new SystemStateImpl(currentServerId);
+        systemState.initialize(serverConfiguration);
+        // Coordination server
+        this.coordinationServer = new SharedTcpServer(coordinationPort);
         // Components
-        this.clientComponent = new ClientComponent(port, systemState);
+        this.clientComponent = new ClientComponent(clientPort, systemState);
         this.clientComponent.connect();
         this.gossipComponent = new GossipComponent();
         this.raftComponent = new RaftComponent();
-        // Threads
+        // Threads and Coordination server
         this.clientComponentThread = new Thread(clientComponent);
-        this.gossipComponentThread = new Thread(gossipComponent);
-        this.raftComponentThread = new Thread(raftComponent);
+        this.coordinationServerThread = new Thread(coordinationServer);
     }
 
     /**
@@ -48,29 +58,25 @@ public class ChatServer implements AutoCloseable {
      * @throws InterruptedException If listening is interrupted.
      */
     public void startListening() throws InterruptedException {
-        // Start component threads
-        raftComponentThread.start();
-        gossipComponentThread.start();
+        // Attach components
+        coordinationServer.attachRequestHandler(raftComponent);
+        coordinationServer.attachRequestHandler(gossipComponent);
+        // Start threads
+        coordinationServerThread.start();
         clientComponentThread.start();
-        // Wait until all components exit
+        // Wait until all threads exit
         clientComponentThread.join();
-        gossipComponentThread.join();
-        raftComponentThread.join();
+        coordinationServerThread.join();
     }
 
     @Override
     public void close() throws Exception {
         // Interrupt all threads
         clientComponentThread.interrupt();
-        gossipComponentThread.interrupt();
-        raftComponentThread.interrupt();
+        coordinationServerThread.interrupt();
         // Wait until threads exit
         clientComponentThread.join();
-        gossipComponentThread.join();
-        raftComponentThread.join();
-        // Close each component resources
-        raftComponent.close();
-        gossipComponent.close();
+        coordinationServerThread.join();
         clientComponent.close();
     }
 }
