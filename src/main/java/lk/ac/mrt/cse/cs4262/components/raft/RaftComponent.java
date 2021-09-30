@@ -67,6 +67,7 @@ public class RaftComponent implements ServerComponent, SharedTcpRequestHandler, 
 
     @Override
     public void handleTimedEvent() {
+        // Can use TcpClient.request()
         log.info("Ping from raft timer");
     }
 }

@@ -13,7 +13,19 @@ import java.net.Socket;
  * Simple TCP client that sends a request and accepts the response.
  * Socket is closed after responding.
  */
-public class TcpClient {
+public final class TcpClient {
+    private TcpClient() {
+    }
+
+    /**
+     * Send a request to a server using TCP protocol.
+     *
+     * @param ipAddress IP address of server.
+     * @param port      Port of server.
+     * @param payload   Payload to send.
+     * @return Response from server.
+     * @throws IOException If connection failed.
+     */
     public static String request(String ipAddress, int port, String payload) throws IOException {
         @Cleanup Socket socket = new Socket(ipAddress, port);
         @Cleanup PrintWriter printWriter = new PrintWriter(socket.getOutputStream(), false);

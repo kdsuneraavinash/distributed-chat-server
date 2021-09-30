@@ -4,7 +4,6 @@ import lk.ac.mrt.cse.cs4262.ServerConfiguration;
 import lk.ac.mrt.cse.cs4262.common.tcp.server.shared.SharedTcpRequestHandler;
 import lk.ac.mrt.cse.cs4262.common.utils.TimedInvoker;
 import lk.ac.mrt.cse.cs4262.components.ServerComponent;
-import lk.ac.mrt.cse.cs4262.components.raft.RaftComponent;
 import lombok.extern.log4j.Log4j2;
 
 import java.util.Optional;
@@ -21,7 +20,7 @@ public class GossipComponent implements ServerComponent, SharedTcpRequestHandler
     private final TimedInvoker timedInvoker;
 
     /**
-     * Create a raft component. See {@link RaftComponent}.
+     * Create a raft component. See {@link GossipComponent}.
      *
      * @param serverConfiguration All server configuration.
      */
@@ -63,6 +62,7 @@ public class GossipComponent implements ServerComponent, SharedTcpRequestHandler
 
     @Override
     public void handleTimedEvent() {
+        // Can use TcpClient.request()
         log.info("Ping from gossip timer");
     }
 }

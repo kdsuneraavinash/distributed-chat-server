@@ -23,6 +23,7 @@ public class TimedInvoker implements AutoCloseable {
     /**
      * Start the execution.
      *
+     * @param eventHandler Event handler for timed events
      * @param initialDelay the time to delay first execution
      * @param period       the period between successive executions
      */
