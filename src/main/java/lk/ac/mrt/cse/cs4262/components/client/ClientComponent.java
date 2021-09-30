@@ -66,10 +66,7 @@ public class ClientComponent implements ServerComponent, Runnable, AutoCloseable
                 .serializer(serializer).build();
     }
 
-    /**
-     * Connect all the sub-components together.
-     * Must be called after initialization.
-     */
+    @Override
     public void connect() {
         socketEventHandler.attachMessageSender(this);
         systemStateEventHandler.attachMessageSender(this);

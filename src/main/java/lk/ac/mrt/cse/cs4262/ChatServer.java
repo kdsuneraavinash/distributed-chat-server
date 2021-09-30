@@ -45,8 +45,10 @@ public class ChatServer implements AutoCloseable {
         // Components
         this.clientComponent = new ClientComponent(clientPort, systemState);
         this.clientComponent.connect();
-        this.gossipComponent = new GossipComponent();
-        this.raftComponent = new RaftComponent();
+        this.gossipComponent = new GossipComponent(serverConfiguration);
+        this.gossipComponent.connect();
+        this.raftComponent = new RaftComponent(systemState, serverConfiguration);
+        this.raftComponent.connect();
         // Threads and Coordination server
         this.clientComponentThread = new Thread(clientComponent);
         this.coordinationServerThread = new Thread(coordinationServer);
@@ -77,6 +79,9 @@ public class ChatServer implements AutoCloseable {
         // Wait until threads exit
         clientComponentThread.join();
         coordinationServerThread.join();
+        // Close components
         clientComponent.close();
+        gossipComponent.close();
+        raftComponent.close();
     }
 }
