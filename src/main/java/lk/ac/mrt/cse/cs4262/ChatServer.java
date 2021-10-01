@@ -6,6 +6,8 @@ import lk.ac.mrt.cse.cs4262.common.symbols.ServerId;
 import lk.ac.mrt.cse.cs4262.common.tcp.server.shared.SharedTcpServer;
 import lk.ac.mrt.cse.cs4262.components.client.ClientComponent;
 import lk.ac.mrt.cse.cs4262.components.gossip.GossipComponent;
+import lk.ac.mrt.cse.cs4262.components.gossip.state.GossipState;
+import lk.ac.mrt.cse.cs4262.components.gossip.state.GossipStateImpl;
 import lk.ac.mrt.cse.cs4262.components.raft.RaftComponent;
 import lombok.extern.log4j.Log4j2;
 
@@ -39,15 +41,17 @@ public class ChatServer implements AutoCloseable {
 
         // System State
         SystemState systemState = new SystemStateImpl(currentServerId);
+        GossipState gossipState = new GossipStateImpl(currentServerId);
         systemState.initialize(serverConfiguration);
+        gossipState.initialize(serverConfiguration);
         // Coordination server
         this.coordinationServer = new SharedTcpServer(coordinationPort);
         // Components
-        this.clientComponent = new ClientComponent(clientPort, systemState);
+        this.clientComponent = new ClientComponent(clientPort, currentServerId, gossipState, systemState);
         this.clientComponent.connect();
-        this.gossipComponent = new GossipComponent(serverConfiguration);
+        this.gossipComponent = new GossipComponent(currentServerId, gossipState, serverConfiguration);
         this.gossipComponent.connect();
-        this.raftComponent = new RaftComponent(systemState, serverConfiguration);
+        this.raftComponent = new RaftComponent(currentServerId, systemState, serverConfiguration);
         this.raftComponent.connect();
         // Threads and Coordination server
         this.clientComponentThread = new Thread(clientComponent);

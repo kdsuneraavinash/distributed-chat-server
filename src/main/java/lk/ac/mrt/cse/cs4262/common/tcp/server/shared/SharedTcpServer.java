@@ -62,7 +62,7 @@ public class SharedTcpServer implements Runnable {
                     return response.get();
                 }
             }
-            return "";
+            return "error: not handled";
         }
     }
 }

@@ -28,8 +28,8 @@ public final class TcpClient {
      */
     public static String request(String ipAddress, int port, String payload) throws IOException {
         @Cleanup Socket socket = new Socket(ipAddress, port);
-        @Cleanup PrintWriter printWriter = new PrintWriter(socket.getOutputStream(), false);
-        printWriter.write(payload);
+        @Cleanup PrintWriter printWriter = new PrintWriter(socket.getOutputStream());
+        printWriter.println(payload);
         printWriter.flush();
         @Cleanup InputStreamReader reader = new InputStreamReader(socket.getInputStream());
         @Cleanup BufferedReader bufferedReader = new BufferedReader(reader);

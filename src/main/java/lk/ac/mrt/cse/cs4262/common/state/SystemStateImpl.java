@@ -184,11 +184,6 @@ public class SystemStateImpl implements SystemState {
     }
 
     @Override
-    public ServerId getCurrentServerId() {
-        return this.currentServerId;
-    }
-
-    @Override
     public ParticipantId getSystemUserId(ServerId serverId) {
         return new ParticipantId(SYSTEM_USER_PREFIX + serverId.getValue());
     }
@@ -217,7 +212,7 @@ public class SystemStateImpl implements SystemState {
         }
         state.get(serverId).put(participantId, null);
         participantServerMap.put(participantId, serverId);
-        if (getCurrentServerId().equals(serverId) && eventHandler != null) {
+        if (currentServerId.equals(serverId) && eventHandler != null) {
             eventHandler.participantIdCreated(participantId);
         }
     }
@@ -231,7 +226,7 @@ public class SystemStateImpl implements SystemState {
         }
         state.get(serverId).put(participantId, roomId);
         roomOwnerMap.put(roomId, participantId);
-        if (getCurrentServerId().equals(serverId) && eventHandler != null) {
+        if (currentServerId.equals(serverId) && eventHandler != null) {
             eventHandler.roomIdCreated(participantId, roomId);
         }
     }
@@ -246,7 +241,7 @@ public class SystemStateImpl implements SystemState {
         if (ownedRoomId != null) {
             roomOwnerMap.remove(ownedRoomId);
         }
-        if (getCurrentServerId().equals(serverId) && eventHandler != null) {
+        if (currentServerId.equals(serverId) && eventHandler != null) {
             eventHandler.participantIdDeleted(participantId, ownedRoomId);
         }
     }
@@ -262,7 +257,7 @@ public class SystemStateImpl implements SystemState {
             throw new IllegalStateException("unknown server id");
         }
         state.get(serverId).put(ownerId, null);
-        if (getCurrentServerId().equals(serverId) && eventHandler != null) {
+        if (currentServerId.equals(serverId) && eventHandler != null) {
             eventHandler.roomIdDeleted(roomId);
         }
     }

@@ -14,6 +14,7 @@ import lk.ac.mrt.cse.cs4262.components.client.chat.client.ChatClientImpl;
 import lk.ac.mrt.cse.cs4262.components.client.chat.client.ClientSocketListener;
 import lk.ac.mrt.cse.cs4262.components.client.chat.events.SocketEventHandler;
 import lk.ac.mrt.cse.cs4262.components.client.chat.events.SystemStateEventHandler;
+import lk.ac.mrt.cse.cs4262.components.gossip.state.GossipState;
 import lombok.Cleanup;
 import lombok.extern.log4j.Log4j2;
 
@@ -43,11 +44,12 @@ public class ClientComponent implements ServerComponent, Runnable, AutoCloseable
     /**
      * Create a client connector. See {@link ClientComponent}.
      *
-     * @param port        Port to listen.
-     * @param systemState System read only view.
+     * @param port            Port to listen.
+     * @param currentServerId Current server id.
+     * @param gossipState     Gossip read only view.
+     * @param systemState     System read only view.
      */
-    public ClientComponent(int port, SystemState systemState) {
-        ServerId currentServerId = systemState.getCurrentServerId();
+    public ClientComponent(int port, ServerId currentServerId, GossipState gossipState, SystemState systemState) {
         RoomId mainRoomId = systemState.getMainRoomId(currentServerId);
         Gson serializer = new Gson();
         ChatRoomWaitingList waitingList = new ChatRoomWaitingList();
@@ -58,6 +60,7 @@ public class ClientComponent implements ServerComponent, Runnable, AutoCloseable
         this.chatRoomState = new ChatRoomState(mainRoomId);
         this.socketEventHandler = SocketEventHandler.builder()
                 .currentServerId(currentServerId)
+                .gossipState(gossipState)
                 .systemState(systemState)
                 .chatRoomState(chatRoomState)
                 .waitingList(waitingList)

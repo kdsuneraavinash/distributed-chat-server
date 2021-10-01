@@ -33,6 +33,7 @@ import lk.ac.mrt.cse.cs4262.components.client.messages.responses.MessageBroadcas
 import lk.ac.mrt.cse.cs4262.components.client.messages.responses.NewIdentityClientResponse;
 import lk.ac.mrt.cse.cs4262.components.client.messages.responses.RoomChangeBroadcastResponse;
 import lk.ac.mrt.cse.cs4262.components.client.messages.responses.WhoClientResponse;
+import lk.ac.mrt.cse.cs4262.components.gossip.state.GossipStateReadView;
 import lombok.Builder;
 import lombok.Synchronized;
 import lombok.extern.log4j.Log4j2;
@@ -45,6 +46,7 @@ import java.util.Optional;
 @Log4j2
 public class SocketEventHandler extends AbstractEventHandler implements ClientSocketListener.EventHandler {
     private final ServerId currentServerId;
+    private final GossipStateReadView gossipState;
     private final SystemState systemState;
     private final ChatRoomState chatRoomState;
     private final ChatRoomWaitingList waitingList;
@@ -55,6 +57,7 @@ public class SocketEventHandler extends AbstractEventHandler implements ClientSo
      * Create a Event Handler for client socket. See {@link SocketEventHandler}.
      *
      * @param currentServerId ID of current server
+     * @param gossipState     Gossip state
      * @param systemState     System state
      * @param chatRoomState   Chat room state object
      * @param waitingList     Waiting list
@@ -62,11 +65,13 @@ public class SocketEventHandler extends AbstractEventHandler implements ClientSo
      * @param messageSender   Message Sender
      */
     @Builder
-    public SocketEventHandler(ServerId currentServerId, SystemState systemState,
+    public SocketEventHandler(ServerId currentServerId,
+                              GossipStateReadView gossipState, SystemState systemState,
                               ChatRoomState chatRoomState, ChatRoomWaitingList waitingList,
                               Gson serializer, @Nullable MessageSender messageSender) {
         super(messageSender);
         this.currentServerId = currentServerId;
+        this.gossipState = gossipState;
         this.systemState = systemState;
         this.chatRoomState = chatRoomState;
         this.waitingList = waitingList;
@@ -196,6 +201,7 @@ public class SocketEventHandler extends AbstractEventHandler implements ClientSo
      */
     private void processChatRoomListRequest(AuthenticatedClient authenticatedClient) {
         log.traceEntry("authenticatedClient={}", authenticatedClient);
+        log.info("failedKnownServerIds={}", gossipState.failedServerIds());
         // TODO: Integrate Gossip state
         Collection<RoomId> roomIds = systemState.getRoomsInServer(currentServerId);
         String message = createRoomListMsg(roomIds);

@@ -57,11 +57,6 @@ public interface SystemStateReadView {
     Optional<ServerId> getServerOfParticipant(ParticipantId participantId);
 
     /**
-     * @return The ID of the current active server.
-     */
-    ServerId getCurrentServerId();
-
-    /**
      * @param serverId ID of the server.
      * @return The ID of the system user of specified server.
      */

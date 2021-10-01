@@ -2,6 +2,7 @@ package lk.ac.mrt.cse.cs4262.components.raft;
 
 import lk.ac.mrt.cse.cs4262.ServerConfiguration;
 import lk.ac.mrt.cse.cs4262.common.state.SystemState;
+import lk.ac.mrt.cse.cs4262.common.symbols.ServerId;
 import lk.ac.mrt.cse.cs4262.common.tcp.server.shared.SharedTcpRequestHandler;
 import lk.ac.mrt.cse.cs4262.common.utils.TimedInvoker;
 import lk.ac.mrt.cse.cs4262.components.ServerComponent;
@@ -17,6 +18,7 @@ public class RaftComponent implements ServerComponent, SharedTcpRequestHandler, 
     private static final int INITIAL_DELAY_S = 5;
     private static final int PERIOD_S = 10;
 
+    private final ServerId currentServerId;
     private final SystemState systemState;
     private final ServerConfiguration serverConfiguration;
     private final TimedInvoker timedInvoker;
@@ -24,10 +26,12 @@ public class RaftComponent implements ServerComponent, SharedTcpRequestHandler, 
     /**
      * Create a raft component. See {@link RaftComponent}.
      *
+     * @param currentServerId     Current server id.
      * @param systemState         System global state (write view).
      * @param serverConfiguration All server configuration.
      */
-    public RaftComponent(SystemState systemState, ServerConfiguration serverConfiguration) {
+    public RaftComponent(ServerId currentServerId, SystemState systemState, ServerConfiguration serverConfiguration) {
+        this.currentServerId = currentServerId;
         this.systemState = systemState;
         this.serverConfiguration = serverConfiguration;
         this.timedInvoker = new TimedInvoker();
@@ -52,6 +56,7 @@ public class RaftComponent implements ServerComponent, SharedTcpRequestHandler, 
     @Override
     public Optional<String> handleRequest(String request) {
         if (request.startsWith("R")) {
+            log.info(currentServerId);
             log.info(systemState);
             log.info(serverConfiguration);
             return Optional.of("WAHHH!!!");
