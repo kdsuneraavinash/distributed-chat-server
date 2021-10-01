@@ -32,13 +32,13 @@ public class TcpSocketListener implements Runnable {
             @Cleanup BufferedReader bufferedReader = new BufferedReader(inputStreamReader);
             String request = bufferedReader.readLine();
             if (request != null) {
-                log.info("request <- {}: {}", inetAddress, request);
+                log.debug("request <- {}: {}", inetAddress, request);
                 String response = eventHandler.handleRequest(request);
                 @Cleanup OutputStream socketOutputStream = socket.getOutputStream();
-                @Cleanup PrintWriter printWriter = new PrintWriter(socketOutputStream);
+                @Cleanup PrintWriter printWriter = new PrintWriter(socketOutputStream, false);
                 printWriter.println(response);
                 printWriter.flush();
-                log.info("response -> {}: {}", inetAddress, request);
+                log.debug("response -> {}: {}", inetAddress, response);
             }
         } catch (IOException e) {
             log.error("failed -X {}", inetAddress);

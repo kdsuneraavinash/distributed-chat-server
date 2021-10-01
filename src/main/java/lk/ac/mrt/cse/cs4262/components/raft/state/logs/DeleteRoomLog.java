@@ -1,4 +1,4 @@
-package lk.ac.mrt.cse.cs4262.common.state.logs;
+package lk.ac.mrt.cse.cs4262.components.raft.state.logs;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;

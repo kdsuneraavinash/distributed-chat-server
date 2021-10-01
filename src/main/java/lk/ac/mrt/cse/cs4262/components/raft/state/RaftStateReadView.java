@@ -1,4 +1,4 @@
-package lk.ac.mrt.cse.cs4262.common.state;
+package lk.ac.mrt.cse.cs4262.components.raft.state;
 
 import lk.ac.mrt.cse.cs4262.common.symbols.ParticipantId;
 import lk.ac.mrt.cse.cs4262.common.symbols.RoomId;
@@ -11,9 +11,9 @@ import java.util.Optional;
 /**
  * The State containing the primary system state read view.
  * No edits are permitted via this view.
- * TODO: Change Client component to accept SystemStateReadView.
+ * TODO: Change Client component to accept RaftStateReadView.
  */
-public interface SystemStateReadView {
+public interface RaftStateReadView {
     /**
      * @param participantId ID of the participant.
      * @return Whether the participant is active in the system.
@@ -55,11 +55,6 @@ public interface SystemStateReadView {
      * @return The ID of the server with the participant.
      */
     Optional<ServerId> getServerOfParticipant(ParticipantId participantId);
-
-    /**
-     * @return The ID of the current active server.
-     */
-    ServerId getCurrentServerId();
 
     /**
      * @param serverId ID of the server.

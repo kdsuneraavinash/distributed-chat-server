@@ -1,4 +1,4 @@
-package lk.ac.mrt.cse.cs4262.common.state;
+package lk.ac.mrt.cse.cs4262.components.raft.state;
 
 import lk.ac.mrt.cse.cs4262.ServerConfiguration;
 
@@ -7,7 +7,7 @@ import lk.ac.mrt.cse.cs4262.ServerConfiguration;
  * Will contain all the servers, participants and rooms.
  * This is only updated via log entries and will be persisted.
  */
-public interface SystemState extends SystemStateReadView {
+public interface RaftState extends RaftStateReadView {
     /**
      * Initializes state by applying all persisted logs.
      *

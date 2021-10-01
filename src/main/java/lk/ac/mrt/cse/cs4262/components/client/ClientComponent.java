@@ -1,7 +1,7 @@
 package lk.ac.mrt.cse.cs4262.components.client;
 
 import com.google.gson.Gson;
-import lk.ac.mrt.cse.cs4262.common.state.SystemState;
+import lk.ac.mrt.cse.cs4262.components.raft.state.RaftState;
 import lk.ac.mrt.cse.cs4262.common.symbols.ClientId;
 import lk.ac.mrt.cse.cs4262.common.symbols.RoomId;
 import lk.ac.mrt.cse.cs4262.common.symbols.ServerId;
@@ -12,8 +12,9 @@ import lk.ac.mrt.cse.cs4262.components.client.chat.MessageSender;
 import lk.ac.mrt.cse.cs4262.components.client.chat.client.ChatClient;
 import lk.ac.mrt.cse.cs4262.components.client.chat.client.ChatClientImpl;
 import lk.ac.mrt.cse.cs4262.components.client.chat.client.ClientSocketListener;
+import lk.ac.mrt.cse.cs4262.components.client.chat.events.RaftStateEventHandler;
 import lk.ac.mrt.cse.cs4262.components.client.chat.events.SocketEventHandler;
-import lk.ac.mrt.cse.cs4262.components.client.chat.events.SystemStateEventHandler;
+import lk.ac.mrt.cse.cs4262.components.gossip.state.GossipState;
 import lombok.Cleanup;
 import lombok.extern.log4j.Log4j2;
 
@@ -32,8 +33,8 @@ import java.util.concurrent.Executors;
  */
 @Log4j2
 public class ClientComponent implements ServerComponent, Runnable, AutoCloseable, MessageSender {
-    private final SystemStateEventHandler systemStateEventHandler;
-    private final SystemState systemState;
+    private final RaftStateEventHandler raftStateEventHandler;
+    private final RaftState raftState;
     private final SocketEventHandler socketEventHandler;
     private final Map<ClientId, ChatClient> allClients;
     private final ChatRoomState chatRoomState;
@@ -43,26 +44,28 @@ public class ClientComponent implements ServerComponent, Runnable, AutoCloseable
     /**
      * Create a client connector. See {@link ClientComponent}.
      *
-     * @param port        Port to listen.
-     * @param systemState System read only view.
+     * @param port            Port to listen.
+     * @param currentServerId Current server id.
+     * @param gossipState     Gossip read only view.
+     * @param raftState       System read only view.
      */
-    public ClientComponent(int port, SystemState systemState) {
-        ServerId currentServerId = systemState.getCurrentServerId();
-        RoomId mainRoomId = systemState.getMainRoomId(currentServerId);
+    public ClientComponent(int port, ServerId currentServerId, GossipState gossipState, RaftState raftState) {
+        RoomId mainRoomId = raftState.getMainRoomId(currentServerId);
         Gson serializer = new Gson();
         ChatRoomWaitingList waitingList = new ChatRoomWaitingList();
 
         this.port = port;
         this.allClients = new HashMap<>();
-        this.systemState = systemState;
+        this.raftState = raftState;
         this.chatRoomState = new ChatRoomState(mainRoomId);
         this.socketEventHandler = SocketEventHandler.builder()
                 .currentServerId(currentServerId)
-                .systemState(systemState)
+                .gossipState(gossipState)
+                .raftState(raftState)
                 .chatRoomState(chatRoomState)
                 .waitingList(waitingList)
                 .serializer(serializer).build();
-        this.systemStateEventHandler = SystemStateEventHandler.builder()
+        this.raftStateEventHandler = RaftStateEventHandler.builder()
                 .mainRoomId(mainRoomId)
                 .chatRoomState(chatRoomState)
                 .waitingList(waitingList)
@@ -74,8 +77,8 @@ public class ClientComponent implements ServerComponent, Runnable, AutoCloseable
     @Override
     public void connect() {
         socketEventHandler.attachMessageSender(this);
-        systemStateEventHandler.attachMessageSender(this);
-        systemState.attachListener(systemStateEventHandler);
+        raftStateEventHandler.attachMessageSender(this);
+        raftState.attachListener(raftStateEventHandler);
         log.info("client component connected");
     }
 

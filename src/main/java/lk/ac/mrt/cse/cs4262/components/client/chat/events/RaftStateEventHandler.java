@@ -1,7 +1,7 @@
 package lk.ac.mrt.cse.cs4262.components.client.chat.events;
 
 import com.google.gson.Gson;
-import lk.ac.mrt.cse.cs4262.common.state.SystemStateReadView;
+import lk.ac.mrt.cse.cs4262.components.raft.state.RaftStateReadView;
 import lk.ac.mrt.cse.cs4262.common.symbols.ClientId;
 import lk.ac.mrt.cse.cs4262.common.symbols.ParticipantId;
 import lk.ac.mrt.cse.cs4262.common.symbols.RoomId;
@@ -24,14 +24,14 @@ import java.util.Collection;
  * This will deque waiting list and send messages to them.
  */
 @Log4j2
-public class SystemStateEventHandler extends AbstractEventHandler implements SystemStateReadView.EventHandler {
+public class RaftStateEventHandler extends AbstractEventHandler implements RaftStateReadView.EventHandler {
     private final RoomId mainRoomId;
     private final ChatRoomState chatRoomState;
     private final ChatRoomWaitingList waitingList;
     private final Gson serializer;
 
     /**
-     * Create a Event Handler for System State. See {@link SystemStateEventHandler}.
+     * Create a Event Handler for System State. See {@link RaftStateEventHandler}.
      *
      * @param mainRoomId    ID of main room
      * @param chatRoomState Chat room state object
@@ -40,9 +40,9 @@ public class SystemStateEventHandler extends AbstractEventHandler implements Sys
      * @param messageSender Message Sender
      */
     @Builder
-    public SystemStateEventHandler(RoomId mainRoomId,
-                                   ChatRoomState chatRoomState, ChatRoomWaitingList waitingList,
-                                   Gson serializer, @Nullable MessageSender messageSender) {
+    public RaftStateEventHandler(RoomId mainRoomId,
+                                 ChatRoomState chatRoomState, ChatRoomWaitingList waitingList,
+                                 Gson serializer, @Nullable MessageSender messageSender) {
         super(messageSender);
         this.mainRoomId = mainRoomId;
         this.chatRoomState = chatRoomState;
