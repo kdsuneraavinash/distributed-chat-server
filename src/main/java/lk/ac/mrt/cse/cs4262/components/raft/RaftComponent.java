@@ -1,7 +1,7 @@
 package lk.ac.mrt.cse.cs4262.components.raft;
 
 import lk.ac.mrt.cse.cs4262.ServerConfiguration;
-import lk.ac.mrt.cse.cs4262.common.state.SystemState;
+import lk.ac.mrt.cse.cs4262.components.raft.state.RaftState;
 import lk.ac.mrt.cse.cs4262.common.symbols.ServerId;
 import lk.ac.mrt.cse.cs4262.common.tcp.server.shared.SharedTcpRequestHandler;
 import lk.ac.mrt.cse.cs4262.common.utils.TimedInvoker;
@@ -19,7 +19,7 @@ public class RaftComponent implements ServerComponent, SharedTcpRequestHandler, 
     private static final int PERIOD_S = 10;
 
     private final ServerId currentServerId;
-    private final SystemState systemState;
+    private final RaftState raftState;
     private final ServerConfiguration serverConfiguration;
     private final TimedInvoker timedInvoker;
 
@@ -27,12 +27,12 @@ public class RaftComponent implements ServerComponent, SharedTcpRequestHandler, 
      * Create a raft component. See {@link RaftComponent}.
      *
      * @param currentServerId     Current server id.
-     * @param systemState         System global state (write view).
+     * @param raftState         System global state (write view).
      * @param serverConfiguration All server configuration.
      */
-    public RaftComponent(ServerId currentServerId, SystemState systemState, ServerConfiguration serverConfiguration) {
+    public RaftComponent(ServerId currentServerId, RaftState raftState, ServerConfiguration serverConfiguration) {
         this.currentServerId = currentServerId;
-        this.systemState = systemState;
+        this.raftState = raftState;
         this.serverConfiguration = serverConfiguration;
         this.timedInvoker = new TimedInvoker();
     }
@@ -57,7 +57,7 @@ public class RaftComponent implements ServerComponent, SharedTcpRequestHandler, 
     public Optional<String> handleRequest(String request) {
         if (request.startsWith("R")) {
             log.info(currentServerId);
-            log.info(systemState);
+            log.info(raftState);
             log.info(serverConfiguration);
             return Optional.of("WAHHH!!!");
         }

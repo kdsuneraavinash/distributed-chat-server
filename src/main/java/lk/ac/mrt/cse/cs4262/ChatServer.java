@@ -1,7 +1,7 @@
 package lk.ac.mrt.cse.cs4262;
 
-import lk.ac.mrt.cse.cs4262.common.state.SystemState;
-import lk.ac.mrt.cse.cs4262.common.state.SystemStateImpl;
+import lk.ac.mrt.cse.cs4262.components.raft.state.RaftState;
+import lk.ac.mrt.cse.cs4262.components.raft.state.RaftStateImpl;
 import lk.ac.mrt.cse.cs4262.common.symbols.ServerId;
 import lk.ac.mrt.cse.cs4262.common.tcp.server.shared.SharedTcpServer;
 import lk.ac.mrt.cse.cs4262.components.client.ClientComponent;
@@ -40,18 +40,18 @@ public class ChatServer implements AutoCloseable {
         int coordinationPort = serverConfiguration.getCoordinationPort(currentServerId).orElseThrow();
 
         // System State
-        SystemState systemState = new SystemStateImpl(currentServerId);
+        RaftState raftState = new RaftStateImpl(currentServerId);
         GossipState gossipState = new GossipStateImpl(currentServerId);
-        systemState.initialize(serverConfiguration);
+        raftState.initialize(serverConfiguration);
         gossipState.initialize(serverConfiguration);
         // Coordination server
         this.coordinationServer = new SharedTcpServer(coordinationPort);
         // Components
-        this.clientComponent = new ClientComponent(clientPort, currentServerId, gossipState, systemState);
+        this.clientComponent = new ClientComponent(clientPort, currentServerId, gossipState, raftState);
         this.clientComponent.connect();
         this.gossipComponent = new GossipComponent(currentServerId, gossipState, serverConfiguration);
         this.gossipComponent.connect();
-        this.raftComponent = new RaftComponent(currentServerId, systemState, serverConfiguration);
+        this.raftComponent = new RaftComponent(currentServerId, raftState, serverConfiguration);
         this.raftComponent.connect();
         // Threads and Coordination server
         this.clientComponentThread = new Thread(clientComponent);

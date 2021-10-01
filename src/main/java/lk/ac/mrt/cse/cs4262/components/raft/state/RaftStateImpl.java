@@ -1,11 +1,11 @@
-package lk.ac.mrt.cse.cs4262.common.state;
+package lk.ac.mrt.cse.cs4262.components.raft.state;
 
 import lk.ac.mrt.cse.cs4262.ServerConfiguration;
-import lk.ac.mrt.cse.cs4262.common.state.logs.BaseLog;
-import lk.ac.mrt.cse.cs4262.common.state.logs.CreateIdentityLog;
-import lk.ac.mrt.cse.cs4262.common.state.logs.CreateRoomLog;
-import lk.ac.mrt.cse.cs4262.common.state.logs.DeleteIdentityLog;
-import lk.ac.mrt.cse.cs4262.common.state.logs.DeleteRoomLog;
+import lk.ac.mrt.cse.cs4262.components.raft.state.logs.BaseLog;
+import lk.ac.mrt.cse.cs4262.components.raft.state.logs.CreateIdentityLog;
+import lk.ac.mrt.cse.cs4262.components.raft.state.logs.CreateRoomLog;
+import lk.ac.mrt.cse.cs4262.components.raft.state.logs.DeleteIdentityLog;
+import lk.ac.mrt.cse.cs4262.components.raft.state.logs.DeleteRoomLog;
 import lk.ac.mrt.cse.cs4262.common.symbols.ParticipantId;
 import lk.ac.mrt.cse.cs4262.common.symbols.RoomId;
 import lk.ac.mrt.cse.cs4262.common.symbols.ServerId;
@@ -22,11 +22,11 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
- * Implementation for the {@link SystemState}.
+ * Implementation for the {@link RaftState}.
  */
 @ToString(onlyExplicitlyIncluded = true)
 @Log4j2
-public class SystemStateImpl implements SystemState {
+public class RaftStateImpl implements RaftState {
     /**
      * A reserved participant name prefix for SYSTEM user.
      * This is the owner main rooms for each server.
@@ -70,11 +70,11 @@ public class SystemStateImpl implements SystemState {
     private EventHandler eventHandler;
 
     /**
-     * Create a system state. See {@link SystemStateImpl}.
+     * Create a system state. See {@link RaftStateImpl}.
      *
      * @param currentServerId Current Server ID.
      */
-    public SystemStateImpl(ServerId currentServerId) {
+    public RaftStateImpl(ServerId currentServerId) {
         this.currentServerId = currentServerId;
         this.state = new HashMap<>();
         this.participantServerMap = new HashMap<>();
