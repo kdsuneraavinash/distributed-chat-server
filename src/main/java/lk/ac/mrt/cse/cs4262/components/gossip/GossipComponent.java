@@ -98,8 +98,7 @@ public class GossipComponent implements ServerComponent, SharedTcpRequestHandler
                 String response = TcpClient.request(ipAddress, coordPort, gossipState.toJson(serializer));
                 Map<String, Integer> gossip = serializer.fromJson(response, GossipFormat.class);
                 gossipState.updateHeartBeatCounter(gossip);
-            } catch (IOException | JsonSyntaxException e) {
-                log.error("{}: {}", serverId, e);
+            } catch (IOException | JsonSyntaxException ignored) {
             }
         }
     }
