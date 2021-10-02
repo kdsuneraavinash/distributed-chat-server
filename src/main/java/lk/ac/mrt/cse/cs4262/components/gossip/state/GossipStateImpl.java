@@ -40,7 +40,9 @@ public class GossipStateImpl implements GossipState {
     @Override
     public void initialize(ServerConfiguration serverConfiguration) {
         for (ServerId serverId : serverConfiguration.allServerIds()) {
-            updateHeartBeatCounter(serverId, 0);
+            // Put 0 counter as the oldest entry (0 timestamp)
+            heartBeatCounters.put(serverId, 0);
+            lastUpdatedTimestamps.put(serverId, 0L);
         }
     }
 
