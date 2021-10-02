@@ -1,2 +1,4 @@
 MAIN	localhost	4444	5555
-SECONDARY	localhost	3333	6666
+SAM	localhost	4445	5556
+JOE	localhost	4446	5557
+FRANK	localhost	4447	5558

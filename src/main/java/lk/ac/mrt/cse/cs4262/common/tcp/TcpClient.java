@@ -19,6 +19,7 @@ public final class TcpClient {
 
     /**
      * Send a request to a server using TCP protocol.
+     * No timeout will be in effect.
      *
      * @param ipAddress IP address of server.
      * @param port      Port of server.
@@ -27,7 +28,22 @@ public final class TcpClient {
      * @throws IOException If connection failed.
      */
     public static String request(String ipAddress, int port, String payload) throws IOException {
+        return TcpClient.request(ipAddress, port, payload, 0);
+    }
+
+    /**
+     * Send a request to a server using TCP protocol.
+     *
+     * @param ipAddress IP address of server.
+     * @param port      Port of server.
+     * @param payload   Payload to send.
+     * @param timeout   Payload to send. (milliseconds)
+     * @return Response from server.
+     * @throws IOException If connection failed.
+     */
+    public static String request(String ipAddress, int port, String payload, int timeout) throws IOException {
         @Cleanup Socket socket = new Socket(ipAddress, port);
+        socket.setSoTimeout(timeout);
         @Cleanup PrintWriter printWriter = new PrintWriter(socket.getOutputStream());
         printWriter.println(payload);
         printWriter.flush();

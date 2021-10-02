@@ -1,7 +1,5 @@
 package lk.ac.mrt.cse.cs4262;
 
-import lk.ac.mrt.cse.cs4262.components.raft.state.RaftState;
-import lk.ac.mrt.cse.cs4262.components.raft.state.RaftStateImpl;
 import lk.ac.mrt.cse.cs4262.common.symbols.ServerId;
 import lk.ac.mrt.cse.cs4262.common.tcp.server.shared.SharedTcpServer;
 import lk.ac.mrt.cse.cs4262.components.client.ClientComponent;
@@ -9,6 +7,8 @@ import lk.ac.mrt.cse.cs4262.components.gossip.GossipComponent;
 import lk.ac.mrt.cse.cs4262.components.gossip.state.GossipState;
 import lk.ac.mrt.cse.cs4262.components.gossip.state.GossipStateImpl;
 import lk.ac.mrt.cse.cs4262.components.raft.RaftComponent;
+import lk.ac.mrt.cse.cs4262.components.raft.state.RaftState;
+import lk.ac.mrt.cse.cs4262.components.raft.state.RaftStateImpl;
 import lombok.extern.log4j.Log4j2;
 
 /**
@@ -17,6 +17,9 @@ import lombok.extern.log4j.Log4j2;
  */
 @Log4j2
 public class ChatServer implements AutoCloseable {
+    // Timeout for coordination server - 1 second
+    private static final int COORDINATION_TIMEOUT_MS = 1000;
+
     // Coordination server
     private final SharedTcpServer coordinationServer;
     // Components
@@ -45,7 +48,7 @@ public class ChatServer implements AutoCloseable {
         raftState.initialize(serverConfiguration);
         gossipState.initialize(serverConfiguration);
         // Coordination server
-        this.coordinationServer = new SharedTcpServer(coordinationPort);
+        this.coordinationServer = new SharedTcpServer(coordinationPort, COORDINATION_TIMEOUT_MS);
         // Components
         this.clientComponent = new ClientComponent(clientPort, currentServerId, gossipState, raftState);
         this.clientComponent.connect();

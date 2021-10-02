@@ -16,6 +16,7 @@ import java.util.concurrent.Executors;
 @Log4j2
 public class TcpServer implements Runnable {
     private final int port;
+    private final int timeout;
     private final TcpRequestHandler requestHandler;
     private final ExecutorService executorService;
 
@@ -23,10 +24,12 @@ public class TcpServer implements Runnable {
      * See {@link TcpServer}.
      *
      * @param port           Port to run.
+     * @param timeout     Timeout for the socket server. (milliseconds)
      * @param requestHandler Handler for requests.
      */
-    public TcpServer(int port, TcpRequestHandler requestHandler) {
+    public TcpServer(int port, int timeout, TcpRequestHandler requestHandler) {
         this.port = port;
+        this.timeout = timeout;
         this.requestHandler = requestHandler;
         this.executorService = Executors.newCachedThreadPool();
     }
@@ -39,6 +42,7 @@ public class TcpServer implements Runnable {
             while (!Thread.currentThread().isInterrupted()) {
                 // Create a new client from each socket connection.
                 Socket socket = serverSocket.accept();
+                socket.setSoTimeout(timeout);
                 this.executorService.submit(new TcpSocketListener(socket, requestHandler));
             }
         } catch (IOException e) {

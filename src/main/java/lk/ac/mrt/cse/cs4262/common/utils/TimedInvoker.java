@@ -24,12 +24,12 @@ public class TimedInvoker implements AutoCloseable {
      * Start the execution.
      *
      * @param eventHandler Event handler for timed events
-     * @param initialDelay the time to delay first execution
-     * @param period       the period between successive executions
+     * @param initialDelay the time to delay first execution (milliseconds)
+     * @param period       the period between successive executions (milliseconds)
      */
     public void startExecution(EventHandler eventHandler, int initialDelay, int period) {
         executorService.scheduleAtFixedRate(eventHandler::handleTimedEvent,
-                initialDelay, period, TimeUnit.SECONDS);
+                initialDelay, period, TimeUnit.MILLISECONDS);
     }
 
     @Override

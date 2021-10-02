@@ -15,8 +15,8 @@ import java.util.Optional;
  */
 @Log4j2
 public class RaftComponent implements ServerComponent, SharedTcpRequestHandler, TimedInvoker.EventHandler {
-    private static final int INITIAL_DELAY_S = 5;
-    private static final int PERIOD_S = 10;
+    private static final int RAFT_INITIAL_DELAY_MS = 1000;
+    private static final int RAFT_PERIOD_MS = 5000;
 
     private final ServerId currentServerId;
     private final RaftState raftState;
@@ -39,7 +39,7 @@ public class RaftComponent implements ServerComponent, SharedTcpRequestHandler, 
 
     @Override
     public void connect() {
-        timedInvoker.startExecution(this, INITIAL_DELAY_S, PERIOD_S);
+        timedInvoker.startExecution(this, RAFT_INITIAL_DELAY_MS, RAFT_PERIOD_MS);
     }
 
     @Override

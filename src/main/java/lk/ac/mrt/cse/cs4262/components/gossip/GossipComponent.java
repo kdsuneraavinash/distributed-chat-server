@@ -23,8 +23,9 @@ import java.util.Random;
  */
 @Log4j2
 public class GossipComponent implements ServerComponent, SharedTcpRequestHandler, TimedInvoker.EventHandler {
-    private static final int INITIAL_DELAY_S = 5;
-    private static final int PERIOD_S = 5;
+    private static final int GOSSIP_WAIT_TIMEOUT_MS = 2000;
+    private static final int GOSSIP_INITIAL_DELAY_MS = 5000;
+    private static final int GOSSIP_PERIOD_MS = 5000;
 
     private final ServerId currentServerId;
     private final ServerConfiguration serverConfiguration;
@@ -51,7 +52,7 @@ public class GossipComponent implements ServerComponent, SharedTcpRequestHandler
 
     @Override
     public void connect() {
-        timedInvoker.startExecution(this, INITIAL_DELAY_S, PERIOD_S);
+        timedInvoker.startExecution(this, GOSSIP_INITIAL_DELAY_MS, GOSSIP_PERIOD_MS);
     }
 
     @Override
@@ -95,7 +96,8 @@ public class GossipComponent implements ServerComponent, SharedTcpRequestHandler
             try {
                 String ipAddress = serverConfiguration.getServerAddress(serverId).orElseThrow();
                 int coordPort = serverConfiguration.getCoordinationPort(serverId).orElseThrow();
-                String response = TcpClient.request(ipAddress, coordPort, gossipState.toJson(serializer));
+                String response = TcpClient.request(ipAddress, coordPort,
+                        gossipState.toJson(serializer), GOSSIP_WAIT_TIMEOUT_MS);
                 Map<String, Integer> gossip = serializer.fromJson(response, GossipFormat.class);
                 gossipState.updateHeartBeatCounter(gossip);
             } catch (IOException | JsonSyntaxException ignored) {

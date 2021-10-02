@@ -1,7 +1,6 @@
 package lk.ac.mrt.cse.cs4262.components.client;
 
 import com.google.gson.Gson;
-import lk.ac.mrt.cse.cs4262.components.raft.state.RaftState;
 import lk.ac.mrt.cse.cs4262.common.symbols.ClientId;
 import lk.ac.mrt.cse.cs4262.common.symbols.RoomId;
 import lk.ac.mrt.cse.cs4262.common.symbols.ServerId;
@@ -14,7 +13,8 @@ import lk.ac.mrt.cse.cs4262.components.client.chat.client.ChatClientImpl;
 import lk.ac.mrt.cse.cs4262.components.client.chat.client.ClientSocketListener;
 import lk.ac.mrt.cse.cs4262.components.client.chat.events.RaftStateEventHandler;
 import lk.ac.mrt.cse.cs4262.components.client.chat.events.SocketEventHandler;
-import lk.ac.mrt.cse.cs4262.components.gossip.state.GossipState;
+import lk.ac.mrt.cse.cs4262.components.gossip.state.GossipStateReadView;
+import lk.ac.mrt.cse.cs4262.components.raft.state.RaftState;
 import lombok.Cleanup;
 import lombok.extern.log4j.Log4j2;
 
@@ -49,7 +49,8 @@ public class ClientComponent implements ServerComponent, Runnable, AutoCloseable
      * @param gossipState     Gossip read only view.
      * @param raftState       System read only view.
      */
-    public ClientComponent(int port, ServerId currentServerId, GossipState gossipState, RaftState raftState) {
+    public ClientComponent(int port, ServerId currentServerId,
+                           GossipStateReadView gossipState, RaftState raftState) {
         RoomId mainRoomId = raftState.getMainRoomId(currentServerId);
         Gson serializer = new Gson();
         ChatRoomWaitingList waitingList = new ChatRoomWaitingList();

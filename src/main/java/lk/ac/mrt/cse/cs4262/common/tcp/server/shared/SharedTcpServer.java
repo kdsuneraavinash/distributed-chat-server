@@ -20,11 +20,12 @@ public class SharedTcpServer implements Runnable {
     /**
      * See {@link TcpServer}.
      *
-     * @param port Port to run.
+     * @param port       Port to run.
+     * @param timeout Timeout for the socket server. (milliseconds)
      */
-    public SharedTcpServer(int port) {
+    public SharedTcpServer(int port, int timeout) {
         this.requestHandler = new RequestHandler();
-        this.tcpServer = new TcpServer(port, requestHandler);
+        this.tcpServer = new TcpServer(port, timeout, requestHandler);
     }
 
     /**
