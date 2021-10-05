@@ -9,16 +9,13 @@ import lk.ac.mrt.cse.cs4262.components.raft.state.logs.DeleteRoomLog;
 import lk.ac.mrt.cse.cs4262.common.symbols.ParticipantId;
 import lk.ac.mrt.cse.cs4262.common.symbols.RoomId;
 import lk.ac.mrt.cse.cs4262.common.symbols.ServerId;
+import lombok.Getter;
+import lombok.Setter;
 import lombok.ToString;
 import lombok.extern.log4j.Log4j2;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -260,5 +257,48 @@ public class RaftStateImpl implements RaftState {
         if (currentServerId.equals(serverId) && eventHandler != null) {
             eventHandler.roomIdDeleted(roomId);
         }
+    }
+
+
+    /*
+    ========================================================
+    Leader Election
+    ========================================================
+     */
+
+    @Getter
+    @Setter
+    private int term;
+
+    @Getter
+    @Setter
+    private NodeType nodeType = NodeType.FOLLOWER;
+
+    @Getter
+    @Setter
+    private boolean leaderTimeout = false;
+
+    @Getter
+    private ArrayList<RaftLog> commitLog;
+
+    @Override
+    public int incrementTerm() {
+        term++;
+        return term;
+    }
+
+    @Override
+    public void setToFollower() {
+        nodeType = NodeType.FOLLOWER;
+    }
+
+    @Override
+    public void setToCandidate() {
+        nodeType = NodeType.CANDIDATE;
+    }
+
+    @Override
+    public void setToLeader() {
+        nodeType = NodeType.LEADER;
     }
 }

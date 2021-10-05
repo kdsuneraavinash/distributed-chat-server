@@ -2,6 +2,8 @@ package lk.ac.mrt.cse.cs4262.components.raft.state;
 
 import lk.ac.mrt.cse.cs4262.ServerConfiguration;
 
+import java.util.ArrayList;
+
 /**
  * The State containing the primary system state.
  * Will contain all the servers, participants and rooms.
@@ -22,4 +24,22 @@ public interface RaftState extends RaftStateReadView {
      * @param logEntry Log entry to apply to the system.
      */
     void commit(RaftLog logEntry);
+
+
+
+    int getTerm();
+
+    int incrementTerm();
+
+    enum NodeType{
+        CANDIDATE,
+        FOLLOWER,
+        LEADER,
+    }
+    NodeType getNodeType();
+    void setToLeader();
+    void setToFollower();
+    void setToCandidate();
+
+    ArrayList<RaftLog> getCommitLog();
 }
