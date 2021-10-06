@@ -218,8 +218,8 @@ public class RaftStateImpl implements RaftState {
      */
 
     private void applyCreateIdentityLog(CreateIdentityLog logEntry) {
-        ParticipantId participantId = new ParticipantId(logEntry.getIdentity());
-        ServerId serverId = new ServerId(logEntry.getServerId());
+        ParticipantId participantId = logEntry.getIdentity();
+        ServerId serverId = logEntry.getServerId();
         if (!state.containsKey(serverId)) {
             throw new IllegalStateException("unknown server id");
         }
@@ -231,8 +231,8 @@ public class RaftStateImpl implements RaftState {
     }
 
     private void applyCreateRoomLog(CreateRoomLog logEntry) {
-        ParticipantId participantId = new ParticipantId(logEntry.getParticipantId());
-        RoomId roomId = new RoomId(logEntry.getRoomId());
+        ParticipantId participantId = logEntry.getParticipantId();
+        RoomId roomId = logEntry.getRoomId();
         ServerId serverId = participantServerMap.get(participantId);
         if (serverId == null || !state.containsKey(serverId)) {
             throw new IllegalStateException("unknown server id");
@@ -245,7 +245,7 @@ public class RaftStateImpl implements RaftState {
     }
 
     private void applyDeleteIdentityLog(DeleteIdentityLog logEntry) {
-        ParticipantId participantId = new ParticipantId(logEntry.getIdentity());
+        ParticipantId participantId = logEntry.getIdentity();
         ServerId serverId = participantServerMap.remove(participantId);
         if (serverId == null || !state.containsKey(serverId)) {
             throw new IllegalStateException("unknown server id");
@@ -260,7 +260,7 @@ public class RaftStateImpl implements RaftState {
     }
 
     private void applyDeleteRoomLog(DeleteRoomLog logEntry) {
-        RoomId roomId = new RoomId(logEntry.getRoomId());
+        RoomId roomId = logEntry.getRoomId();
         ParticipantId ownerId = roomOwnerMap.remove(roomId);
         if (ownerId == null) {
             throw new IllegalStateException("owner cannot be null");

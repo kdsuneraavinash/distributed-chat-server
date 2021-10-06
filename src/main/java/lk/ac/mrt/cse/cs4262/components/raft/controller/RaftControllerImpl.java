@@ -2,12 +2,12 @@ package lk.ac.mrt.cse.cs4262.components.raft.controller;
 
 import lk.ac.mrt.cse.cs4262.ServerConfiguration;
 import lk.ac.mrt.cse.cs4262.common.symbols.ServerId;
-import lk.ac.mrt.cse.cs4262.components.raft.messages.variants.AppendReplyMessage;
-import lk.ac.mrt.cse.cs4262.components.raft.messages.variants.AppendRequestMessage;
-import lk.ac.mrt.cse.cs4262.components.raft.messages.variants.BaseRaftMessage;
-import lk.ac.mrt.cse.cs4262.components.raft.messages.variants.CommandRequestMessage;
-import lk.ac.mrt.cse.cs4262.components.raft.messages.variants.VoteReplyMessage;
-import lk.ac.mrt.cse.cs4262.components.raft.messages.variants.VoteRequestMessage;
+import lk.ac.mrt.cse.cs4262.components.raft.messages.AppendReplyMessage;
+import lk.ac.mrt.cse.cs4262.components.raft.messages.AppendRequestMessage;
+import lk.ac.mrt.cse.cs4262.components.raft.messages.BaseRaftMessage;
+import lk.ac.mrt.cse.cs4262.components.raft.messages.CommandRequestMessage;
+import lk.ac.mrt.cse.cs4262.components.raft.messages.VoteReplyMessage;
+import lk.ac.mrt.cse.cs4262.components.raft.messages.VoteRequestMessage;
 import lk.ac.mrt.cse.cs4262.components.raft.state.RaftLog;
 import lk.ac.mrt.cse.cs4262.components.raft.state.RaftState;
 import lk.ac.mrt.cse.cs4262.components.raft.state.logs.BaseLog;
@@ -89,6 +89,7 @@ public class RaftControllerImpl implements RaftController {
     @Override
     public void handleCommandRequest(CommandRequestMessage request) {
         log.traceEntry("request={}", request);
+        log.info(request);
         // TODO: Implement (Slide 34)
     }
 

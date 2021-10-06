@@ -1,7 +1,6 @@
-package lk.ac.mrt.cse.cs4262.components.raft.messages.variants;
+package lk.ac.mrt.cse.cs4262.components.raft.messages;
 
 import lk.ac.mrt.cse.cs4262.common.symbols.ServerId;
-import lk.ac.mrt.cse.cs4262.components.raft.messages.MessageType;
 import lk.ac.mrt.cse.cs4262.components.raft.state.RaftLog;
 import lombok.Builder;
 import lombok.Getter;
@@ -31,7 +30,7 @@ public class AppendRequestMessage extends BaseRaftMessage {
     @Builder
     public AppendRequestMessage(ServerId senderId, int term, int prevIndex, int prevTerm,
                                 List<RaftLog> entries, int commitIndex) {
-        super(MessageType.APPEND_ENTRIES_REQ, senderId.getValue());
+        super(APPEND_ENTRIES_REQ, senderId.getValue());
         this.term = term;
         this.prevIndex = prevIndex;
         this.prevTerm = prevTerm;

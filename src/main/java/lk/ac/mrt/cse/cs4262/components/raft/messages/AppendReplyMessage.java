@@ -1,7 +1,6 @@
-package lk.ac.mrt.cse.cs4262.components.raft.messages.variants;
+package lk.ac.mrt.cse.cs4262.components.raft.messages;
 
 import lk.ac.mrt.cse.cs4262.common.symbols.ServerId;
-import lk.ac.mrt.cse.cs4262.components.raft.messages.MessageType;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.ToString;
@@ -23,7 +22,7 @@ public class AppendReplyMessage extends BaseRaftMessage {
      */
     @Builder
     public AppendReplyMessage(ServerId senderId, int term, boolean success, int index) {
-        super(MessageType.APPEND_ENTRIES_REP, senderId.getValue());
+        super(APPEND_ENTRIES_REP, senderId.getValue());
         this.term = term;
         this.success = success;
         this.index = index;

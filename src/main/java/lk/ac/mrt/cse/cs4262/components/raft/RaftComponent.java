@@ -10,12 +10,12 @@ import lk.ac.mrt.cse.cs4262.components.ServerComponent;
 import lk.ac.mrt.cse.cs4262.components.raft.controller.RaftController;
 import lk.ac.mrt.cse.cs4262.components.raft.controller.RaftControllerImpl;
 import lk.ac.mrt.cse.cs4262.components.raft.controller.RaftMessageSender;
-import lk.ac.mrt.cse.cs4262.components.raft.messages.variants.AppendReplyMessage;
-import lk.ac.mrt.cse.cs4262.components.raft.messages.variants.AppendRequestMessage;
-import lk.ac.mrt.cse.cs4262.components.raft.messages.variants.BaseRaftMessage;
-import lk.ac.mrt.cse.cs4262.components.raft.messages.variants.CommandRequestMessage;
-import lk.ac.mrt.cse.cs4262.components.raft.messages.variants.VoteReplyMessage;
-import lk.ac.mrt.cse.cs4262.components.raft.messages.variants.VoteRequestMessage;
+import lk.ac.mrt.cse.cs4262.components.raft.messages.AppendReplyMessage;
+import lk.ac.mrt.cse.cs4262.components.raft.messages.AppendRequestMessage;
+import lk.ac.mrt.cse.cs4262.components.raft.messages.BaseRaftMessage;
+import lk.ac.mrt.cse.cs4262.components.raft.messages.CommandRequestMessage;
+import lk.ac.mrt.cse.cs4262.components.raft.messages.VoteReplyMessage;
+import lk.ac.mrt.cse.cs4262.components.raft.messages.VoteRequestMessage;
 import lk.ac.mrt.cse.cs4262.components.raft.state.RaftState;
 import lombok.extern.log4j.Log4j2;
 

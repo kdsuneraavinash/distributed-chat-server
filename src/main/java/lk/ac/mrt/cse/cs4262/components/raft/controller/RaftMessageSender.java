@@ -1,7 +1,7 @@
 package lk.ac.mrt.cse.cs4262.components.raft.controller;
 
 import lk.ac.mrt.cse.cs4262.common.symbols.ServerId;
-import lk.ac.mrt.cse.cs4262.components.raft.messages.variants.BaseRaftMessage;
+import lk.ac.mrt.cse.cs4262.components.raft.messages.BaseRaftMessage;
 
 /**
  * Interface for RAFT message sender.
