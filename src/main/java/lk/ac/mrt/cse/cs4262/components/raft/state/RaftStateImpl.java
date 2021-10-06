@@ -1,20 +1,22 @@
 package lk.ac.mrt.cse.cs4262.components.raft.state;
 
 import lk.ac.mrt.cse.cs4262.ServerConfiguration;
+import lk.ac.mrt.cse.cs4262.common.symbols.ParticipantId;
+import lk.ac.mrt.cse.cs4262.common.symbols.RoomId;
+import lk.ac.mrt.cse.cs4262.common.symbols.ServerId;
 import lk.ac.mrt.cse.cs4262.components.raft.state.logs.BaseLog;
 import lk.ac.mrt.cse.cs4262.components.raft.state.logs.CreateIdentityLog;
 import lk.ac.mrt.cse.cs4262.components.raft.state.logs.CreateRoomLog;
 import lk.ac.mrt.cse.cs4262.components.raft.state.logs.DeleteIdentityLog;
 import lk.ac.mrt.cse.cs4262.components.raft.state.logs.DeleteRoomLog;
-import lk.ac.mrt.cse.cs4262.common.symbols.ParticipantId;
-import lk.ac.mrt.cse.cs4262.common.symbols.RoomId;
-import lk.ac.mrt.cse.cs4262.common.symbols.ServerId;
-import lombok.Getter;
-import lombok.Setter;
+import lk.ac.mrt.cse.cs4262.components.raft.state.protocol.NodeState;
+import lk.ac.mrt.cse.cs4262.components.raft.state.protocol.RaftNonPersistentState;
+import lk.ac.mrt.cse.cs4262.components.raft.state.protocol.RaftNonPersistentStateImpl;
+import lk.ac.mrt.cse.cs4262.components.raft.state.protocol.RaftPersistentState;
+import lk.ac.mrt.cse.cs4262.components.raft.state.protocol.RaftPersistentStateImpl;
 import lombok.ToString;
 import lombok.extern.log4j.Log4j2;
 import org.checkerframework.checker.nullness.qual.Nullable;
-
 
 import java.util.Collection;
 import java.util.HashMap;
@@ -66,6 +68,10 @@ public class RaftStateImpl implements RaftState {
      */
     @ToString.Include
     private final Map<RoomId, ParticipantId> roomOwnerMap;
+    private final RaftPersistentState persistentState;
+    private final RaftNonPersistentState nonPersistentState;
+
+
     /**
      * Listener to attach for the changes in the system.
      */
@@ -75,13 +81,16 @@ public class RaftStateImpl implements RaftState {
     /**
      * Create a system state. See {@link RaftStateImpl}.
      *
-     * @param currentServerId Current Server ID.
+     * @param currentServerId     Current Server ID.
+     * @param serverConfiguration Server configuration obj.
      */
-    public RaftStateImpl(ServerId currentServerId) {
+    public RaftStateImpl(ServerId currentServerId, ServerConfiguration serverConfiguration) {
         this.currentServerId = currentServerId;
         this.state = new HashMap<>();
         this.participantServerMap = new HashMap<>();
         this.roomOwnerMap = new HashMap<>();
+        this.persistentState = new RaftPersistentStateImpl();
+        this.nonPersistentState = new RaftNonPersistentStateImpl(serverConfiguration);
     }
 
     @Override
@@ -96,7 +105,8 @@ public class RaftStateImpl implements RaftState {
             this.roomOwnerMap.put(mainRoomId, systemUserId);
         }
 
-        // TODO: Restore persisted state.
+        // Restore persisted state.
+        this.persistentState.initialize();
     }
 
     /*
@@ -265,71 +275,96 @@ public class RaftStateImpl implements RaftState {
         }
     }
 
+    /*
+    ========================================================
+    Non Persistent State
+    ========================================================
+    */
+
+    @Override
+    public NodeState getState() {
+        return nonPersistentState.getState();
+    }
+
+    @Override
+    public void setState(NodeState state) {
+        nonPersistentState.setState(state);
+    }
+
+    @Override
+    public Optional<ServerId> getLeaderId() {
+        return nonPersistentState.getLeaderId();
+    }
+
+    @Override
+    public void setLeaderId(ServerId serverId) {
+        nonPersistentState.setLeaderId(serverId);
+    }
+
+    @Override
+    public int getCommitIndex() {
+        return nonPersistentState.getCommitIndex();
+    }
+
+    @Override
+    public void setCommitIndex(int commitIndex) {
+        nonPersistentState.setCommitIndex(commitIndex);
+    }
+
+    @Override
+    public int getNextIndex(ServerId serverId) {
+        return nonPersistentState.getNextIndex(serverId);
+    }
+
+    @Override
+    public void setNextIndex(ServerId serverId, int nextIndex) {
+        nonPersistentState.setNextIndex(serverId, nextIndex);
+    }
+
+    @Override
+    public int getMatchIndex(ServerId serverId) {
+        return nonPersistentState.getMatchIndex(serverId);
+    }
+
+    @Override
+    public void setMatchIndex(ServerId serverId, int matchIndex) {
+        nonPersistentState.setMatchIndex(serverId, matchIndex);
+    }
 
     /*
     ========================================================
-    Leader Election
+    Persistent State
     ========================================================
-     */
+    */
 
-    @Getter
-    private LeaderElectionStatus leaderElectionStatus = LeaderElectionStatus.COMPLETED;
-
-    @Getter
-    private int term;
-
-    @Getter
-    private NodeType nodeType = NodeType.FOLLOWER;
-
-    @Getter
-    @Setter
-    private boolean leaderTimeout = false;
-
+    @Deprecated
     @Override
-    public int incrementTerm() {
-        term++;
-        return term;
+    public void initialize() {
+        throw new UnsupportedOperationException();
     }
 
     @Override
-    public void startLeaderElection() {
-        leaderElectionStatus = LeaderElectionStatus.ON_GOING;
+    public int getCurrentTerm() {
+        return persistentState.getCurrentTerm();
     }
 
     @Override
-    public void cancelLeaderElection() {
-        leaderElectionStatus = LeaderElectionStatus.CANCELLED;
+    public void setCurrentTerm(int currentTerm) {
+        persistentState.setCurrentTerm(currentTerm);
     }
 
     @Override
-    public void completeLeaderElection() {
-        leaderElectionStatus = LeaderElectionStatus.COMPLETED;
+    public Optional<ServerId> getVotedFor() {
+        return persistentState.getVotedFor();
     }
 
     @Override
-    public void setToFollower() {
-        nodeType = NodeType.FOLLOWER;
+    public void setVotedFor(@Nullable ServerId votedFor) {
+        persistentState.setVotedFor(votedFor);
     }
 
     @Override
-    public void setToCandidate() {
-        nodeType = NodeType.CANDIDATE;
-    }
-
-    @Override
-    public void setToLeader() {
-        nodeType = NodeType.LEADER;
-    }
-
-    @Override
-    public int getLastLogIndex() {
-        // TODO: implement
-        return 0;
-    }
-
-    @Override
-    public int getLastLogTerm() {
-        // TODO: implement
-        return 0;
+    public void addLogEntry(RaftLog raftLog) {
+        persistentState.addLogEntry(raftLog);
     }
 }

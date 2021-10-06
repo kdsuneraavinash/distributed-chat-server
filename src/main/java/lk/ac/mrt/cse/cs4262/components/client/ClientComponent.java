@@ -101,7 +101,7 @@ public class ClientComponent implements ServerComponent, Runnable, AutoCloseable
             log.error("Server socket opening failed on port {}.", port);
             log.throwing(e);
         } finally {
-            this.executorService.shutdown();
+            this.executorService.shutdownNow();
         }
     }
 

@@ -1,10 +1,20 @@
 package lk.ac.mrt.cse.cs4262.components.raft;
 
+import com.google.gson.Gson;
+import com.google.gson.JsonSyntaxException;
 import lk.ac.mrt.cse.cs4262.ServerConfiguration;
 import lk.ac.mrt.cse.cs4262.common.symbols.ServerId;
 import lk.ac.mrt.cse.cs4262.common.tcp.server.shared.SharedTcpRequestHandler;
-import lk.ac.mrt.cse.cs4262.common.utils.TimedInvoker;
 import lk.ac.mrt.cse.cs4262.components.ServerComponent;
+import lk.ac.mrt.cse.cs4262.components.raft.controller.RaftController;
+import lk.ac.mrt.cse.cs4262.components.raft.controller.RaftControllerImpl;
+import lk.ac.mrt.cse.cs4262.components.raft.controller.RaftMessageSender;
+import lk.ac.mrt.cse.cs4262.components.raft.messages.variants.AppendReplyMessage;
+import lk.ac.mrt.cse.cs4262.components.raft.messages.variants.AppendRequestMessage;
+import lk.ac.mrt.cse.cs4262.components.raft.messages.variants.BaseRaftMessage;
+import lk.ac.mrt.cse.cs4262.components.raft.messages.variants.CommandRequestMessage;
+import lk.ac.mrt.cse.cs4262.components.raft.messages.variants.VoteReplyMessage;
+import lk.ac.mrt.cse.cs4262.components.raft.messages.variants.VoteRequestMessage;
 import lk.ac.mrt.cse.cs4262.components.raft.state.RaftState;
 import lombok.extern.log4j.Log4j2;
 
@@ -14,15 +24,9 @@ import java.util.Optional;
  * A component that runs RAFT protocol.
  */
 @Log4j2
-public class RaftComponent implements ServerComponent, SharedTcpRequestHandler, TimedInvoker.EventHandler {
-    protected static final int RAFT_INITIAL_DELAY_MS = 1000;
-    protected static final int RAFT_PERIOD_MS = 5000;
-    protected static final int RAFT_REQUEST_TIMEOUT = 1000;
-
-    private final ServerId currentServerId;
-    private final RaftState raftState;
-    private final ServerConfiguration serverConfiguration;
-    private final TimedInvoker timedInvoker;
+public class RaftComponent implements ServerComponent, SharedTcpRequestHandler, RaftMessageSender {
+    private final RaftController raftController;
+    private final Gson serializer;
 
     /**
      * Create a raft component. See {@link RaftComponent}.
@@ -32,20 +36,19 @@ public class RaftComponent implements ServerComponent, SharedTcpRequestHandler, 
      * @param serverConfiguration All server configuration.
      */
     public RaftComponent(ServerId currentServerId, RaftState raftState, ServerConfiguration serverConfiguration) {
-        this.currentServerId = currentServerId;
-        this.raftState = raftState;
-        this.serverConfiguration = serverConfiguration;
-        this.timedInvoker = new TimedInvoker();
+        this.raftController = new RaftControllerImpl(currentServerId, raftState, serverConfiguration);
+        this.serializer = new Gson();
     }
 
     @Override
     public void connect() {
-        timedInvoker.startExecution(this, RAFT_INITIAL_DELAY_MS, RAFT_PERIOD_MS);
+        this.raftController.attachMessageSender(this);
+        this.raftController.initialize();
     }
 
     @Override
     public void close() throws Exception {
-        timedInvoker.close();
+        this.raftController.close();
     }
 
     /*
@@ -56,24 +59,29 @@ public class RaftComponent implements ServerComponent, SharedTcpRequestHandler, 
 
     @Override
     public Optional<String> handleRequest(String request) {
-        if (request.startsWith("R")) {
-            log.info(currentServerId);
-            log.info(raftState);
-            log.info(serverConfiguration);
-            return Optional.of("WAHHH!!!");
+        try {
+            BaseRaftMessage baseRaftMessage = serializer.fromJson(request, BaseRaftMessage.class);
+            if (baseRaftMessage instanceof VoteRequestMessage) {
+                raftController.handleVoteRequest((VoteRequestMessage) baseRaftMessage);
+            } else if (baseRaftMessage instanceof VoteReplyMessage) {
+                raftController.handleVoteReply((VoteReplyMessage) baseRaftMessage);
+            } else if (baseRaftMessage instanceof CommandRequestMessage) {
+                raftController.handleCommandRequest((CommandRequestMessage) baseRaftMessage);
+            } else if (baseRaftMessage instanceof AppendRequestMessage) {
+                raftController.handleAppendRequest((AppendRequestMessage) baseRaftMessage);
+            } else if (baseRaftMessage instanceof AppendReplyMessage) {
+                raftController.handleAppendReply((AppendReplyMessage) baseRaftMessage);
+            } else {
+                return Optional.empty();
+            }
+            return Optional.of("ok");
+        } catch (JsonSyntaxException e) {
+            return Optional.empty();
         }
-        return Optional.empty();
     }
 
-    /*
-    ========================================================
-    TIMED INVOKER
-    ========================================================
-     */
-
     @Override
-    public void handleTimedEvent() {
-        // Can use TcpClient.request()
-        log.trace("Ping from raft timer");
+    public void sendToServer(ServerId serverId, BaseRaftMessage message) {
+        log.info("Server -> {}: {}", serverId, serializer.toJson(message));
     }
 }

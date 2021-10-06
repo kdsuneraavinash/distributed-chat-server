@@ -6,7 +6,7 @@ import lk.ac.mrt.cse.cs4262.ServerConfiguration;
 import lk.ac.mrt.cse.cs4262.common.symbols.ServerId;
 import lk.ac.mrt.cse.cs4262.common.tcp.TcpClient;
 import lk.ac.mrt.cse.cs4262.common.tcp.server.shared.SharedTcpRequestHandler;
-import lk.ac.mrt.cse.cs4262.common.utils.TimedInvoker;
+import lk.ac.mrt.cse.cs4262.common.utils.PeriodicInvoker;
 import lk.ac.mrt.cse.cs4262.components.ServerComponent;
 import lk.ac.mrt.cse.cs4262.components.gossip.state.GossipState;
 import lombok.extern.log4j.Log4j2;
@@ -22,14 +22,14 @@ import java.util.Random;
  * A component that runs gossiping for failure detection.
  */
 @Log4j2
-public class GossipComponent implements ServerComponent, SharedTcpRequestHandler, TimedInvoker.EventHandler {
+public class GossipComponent implements ServerComponent, SharedTcpRequestHandler, PeriodicInvoker.EventHandler {
     private static final int GOSSIP_WAIT_TIMEOUT_MS = 2000;
     private static final int GOSSIP_INITIAL_DELAY_MS = 5000;
     private static final int GOSSIP_PERIOD_MS = 5000;
 
     private final ServerId currentServerId;
     private final ServerConfiguration serverConfiguration;
-    private final TimedInvoker timedInvoker;
+    private final PeriodicInvoker periodicInvoker;
     private final GossipState gossipState;
     private final Random randomServerPicker;
     private final Gson serializer;
@@ -45,19 +45,19 @@ public class GossipComponent implements ServerComponent, SharedTcpRequestHandler
         this.currentServerId = currentServerId;
         this.gossipState = gossipState;
         this.serverConfiguration = serverConfiguration;
-        this.timedInvoker = new TimedInvoker();
+        this.periodicInvoker = new PeriodicInvoker();
         this.randomServerPicker = new Random();
         this.serializer = new Gson();
     }
 
     @Override
     public void connect() {
-        timedInvoker.startExecution(this, GOSSIP_INITIAL_DELAY_MS, GOSSIP_PERIOD_MS);
+        periodicInvoker.startExecution(this, GOSSIP_INITIAL_DELAY_MS, GOSSIP_PERIOD_MS);
     }
 
     @Override
     public void close() throws Exception {
-        timedInvoker.close();
+        periodicInvoker.close();
     }
 
     /*
@@ -87,8 +87,8 @@ public class GossipComponent implements ServerComponent, SharedTcpRequestHandler
     public void handleTimedEvent() {
         Collection<ServerId> serverIds = serverConfiguration.allServerIds();
         Optional<ServerId> serverIdOp = serverIds.stream()
-                .filter(serverId -> !currentServerId.equals(serverId))
                 .skip(randomServerPicker.nextInt(serverIds.size()))
+                .filter(serverId -> !currentServerId.equals(serverId))
                 .findFirst();
         gossipState.incrementCurrentHeartBeatCount();
         if (serverIdOp.isPresent()) {
