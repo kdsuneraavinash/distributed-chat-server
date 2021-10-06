@@ -15,7 +15,13 @@ import lombok.ToString;
 import lombok.extern.log4j.Log4j2;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-import java.util.*;
+
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
@@ -267,24 +273,37 @@ public class RaftStateImpl implements RaftState {
      */
 
     @Getter
-    @Setter
+    private LeaderElectionStatus leaderElectionStatus = LeaderElectionStatus.COMPLETED;
+
+    @Getter
     private int term;
 
     @Getter
-    @Setter
     private NodeType nodeType = NodeType.FOLLOWER;
 
     @Getter
     @Setter
     private boolean leaderTimeout = false;
 
-    @Getter
-    private ArrayList<RaftLog> commitLog;
-
     @Override
     public int incrementTerm() {
         term++;
         return term;
+    }
+
+    @Override
+    public void startLeaderElection() {
+        leaderElectionStatus = LeaderElectionStatus.ON_GOING;
+    }
+
+    @Override
+    public void cancelLeaderElection() {
+        leaderElectionStatus = LeaderElectionStatus.CANCELLED;
+    }
+
+    @Override
+    public void completeLeaderElection() {
+        leaderElectionStatus = LeaderElectionStatus.COMPLETED;
     }
 
     @Override
@@ -300,5 +319,17 @@ public class RaftStateImpl implements RaftState {
     @Override
     public void setToLeader() {
         nodeType = NodeType.LEADER;
+    }
+
+    @Override
+    public int getLastLogIndex() {
+        // TODO: implement
+        return 0;
+    }
+
+    @Override
+    public int getLastLogTerm() {
+        // TODO: implement
+        return 0;
     }
 }

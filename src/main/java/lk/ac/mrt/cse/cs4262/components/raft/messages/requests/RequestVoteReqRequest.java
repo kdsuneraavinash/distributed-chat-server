@@ -16,11 +16,11 @@ public class RequestVoteReqRequest extends BaseRaftRequest {
 
     @SerializedName("candidate_id")
     @JsonAdapter(ToStringSerializer.class)
-    private final ServerId candidateId;
+    private ServerId candidateId;
 
     @SerializedName("last_log_index")
-    private final int lastLogIndex;
+    private int lastLogIndex;
 
     @SerializedName("last_log_term")
-    private final int lastLogTerm;
+    private int lastLogTerm;
 }

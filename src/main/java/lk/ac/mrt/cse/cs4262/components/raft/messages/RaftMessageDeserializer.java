@@ -3,8 +3,8 @@ package lk.ac.mrt.cse.cs4262.components.raft.messages;
 import com.google.gson.JsonParseException;
 import lk.ac.mrt.cse.cs4262.common.utils.TypedJsonDeserializer;
 import lk.ac.mrt.cse.cs4262.components.raft.messages.responses.BaseRaftResponse;
-import lk.ac.mrt.cse.cs4262.components.raft.messages.requests.RequestVoteReqRequest;
-import lk.ac.mrt.cse.cs4262.components.raft.messages.responses.RequestVoteResponse;
+import lk.ac.mrt.cse.cs4262.components.raft.messages.responses.RequestVoteReqResponse;
+import lk.ac.mrt.cse.cs4262.components.raft.messages.responses.RequestVoteResResponse;
 
 /**
  * A serializer for client messages.
@@ -20,10 +20,13 @@ public class RaftMessageDeserializer extends TypedJsonDeserializer<BaseRaftRespo
     @Override
     protected Class<?> mapTypeToClass(String action) throws JsonParseException {
         // TODO: Register other request types
-        return switch (action) {
-            case REQUEST_VOTE_REQ -> RequestVoteReqRequest.class;
-            case REQUEST_VOTE_REP -> RequestVoteResponse.class;
-            default -> throw new JsonParseException("unknown type: " + action);
-        };
+        switch (action) {
+            case REQUEST_VOTE_REQ:
+                return RequestVoteReqResponse.class;
+            case REQUEST_VOTE_REP:
+                return RequestVoteResResponse.class;
+            default:
+                throw new JsonParseException("unknown type: " + action);
+        }
     }
 }

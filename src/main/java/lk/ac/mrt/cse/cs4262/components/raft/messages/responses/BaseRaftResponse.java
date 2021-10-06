@@ -7,7 +7,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 @Getter
 @JsonAdapter(RaftMessageDeserializer.class)
-public abstract class BaseRaftResponse {
+public class BaseRaftResponse {
     @Nullable
     private String action;
 
