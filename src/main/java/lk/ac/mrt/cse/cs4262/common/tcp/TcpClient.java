@@ -37,7 +37,7 @@ public final class TcpClient {
      * @param ipAddress IP address of server.
      * @param port      Port of server.
      * @param payload   Payload to send.
-     * @param timeout   Payload to send. (milliseconds)
+     * @param timeout   Timeout duration. (milliseconds)
      * @return Response from server.
      * @throws IOException If connection failed.
      */
@@ -54,5 +54,24 @@ public final class TcpClient {
             throw new IOException("connection closed");
         }
         return response;
+    }
+
+    /**
+     * Send a request to a server using TCP protocol.
+     * Does not wait for any response.
+     * Any errors are also ignored.
+     *
+     * @param ipAddress IP address of server.
+     * @param port      Port of server.
+     * @param payload   Payload to send.
+     */
+    public static void requestIgnoreErrors(String ipAddress, int port, String payload) {
+        try {
+            @Cleanup Socket socket = new Socket(ipAddress, port);
+            @Cleanup PrintWriter printWriter = new PrintWriter(socket.getOutputStream());
+            printWriter.println(payload);
+            printWriter.flush();
+        } catch (IOException ignored) {
+        }
     }
 }

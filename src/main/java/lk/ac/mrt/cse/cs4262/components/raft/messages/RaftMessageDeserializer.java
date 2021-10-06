@@ -10,7 +10,7 @@ import lk.ac.mrt.cse.cs4262.components.raft.messages.variants.VoteReplyMessage;
 import lk.ac.mrt.cse.cs4262.components.raft.messages.variants.VoteRequestMessage;
 
 /**
- * A serializer for client messages.
+ * A serializer for raft messages.
  */
 public class RaftMessageDeserializer extends TypedJsonDeserializer<BaseRaftMessage> {
     protected RaftMessageDeserializer() {

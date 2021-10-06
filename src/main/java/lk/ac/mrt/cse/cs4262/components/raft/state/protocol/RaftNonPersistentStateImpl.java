@@ -19,7 +19,7 @@ public class RaftNonPersistentStateImpl implements RaftNonPersistentState {
     private static final int MATCH_INDEX_INITIAL = 0;
 
     /**
-     * Index of next log entry to send to peer
+     * Index of next log entry to send to peer.
      */
     private final Map<ServerId, Integer> nextIndices;
 
@@ -48,6 +48,11 @@ public class RaftNonPersistentStateImpl implements RaftNonPersistentState {
     @Setter
     private int commitIndex;
 
+    /**
+     * See {@link RaftNonPersistentStateImpl}.
+     *
+     * @param serverConfiguration Configuration of all servers.
+     */
     public RaftNonPersistentStateImpl(ServerConfiguration serverConfiguration) {
         this.state = NodeState.FOLLOWER;
         this.leaderId = null;

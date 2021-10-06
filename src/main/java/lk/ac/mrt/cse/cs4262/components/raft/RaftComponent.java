@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonSyntaxException;
 import lk.ac.mrt.cse.cs4262.ServerConfiguration;
 import lk.ac.mrt.cse.cs4262.common.symbols.ServerId;
+import lk.ac.mrt.cse.cs4262.common.tcp.TcpClient;
 import lk.ac.mrt.cse.cs4262.common.tcp.server.shared.SharedTcpRequestHandler;
 import lk.ac.mrt.cse.cs4262.components.ServerComponent;
 import lk.ac.mrt.cse.cs4262.components.raft.controller.RaftController;
@@ -25,6 +26,7 @@ import java.util.Optional;
  */
 @Log4j2
 public class RaftComponent implements ServerComponent, SharedTcpRequestHandler, RaftMessageSender {
+    private final ServerConfiguration serverConfiguration;
     private final RaftController raftController;
     private final Gson serializer;
 
@@ -36,6 +38,7 @@ public class RaftComponent implements ServerComponent, SharedTcpRequestHandler, 
      * @param serverConfiguration All server configuration.
      */
     public RaftComponent(ServerId currentServerId, RaftState raftState, ServerConfiguration serverConfiguration) {
+        this.serverConfiguration = serverConfiguration;
         this.raftController = new RaftControllerImpl(currentServerId, raftState, serverConfiguration);
         this.serializer = new Gson();
     }
@@ -61,6 +64,7 @@ public class RaftComponent implements ServerComponent, SharedTcpRequestHandler, 
     public Optional<String> handleRequest(String request) {
         try {
             BaseRaftMessage baseRaftMessage = serializer.fromJson(request, BaseRaftMessage.class);
+            log.info("{} -> {}", baseRaftMessage.getSenderId(), request);
             if (baseRaftMessage instanceof VoteRequestMessage) {
                 raftController.handleVoteRequest((VoteRequestMessage) baseRaftMessage);
             } else if (baseRaftMessage instanceof VoteReplyMessage) {
@@ -82,6 +86,9 @@ public class RaftComponent implements ServerComponent, SharedTcpRequestHandler, 
 
     @Override
     public void sendToServer(ServerId serverId, BaseRaftMessage message) {
-        log.info("Server -> {}: {}", serverId, serializer.toJson(message));
+        log.info("{} <- {}", serverId, serializer.toJson(message));
+        String serverAddress = serverConfiguration.getServerAddress(serverId).orElseThrow();
+        int coordinationPort = serverConfiguration.getCoordinationPort(serverId).orElseThrow();
+        TcpClient.requestIgnoreErrors(serverAddress, coordinationPort, serializer.toJson(message));
     }
 }

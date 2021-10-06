@@ -17,19 +17,21 @@ public class RaftPersistentStateImpl implements RaftPersistentState {
     private final List<RaftLog> log;
 
     /**
-     * Latest term server has seen (initialized to 0 on
-     * first boot)
+     * Latest term server has seen (initialized to 0 on first boot).
      */
     @Getter
     private int currentTerm;
 
     /**
      * ID of the candidate that received vote in current
-     * term (or null if none)
+     * term (or null if none).
      */
     @Nullable
     private ServerId votedFor;
 
+    /**
+     * See {@link RaftPersistentStateImpl}.
+     */
     public RaftPersistentStateImpl() {
         this.log = new ArrayList<>();
         this.currentTerm = 0;

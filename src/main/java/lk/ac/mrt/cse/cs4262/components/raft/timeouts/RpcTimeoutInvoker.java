@@ -13,6 +13,9 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * Timeout invoker for RPC timeouts.
+ */
 public class RpcTimeoutInvoker implements AutoCloseable {
     private final ScheduledExecutorService scheduledExecutorService;
     private final Map<ServerId, Future<?>> scheduledTasks;
@@ -20,6 +23,9 @@ public class RpcTimeoutInvoker implements AutoCloseable {
     @Nullable
     private RaftController raftController;
 
+    /**
+     * See {@link RpcTimeoutInvoker}.
+     */
     public RpcTimeoutInvoker() {
         ScheduledThreadPoolExecutor scheduledThreadPoolExecutor =
                 (ScheduledThreadPoolExecutor) Executors.newScheduledThreadPool(2);
@@ -29,12 +35,18 @@ public class RpcTimeoutInvoker implements AutoCloseable {
     }
 
     /**
-     * @param raftController Raft controller.
+     * @param newRaftController Raft controller.
      */
-    public void initialize(RaftController raftController) {
-        this.raftController = raftController;
+    public void attachController(RaftController newRaftController) {
+        this.raftController = newRaftController;
     }
 
+    /**
+     * Schedule to run in a specified delay.
+     *
+     * @param serverId Server ID that is related to the RPC timeout.
+     * @param delay    Delay in milliseconds.
+     */
     public void setTimeout(ServerId serverId, int delay) {
         Optional.ofNullable(raftController).ifPresent(controller -> {
             Future<?> future = scheduledExecutorService
@@ -44,6 +56,12 @@ public class RpcTimeoutInvoker implements AutoCloseable {
         });
     }
 
+    /**
+     * Cancel any scheduled timeouts.
+     * Timeouts are not guaranteed to exit upon calling this.
+     *
+     * @param serverId Server ID that is related to the RPC timeout.
+     */
     public void cancelTimeout(ServerId serverId) {
         Optional.ofNullable(scheduledTasks.remove(serverId))
                 .ifPresent(future -> future.cancel(true));

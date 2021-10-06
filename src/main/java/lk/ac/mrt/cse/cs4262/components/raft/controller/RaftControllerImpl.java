@@ -2,7 +2,6 @@ package lk.ac.mrt.cse.cs4262.components.raft.controller;
 
 import lk.ac.mrt.cse.cs4262.ServerConfiguration;
 import lk.ac.mrt.cse.cs4262.common.symbols.ServerId;
-import lk.ac.mrt.cse.cs4262.components.raft.RaftComponent;
 import lk.ac.mrt.cse.cs4262.components.raft.messages.variants.AppendReplyMessage;
 import lk.ac.mrt.cse.cs4262.components.raft.messages.variants.AppendRequestMessage;
 import lk.ac.mrt.cse.cs4262.components.raft.messages.variants.BaseRaftMessage;
@@ -19,6 +18,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.util.List;
 
+/**
+ * Raft controller implementation. See {@link RaftController}.
+ */
 @Log4j2
 public class RaftControllerImpl implements RaftController {
     private final ServerId currentServerId;
@@ -30,7 +32,7 @@ public class RaftControllerImpl implements RaftController {
     private RaftMessageSender raftMessageSender;
 
     /**
-     * Create a raft component. See {@link RaftComponent}.
+     * Create a raft controller. See {@link RaftControllerImpl}.
      *
      * @param currentServerId     Current server id.
      * @param raftState           System global state (write view).
@@ -45,11 +47,7 @@ public class RaftControllerImpl implements RaftController {
         this.rpcTimeoutInvoker = new RpcTimeoutInvoker();
     }
 
-    /**
-     * Attach a message sender to this controller.
-     *
-     * @param messageSender Message Sender.
-     */
+    @Override
     public void attachMessageSender(RaftMessageSender messageSender) {
         this.raftMessageSender = messageSender;
     }
@@ -57,63 +55,69 @@ public class RaftControllerImpl implements RaftController {
     @Override
     public void initialize() {
         log.info("raft controller initialized");
-        this.electionTimeoutInvoker.initialize(this);
-        this.rpcTimeoutInvoker.initialize(this);
+        this.electionTimeoutInvoker.attachController(this);
+        this.rpcTimeoutInvoker.attachController(this);
         // Start election timeout
         this.electionTimeoutInvoker.setTimeout(0);
     }
 
     @Override
     public void handleElectionTimeout() {
-        log.info("election timeout");
-        electionTimeoutInvoker.setTimeout(1000);
+        electionTimeoutInvoker.setTimeout(T_DELTA_ELECTION_MS);
         // TODO: Implement (Slide 26)
     }
 
     @Override
     public void handleRpcTimeout(ServerId serverId) {
-        log.info("rpc timeout");
-        rpcTimeoutInvoker.setTimeout(serverId, 1000);
+        log.traceEntry("serverId={}", serverId);
+        rpcTimeoutInvoker.setTimeout(serverId, T_DELTA_VOTE_MS);
         // TODO: Implement (Slide 44)
     }
 
     @Override
     public void handleVoteRequest(VoteRequestMessage request) {
+        log.traceEntry("request={}", request);
         // TODO: Implement (Slide 45)
     }
 
     @Override
     public void handleVoteReply(VoteReplyMessage request) {
+        log.traceEntry("request={}", request);
         // TODO: Implement (Slide 29)
     }
 
     @Override
     public void handleCommandRequest(CommandRequestMessage request) {
+        log.traceEntry("request={}", request);
         // TODO: Implement (Slide 34)
     }
 
     @Override
     public void handleAppendRequest(AppendRequestMessage request) {
+        log.traceEntry("request={}", request);
         // TODO: Implement (Slide 40)
     }
 
     @Override
     public void handleAppendReply(AppendReplyMessage request) {
+        log.traceEntry("request={}", request);
         // TODO: Implement (Slide 51)
     }
 
     @Override
     public void stepDown(int term) {
+        log.traceEntry("term={}", term);
         // TODO: Implement (Slide 30)
     }
 
     @Override
     public void sendAppendEntries(ServerId serverId) {
+        log.traceEntry("serverId={}", serverId);
         // TODO: Implement (Slide 37)
     }
 
     @Override
-    public void storeEntries(int prevIndex, List<RaftLog> entries, int c) {
+    public void storeEntries(int prevIndex, List<RaftLog> entries, int minCommittedIndex) {
         // TODO: Implement (Slide 53)
     }
 

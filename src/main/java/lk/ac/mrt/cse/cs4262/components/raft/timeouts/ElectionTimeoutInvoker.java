@@ -8,23 +8,34 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * Timeout invoker for election timeouts.
+ */
 public class ElectionTimeoutInvoker implements AutoCloseable {
     private final ScheduledExecutorService scheduledExecutorService;
 
     @Nullable
     private RaftController raftController;
 
+    /**
+     * See {@link ElectionTimeoutInvoker}.
+     */
     public ElectionTimeoutInvoker() {
         this.scheduledExecutorService = Executors.newScheduledThreadPool(1);
     }
 
     /**
-     * @param raftController Raft controller.
+     * @param newRaftController Raft controller.
      */
-    public void initialize(RaftController raftController) {
-        this.raftController = raftController;
+    public void attachController(RaftController newRaftController) {
+        this.raftController = newRaftController;
     }
 
+    /**
+     * Schedule to run in a specified delay.
+     *
+     * @param delay Delay in milliseconds.
+     */
     public void setTimeout(int delay) {
         Optional.ofNullable(raftController).ifPresent(controller ->
                 scheduledExecutorService.schedule(controller::handleElectionTimeout,
