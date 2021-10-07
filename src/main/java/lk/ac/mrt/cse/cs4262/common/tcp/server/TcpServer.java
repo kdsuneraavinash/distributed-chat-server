@@ -1,5 +1,6 @@
 package lk.ac.mrt.cse.cs4262.common.tcp.server;
 
+import lk.ac.mrt.cse.cs4262.common.utils.NamedThreadFactory;
 import lombok.Cleanup;
 import lombok.extern.log4j.Log4j2;
 
@@ -31,7 +32,8 @@ public class TcpServer implements Runnable {
         this.port = port;
         this.timeout = timeout;
         this.requestHandler = requestHandler;
-        this.executorService = Executors.newCachedThreadPool();
+        this.executorService = Executors.newCachedThreadPool(
+                new NamedThreadFactory("tcp-server"));
     }
 
     @Override

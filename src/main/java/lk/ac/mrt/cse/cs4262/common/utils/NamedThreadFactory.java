@@ -18,7 +18,7 @@ public class NamedThreadFactory implements ThreadFactory {
      * @param threadPrefix Name of thread pool.
      */
     public NamedThreadFactory(String threadPrefix) {
-        this.threadIndex = new AtomicInteger(0);
+        this.threadIndex = new AtomicInteger(1);
         this.threadPrefix = threadPrefix;
     }
 

@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import lk.ac.mrt.cse.cs4262.common.symbols.ClientId;
 import lk.ac.mrt.cse.cs4262.common.symbols.RoomId;
 import lk.ac.mrt.cse.cs4262.common.symbols.ServerId;
+import lk.ac.mrt.cse.cs4262.common.utils.NamedThreadFactory;
 import lk.ac.mrt.cse.cs4262.components.ServerComponent;
 import lk.ac.mrt.cse.cs4262.components.client.chat.ChatRoomState;
 import lk.ac.mrt.cse.cs4262.components.client.chat.ChatRoomWaitingList;
@@ -72,7 +73,9 @@ public class ClientComponent implements ServerComponent, Runnable, AutoCloseable
                 .waitingList(waitingList)
                 .serializer(serializer).build();
 
-        this.executorService = Executors.newCachedThreadPool();
+        this.executorService = Executors.newCachedThreadPool(
+                new NamedThreadFactory("client")
+        );
     }
 
     @Override
