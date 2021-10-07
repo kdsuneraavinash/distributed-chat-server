@@ -1,6 +1,7 @@
 package lk.ac.mrt.cse.cs4262.components.raft.timeouts;
 
 import lk.ac.mrt.cse.cs4262.common.symbols.ServerId;
+import lk.ac.mrt.cse.cs4262.common.utils.NamedThreadFactory;
 import lk.ac.mrt.cse.cs4262.components.raft.controller.RaftController;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -28,7 +29,8 @@ public class RpcTimeoutInvoker implements AutoCloseable {
      */
     public RpcTimeoutInvoker() {
         ScheduledThreadPoolExecutor scheduledThreadPoolExecutor =
-                (ScheduledThreadPoolExecutor) Executors.newScheduledThreadPool(2);
+                (ScheduledThreadPoolExecutor) Executors.newScheduledThreadPool(2,
+                        new NamedThreadFactory("rpc-timeout"));
         scheduledThreadPoolExecutor.setRemoveOnCancelPolicy(true);
         this.scheduledTasks = new HashMap<>();
         this.scheduledExecutorService = scheduledThreadPoolExecutor;

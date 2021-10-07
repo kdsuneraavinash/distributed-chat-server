@@ -1,5 +1,6 @@
 package lk.ac.mrt.cse.cs4262.components.raft.timeouts;
 
+import lk.ac.mrt.cse.cs4262.common.utils.NamedThreadFactory;
 import lk.ac.mrt.cse.cs4262.components.raft.controller.RaftController;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -21,7 +22,8 @@ public class ElectionTimeoutInvoker implements AutoCloseable {
      * See {@link ElectionTimeoutInvoker}.
      */
     public ElectionTimeoutInvoker() {
-        this.scheduledExecutorService = Executors.newScheduledThreadPool(1);
+        this.scheduledExecutorService = Executors.newScheduledThreadPool(1,
+                new NamedThreadFactory("election-timeout"));
     }
 
     /**
