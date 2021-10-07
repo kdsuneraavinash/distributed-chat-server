@@ -67,6 +67,16 @@ public class RaftPersistentStateImpl implements RaftPersistentState {
         saveState();
     }
 
+    @Override
+    public int getLastLogTerm() {
+        return log.get(log.size() - 1).getTerm();
+    }
+
+    @Override
+    public int getLastLogIndex() {
+        return log.size();
+    }
+
     @Synchronized
     private void saveState() {
         // TODO: Save this state

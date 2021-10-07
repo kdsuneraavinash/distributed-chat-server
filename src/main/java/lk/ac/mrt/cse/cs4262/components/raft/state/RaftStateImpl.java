@@ -367,4 +367,16 @@ public class RaftStateImpl implements RaftState {
     public void addLogEntry(RaftLog raftLog) {
         persistentState.addLogEntry(raftLog);
     }
+
+    @Override
+    public int getLastLogTerm() {
+        return persistentState.getLastLogTerm();
+    }
+
+    @Override
+    public int getLastLogIndex() {
+        return persistentState.getLastLogIndex();
+    }
+
+
 }

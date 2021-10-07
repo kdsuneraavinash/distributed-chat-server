@@ -11,12 +11,15 @@ import lk.ac.mrt.cse.cs4262.components.raft.messages.VoteRequestMessage;
 import lk.ac.mrt.cse.cs4262.components.raft.state.RaftLog;
 import lk.ac.mrt.cse.cs4262.components.raft.state.RaftState;
 import lk.ac.mrt.cse.cs4262.components.raft.state.logs.BaseLog;
+import lk.ac.mrt.cse.cs4262.components.raft.state.protocol.NodeState;
 import lk.ac.mrt.cse.cs4262.components.raft.timeouts.ElectionTimeoutInvoker;
 import lk.ac.mrt.cse.cs4262.components.raft.timeouts.RpcTimeoutInvoker;
 import lombok.extern.log4j.Log4j2;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Raft controller implementation. See {@link RaftController}.
@@ -30,6 +33,8 @@ public class RaftControllerImpl implements RaftController {
     private final RpcTimeoutInvoker rpcTimeoutInvoker;
     @Nullable
     private RaftMessageSender raftMessageSender;
+
+    private List<ServerId> votes;
 
     /**
      * Create a raft controller. See {@link RaftControllerImpl}.
@@ -45,6 +50,8 @@ public class RaftControllerImpl implements RaftController {
         this.serverConfiguration = serverConfiguration;
         this.electionTimeoutInvoker = new ElectionTimeoutInvoker();
         this.rpcTimeoutInvoker = new RpcTimeoutInvoker();
+
+        this.votes = new ArrayList<>();
     }
 
     @Override
@@ -63,40 +70,141 @@ public class RaftControllerImpl implements RaftController {
 
     @Override
     public void handleElectionTimeout() {
-        electionTimeoutInvoker.setTimeout(T_DELTA_ELECTION_MS);
-        // TODO: Implement (Slide 26)
+        // Slide 26
+        log.info("Raft handleElectionTimeout");
+
+        if (raftState.getState() == NodeState.FOLLOWER || raftState.getState() == NodeState.CANDIDATE) {
+            int t = (int) (Math.random() + 1) * T_DELTA_ELECTION_MS;
+            electionTimeoutInvoker.setTimeout(t);
+
+            raftState.setCurrentTerm(raftState.getCurrentTerm() + 1);
+            raftState.setState(NodeState.CANDIDATE);
+            raftState.setVotedFor(currentServerId);
+
+            votes = new ArrayList<>();
+            votes.add(currentServerId);
+
+            serverConfiguration.allServerIds().forEach(serverId -> {
+                rpcTimeoutInvoker.cancelTimeout(serverId);
+                rpcTimeoutInvoker.setTimeout(serverId, 0);
+            });
+        }
     }
 
     @Override
     public void handleRpcTimeout(ServerId serverId) {
-        log.traceEntry("serverId={}", serverId);
-        rpcTimeoutInvoker.setTimeout(serverId, T_DELTA_VOTE_MS);
-        // TODO: Implement (Slide 44)
+        // Slide 44
+        log.traceEntry("Raft handleRpcTimeout for serverId={}", serverId);
+
+        if (raftState.getState() == NodeState.CANDIDATE) {
+            rpcTimeoutInvoker.setTimeout(serverId, T_DELTA_VOTE_MS);
+
+            int lastLogTerm = raftState.getLastLogTerm();
+            int lastLogIndex = raftState.getLastLogIndex();
+            sendVoteRequest(serverId, raftState.getCurrentTerm(), lastLogTerm, lastLogIndex);
+        }
+
+        if (raftState.getState() == NodeState.LEADER) {
+            rpcTimeoutInvoker.setTimeout(serverId, T_DELTA_ELECTION_MS / 2);
+            sendAppendEntries(serverId);
+        }
+
     }
 
     @Override
     public void handleVoteRequest(VoteRequestMessage request) {
-        log.traceEntry("request={}", request);
-        // TODO: Implement (Slide 45)
+        // Slide 45
+        log.traceEntry("Raft handleVoteRequest request={}", request);
+
+        ServerId q = request.getSenderId();
+        int term = request.getTerm();
+        int currentTerm = raftState.getCurrentTerm();
+
+        if (term > currentTerm) {
+            stepDown(term);
+        }
+
+        Optional<ServerId> votedFor = raftState.getVotedFor();
+
+        if (term == currentTerm && votedFor.isPresent() && votedFor.get().equals(q)) {
+            int lastLogTerm = request.getLastLogTerm();
+            int lastLogIndex = request.getLastLogIndex();
+
+            if (lastLogTerm > raftState.getLastLogTerm()
+                    || (lastLogTerm == raftState.getLastLogTerm() && lastLogIndex >= raftState.getLastLogIndex())) {
+                raftState.setVotedFor(q);
+                int t = (int) (Math.random() + 1) * T_DELTA_ELECTION_MS;
+                electionTimeoutInvoker.setTimeout(t);
+
+                sendVoteReply(q, term, raftState.getVotedFor().orElseThrow());
+            }
+        }
     }
 
     @Override
     public void handleVoteReply(VoteReplyMessage request) {
-        log.traceEntry("request={}", request);
-        // TODO: Implement (Slide 29)
+        // Slide 29
+        log.traceEntry("Raft handleVoteReply request={}", request);
+
+        ServerId q = request.getSenderId();
+        int term = request.getTerm();
+        int currentTerm = raftState.getCurrentTerm();
+
+        if (term > currentTerm) {
+            stepDown(term);
+        }
+
+        if (term == currentTerm && raftState.getState() == NodeState.CANDIDATE) {
+            if (request.getVote() == currentServerId) {
+                votes.add(q);
+            }
+
+            rpcTimeoutInvoker.cancelTimeout(q);
+
+            if (votes.size() > serverConfiguration.allServerIds().size() / 2) {
+                raftState.setState(NodeState.LEADER);
+                raftState.setLeaderId(currentServerId);
+                serverConfiguration.allServerIds().forEach(serverId -> {
+                    if (serverId != currentServerId) {
+                        sendAppendEntries(serverId);
+                    }
+                });
+            }
+        }
+
     }
 
     @Override
     public void handleCommandRequest(CommandRequestMessage request) {
-        log.traceEntry("request={}", request);
+        // slide 34
+        log.traceEntry("Raft handleCommandRequest request={}", request);
         log.info(request);
-        // TODO: Implement (Slide 34)
+
+        if (raftState.getState() == NodeState.LEADER) {
+            raftState.addLogEntry(new RaftLog(request.getCommand(), raftState.getCurrentTerm()));
+            serverConfiguration.allServerIds().forEach(serverId -> {
+                if (serverId != currentServerId) {
+                    sendAppendEntries(serverId);
+                }
+            });
+        }
     }
 
     @Override
     public void handleAppendRequest(AppendRequestMessage request) {
-        log.traceEntry("request={}", request);
-        // TODO: Implement (Slide 40)
+        // Slide 40
+        log.traceEntry("Raft handleAppendRequest request={}", request);
+
+        ServerId q = request.getSenderId();
+        int term = request.getTerm();
+        int currentTerm = raftState.getCurrentTerm();
+
+        if (term > currentTerm) {
+            stepDown(term);
+
+        }
+        // TODO: Implement slide 40
+
     }
 
     @Override
@@ -107,8 +215,15 @@ public class RaftControllerImpl implements RaftController {
 
     @Override
     public void stepDown(int term) {
-        log.traceEntry("term={}", term);
-        // TODO: Implement (Slide 30)
+        // Slide 30
+        log.traceEntry("Raft stepDown term={}", term);
+
+        raftState.setCurrentTerm(term);
+        raftState.setState(NodeState.FOLLOWER);
+        raftState.setVotedFor(null);
+
+        int t = (int) (Math.random() + 1) * T_DELTA_ELECTION_MS;
+        electionTimeoutInvoker.setTimeout(t);
     }
 
     @Override
