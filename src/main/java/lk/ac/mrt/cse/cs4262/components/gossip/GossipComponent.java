@@ -1,7 +1,6 @@
 package lk.ac.mrt.cse.cs4262.components.gossip;
 
 import com.google.gson.Gson;
-import com.google.gson.JsonSyntaxException;
 import lk.ac.mrt.cse.cs4262.ServerConfiguration;
 import lk.ac.mrt.cse.cs4262.common.symbols.ServerId;
 import lk.ac.mrt.cse.cs4262.common.tcp.TcpClient;
@@ -11,7 +10,6 @@ import lk.ac.mrt.cse.cs4262.components.ServerComponent;
 import lk.ac.mrt.cse.cs4262.components.gossip.state.GossipState;
 import lombok.extern.log4j.Log4j2;
 
-import java.io.IOException;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
@@ -45,7 +43,7 @@ public class GossipComponent implements ServerComponent, SharedTcpRequestHandler
         this.currentServerId = currentServerId;
         this.gossipState = gossipState;
         this.serverConfiguration = serverConfiguration;
-        this.periodicInvoker = new PeriodicInvoker();
+        this.periodicInvoker = new PeriodicInvoker("gossip-timer");
         this.randomServerPicker = new Random();
         this.serializer = new Gson();
     }
@@ -68,13 +66,17 @@ public class GossipComponent implements ServerComponent, SharedTcpRequestHandler
 
     @Override
     public Optional<String> handleRequest(String request) {
+        // Try to parse and if it fails, respond with unhandled
+        Map<String, Integer> gossip;
         try {
-            Map<String, Integer> gossip = serializer.fromJson(request, GossipFormat.class);
-            gossipState.updateHeartBeatCounter(gossip);
-            return Optional.of(gossipState.toJson(serializer));
-        } catch (JsonSyntaxException e) {
+            gossip = serializer.fromJson(request, GossipFormat.class);
+        } catch (Exception e) {
             return Optional.empty();
         }
+
+        // Process parsed message
+        gossipState.updateHeartBeatCounter(gossip);
+        return Optional.of(gossipState.toJson(serializer));
     }
 
     /*
@@ -100,7 +102,8 @@ public class GossipComponent implements ServerComponent, SharedTcpRequestHandler
                         gossipState.toJson(serializer), GOSSIP_WAIT_TIMEOUT_MS);
                 Map<String, Integer> gossip = serializer.fromJson(response, GossipFormat.class);
                 gossipState.updateHeartBeatCounter(gossip);
-            } catch (IOException | JsonSyntaxException ignored) {
+            } catch (Exception ignored) {
+                // Ignore any error when asking from a server
             }
         }
     }

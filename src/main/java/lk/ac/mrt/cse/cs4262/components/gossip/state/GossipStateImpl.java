@@ -53,6 +53,7 @@ public class GossipStateImpl implements GossipState {
             ServerId serverId = new ServerId(serverIdStr);
             updateHeartBeatCounter(serverId, newHeartBeatCounters.get(serverIdStr));
         }
+        log.trace("updated gossip state: {}", heartBeatCounters);
     }
 
     @Synchronized
