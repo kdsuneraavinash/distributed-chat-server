@@ -6,9 +6,6 @@ import lk.ac.mrt.cse.cs4262.components.raft.messages.AppendRequestMessage;
 import lk.ac.mrt.cse.cs4262.components.raft.messages.CommandRequestMessage;
 import lk.ac.mrt.cse.cs4262.components.raft.messages.VoteReplyMessage;
 import lk.ac.mrt.cse.cs4262.components.raft.messages.VoteRequestMessage;
-import lk.ac.mrt.cse.cs4262.components.raft.state.RaftLog;
-
-import java.util.List;
 
 /**
  * Controller for Raft logic.
@@ -17,11 +14,11 @@ public interface RaftController extends AutoCloseable {
     /**
      * Time between elections.
      */
-    int T_DELTA_ELECTION_MS = 5000;
+    int T_DELTA_ELECTION_MS = 500;
     /**
      * Vote round duration.
      */
-    int T_DELTA_VOTE_MS = 2000;
+    int T_DELTA_VOTE_MS = 250;
 
     /**
      * Initialize controller and timers.
@@ -38,11 +35,15 @@ public interface RaftController extends AutoCloseable {
     /**
      * Runs every {@code T_DELTA_ELECTION_MS} milliseconds.
      * If elapses without no RPCs, follower assumes leader has crashed.
+     * <p>
+     * Implementation: Slide 26
      */
     void handleElectionTimeout();
 
     /**
      * Some RPC call has timed out without acton coming to a close.
+     * <p>
+     * Implementation: Slide 44
      *
      * @param serverId Server ID for which the RPC call was done.
      */
@@ -50,6 +51,8 @@ public interface RaftController extends AutoCloseable {
 
     /**
      * Handles Request Vote REQ call.
+     * <p>
+     * Implementation: Slide 45
      *
      * @param request Request.
      */
@@ -57,6 +60,8 @@ public interface RaftController extends AutoCloseable {
 
     /**
      * Handles Request Vote REP call.
+     * <p>
+     * Implementation: Slide 29
      *
      * @param request Request.
      */
@@ -65,6 +70,8 @@ public interface RaftController extends AutoCloseable {
     /**
      * Handles Command call.
      * Typically, done to the leader.
+     * <p>
+     * Implementation: Slide 34
      *
      * @param request Request.
      */
@@ -72,6 +79,8 @@ public interface RaftController extends AutoCloseable {
 
     /**
      * Handles Append Entries REQ call.
+     * <p>
+     * Implementation: Slide 40
      *
      * @param request Request.
      */
@@ -79,32 +88,10 @@ public interface RaftController extends AutoCloseable {
 
     /**
      * Handles Append Entries REP call.
+     * <p>
+     * Implementation: Slide 51
      *
      * @param request Request.
      */
     void handleAppendReply(AppendReplyMessage request);
-
-    /**
-     * Steps down to being a follower.
-     *
-     * @param term Term sent by the server forcing step down.
-     *             This is newer than the current term.
-     */
-    void stepDown(int term);
-
-    /**
-     * Leader appending entries to the followers.
-     *
-     * @param serverId Server to append entries to.
-     */
-    void sendAppendEntries(ServerId serverId);
-
-    /**
-     * Stores log entries.
-     *
-     * @param prevIndex         Index to start writing logs.
-     * @param entries           Log entries to add.
-     * @param minCommittedIndex Committed entry index.
-     */
-    void storeEntries(int prevIndex, List<RaftLog> entries, int minCommittedIndex);
 }
