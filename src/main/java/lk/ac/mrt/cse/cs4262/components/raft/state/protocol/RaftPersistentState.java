@@ -44,4 +44,14 @@ public interface RaftPersistentState {
      * @param raftLog Log entry to add.
      */
     void addLogEntry(RaftLog raftLog);
+
+    /**
+     * @return The latest term of the log
+     */
+    int getLastLogTerm();
+
+    /**
+     * @return The latest log index
+     */
+    int getLastLogIndex();
 }

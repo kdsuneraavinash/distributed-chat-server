@@ -3,6 +3,7 @@ package lk.ac.mrt.cse.cs4262.components.raft.timeouts;
 import lk.ac.mrt.cse.cs4262.common.symbols.ServerId;
 import lk.ac.mrt.cse.cs4262.common.utils.NamedThreadFactory;
 import lk.ac.mrt.cse.cs4262.components.raft.controller.RaftController;
+import lombok.Synchronized;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.util.HashMap;
@@ -49,8 +50,12 @@ public class RpcTimeoutInvoker implements AutoCloseable {
      * @param serverId Server ID that is related to the RPC timeout.
      * @param delay    Delay in milliseconds.
      */
+    @Synchronized
     public void setTimeout(ServerId serverId, int delay) {
         Optional.ofNullable(raftController).ifPresent(controller -> {
+            Optional.ofNullable(scheduledTasks.remove(serverId))
+                    .ifPresent(future -> future.cancel(true));
+
             Future<?> future = scheduledExecutorService
                     .schedule(() -> controller.handleRpcTimeout(serverId),
                             delay, TimeUnit.MILLISECONDS);
