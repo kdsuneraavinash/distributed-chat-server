@@ -19,22 +19,17 @@ Architecture             |  Components
 
 ## Building
 
-In Linux, simply run `run.sh ` file. It should launch the server on port 4444.
-```bash
-./run.sh -s MAIN -f default.tsv
-```
-
-Run following commands in order.
+Folowing should launch the server on port 4444.
 
 ```bash
-./gradlew shadowJar
-LOG4J_LEVEL="INFO" java -jar build/libs/chat-lk.ac.mrt.cse.cs4262.server-1.0-SNAPSHOT-all.jar [PARAMS]
+./manage.sh build
+./manage.sh run -s MAIN -f default.tsv
 ```
 
 To Run the chat client,
 
 ```bash
-java -jar assets/client.jar -h localhost -p 4444 -i adel
+./manage.sh client -h localhost -p 4444 -i adel
 ```
 
 ## Checkstyle
@@ -42,5 +37,5 @@ java -jar assets/client.jar -h localhost -p 4444 -i adel
 This project uses Checkstyle for CI. Use following command to check errors prior to sending a pull request.
 
 ```bash
-./gradlew checkstyleMain
+./manage.sh check
 ```
