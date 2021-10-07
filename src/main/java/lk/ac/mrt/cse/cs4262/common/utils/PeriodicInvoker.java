@@ -8,15 +8,15 @@ import java.util.concurrent.TimeoutException;
 /**
  * An invoker class that invokes a method in a specified period.
  */
-public class TimedInvoker implements AutoCloseable {
+public class PeriodicInvoker implements AutoCloseable {
     private static final int TERMINATION_WAIT_S = 10;
 
     private final ScheduledExecutorService executorService;
 
     /**
-     * Create a timed invoker. See {@link TimedInvoker}.
+     * Create a timed invoker. See {@link PeriodicInvoker}.
      */
-    public TimedInvoker() {
+    public PeriodicInvoker() {
         this.executorService = Executors.newScheduledThreadPool(1);
     }
 
@@ -34,7 +34,7 @@ public class TimedInvoker implements AutoCloseable {
 
     @Override
     public void close() throws Exception {
-        executorService.shutdown();
+        executorService.shutdownNow();
         boolean terminated = executorService.awaitTermination(TERMINATION_WAIT_S, TimeUnit.SECONDS);
         if (!terminated) {
             throw new TimeoutException("timeout waiting for executor shutdown");

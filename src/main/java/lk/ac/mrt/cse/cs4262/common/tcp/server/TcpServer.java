@@ -24,7 +24,7 @@ public class TcpServer implements Runnable {
      * See {@link TcpServer}.
      *
      * @param port           Port to run.
-     * @param timeout     Timeout for the socket server. (milliseconds)
+     * @param timeout        Timeout for the socket server. (milliseconds)
      * @param requestHandler Handler for requests.
      */
     public TcpServer(int port, int timeout, TcpRequestHandler requestHandler) {
@@ -49,7 +49,7 @@ public class TcpServer implements Runnable {
             log.error("server socket opening failed on port {}.", port);
             log.throwing(e);
         } finally {
-            this.executorService.shutdown();
+            this.executorService.shutdownNow();
         }
     }
 }

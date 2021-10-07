@@ -1,13 +1,6 @@
 package lk.ac.mrt.cse.cs4262.components.client.chat.events;
 
 import com.google.gson.Gson;
-import lk.ac.mrt.cse.cs4262.components.raft.state.RaftLog;
-import lk.ac.mrt.cse.cs4262.components.raft.state.RaftState;
-import lk.ac.mrt.cse.cs4262.components.raft.state.logs.BaseLog;
-import lk.ac.mrt.cse.cs4262.components.raft.state.logs.CreateIdentityLog;
-import lk.ac.mrt.cse.cs4262.components.raft.state.logs.CreateRoomLog;
-import lk.ac.mrt.cse.cs4262.components.raft.state.logs.DeleteIdentityLog;
-import lk.ac.mrt.cse.cs4262.components.raft.state.logs.DeleteRoomLog;
 import lk.ac.mrt.cse.cs4262.common.symbols.ClientId;
 import lk.ac.mrt.cse.cs4262.common.symbols.ParticipantId;
 import lk.ac.mrt.cse.cs4262.common.symbols.RoomId;
@@ -34,6 +27,13 @@ import lk.ac.mrt.cse.cs4262.components.client.messages.responses.NewIdentityClie
 import lk.ac.mrt.cse.cs4262.components.client.messages.responses.RoomChangeBroadcastResponse;
 import lk.ac.mrt.cse.cs4262.components.client.messages.responses.WhoClientResponse;
 import lk.ac.mrt.cse.cs4262.components.gossip.state.GossipStateReadView;
+import lk.ac.mrt.cse.cs4262.components.raft.state.RaftLog;
+import lk.ac.mrt.cse.cs4262.components.raft.state.RaftState;
+import lk.ac.mrt.cse.cs4262.components.raft.state.logs.BaseLog;
+import lk.ac.mrt.cse.cs4262.components.raft.state.logs.CreateIdentityLog;
+import lk.ac.mrt.cse.cs4262.components.raft.state.logs.CreateRoomLog;
+import lk.ac.mrt.cse.cs4262.components.raft.state.logs.DeleteIdentityLog;
+import lk.ac.mrt.cse.cs4262.components.raft.state.logs.DeleteRoomLog;
 import lombok.Builder;
 import lombok.Synchronized;
 import lombok.extern.log4j.Log4j2;
@@ -58,7 +58,7 @@ public class SocketEventHandler extends AbstractEventHandler implements ClientSo
      *
      * @param currentServerId ID of current server
      * @param gossipState     Gossip state
-     * @param raftState     System state
+     * @param raftState       System state
      * @param chatRoomState   Chat room state object
      * @param waitingList     Waiting list
      * @param serializer      Serializer
@@ -189,7 +189,8 @@ public class SocketEventHandler extends AbstractEventHandler implements ClientSo
         }
         // TODO: Send to leader via RAFT.
         // For now put a log manually.
-        BaseLog baseLog = new CreateIdentityLog(currentServerId.getValue(), participantId.getValue());
+        BaseLog baseLog = CreateIdentityLog.builder()
+                .serverId(currentServerId).identity(participantId).build();
         raftState.commit(new RaftLog(baseLog, -1));
     }
 
@@ -264,7 +265,8 @@ public class SocketEventHandler extends AbstractEventHandler implements ClientSo
         }
         // TODO: Send to leader via RAFT.
         // For now put a log manually.
-        BaseLog baseLog = new CreateRoomLog(roomId.getValue(), participantId.getValue());
+        BaseLog baseLog = CreateRoomLog.builder()
+                .roomId(roomId).participantId(participantId).build();
         raftState.commit(new RaftLog(baseLog, -1));
     }
 
@@ -293,7 +295,8 @@ public class SocketEventHandler extends AbstractEventHandler implements ClientSo
         }
         // TODO: Send to leader via RAFT.
         // For now put a log manually.
-        BaseLog baseLog = new DeleteRoomLog(roomId.getValue());
+        BaseLog baseLog = DeleteRoomLog.builder()
+                .roomId(roomId).build();
         raftState.commit(new RaftLog(baseLog, -1));
     }
 
@@ -352,7 +355,8 @@ public class SocketEventHandler extends AbstractEventHandler implements ClientSo
         disconnectClient(clientId);
         // TODO: Send to leader via RAFT.
         // For now put a log manually.
-        BaseLog baseLog = new DeleteIdentityLog(participantId.getValue());
+        BaseLog baseLog = DeleteIdentityLog.builder()
+                .identity(participantId).build();
         raftState.commit(new RaftLog(baseLog, -1));
     }
 

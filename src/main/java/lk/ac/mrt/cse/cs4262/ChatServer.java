@@ -43,7 +43,7 @@ public class ChatServer implements AutoCloseable {
         int coordinationPort = serverConfiguration.getCoordinationPort(currentServerId).orElseThrow();
 
         // System State
-        RaftState raftState = new RaftStateImpl(currentServerId);
+        RaftState raftState = new RaftStateImpl(currentServerId, serverConfiguration);
         GossipState gossipState = new GossipStateImpl(currentServerId);
         raftState.initialize(serverConfiguration);
         gossipState.initialize(serverConfiguration);

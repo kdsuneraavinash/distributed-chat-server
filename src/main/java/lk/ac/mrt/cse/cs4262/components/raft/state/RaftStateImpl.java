@@ -1,14 +1,19 @@
 package lk.ac.mrt.cse.cs4262.components.raft.state;
 
 import lk.ac.mrt.cse.cs4262.ServerConfiguration;
+import lk.ac.mrt.cse.cs4262.common.symbols.ParticipantId;
+import lk.ac.mrt.cse.cs4262.common.symbols.RoomId;
+import lk.ac.mrt.cse.cs4262.common.symbols.ServerId;
 import lk.ac.mrt.cse.cs4262.components.raft.state.logs.BaseLog;
 import lk.ac.mrt.cse.cs4262.components.raft.state.logs.CreateIdentityLog;
 import lk.ac.mrt.cse.cs4262.components.raft.state.logs.CreateRoomLog;
 import lk.ac.mrt.cse.cs4262.components.raft.state.logs.DeleteIdentityLog;
 import lk.ac.mrt.cse.cs4262.components.raft.state.logs.DeleteRoomLog;
-import lk.ac.mrt.cse.cs4262.common.symbols.ParticipantId;
-import lk.ac.mrt.cse.cs4262.common.symbols.RoomId;
-import lk.ac.mrt.cse.cs4262.common.symbols.ServerId;
+import lk.ac.mrt.cse.cs4262.components.raft.state.protocol.NodeState;
+import lk.ac.mrt.cse.cs4262.components.raft.state.protocol.RaftNonPersistentState;
+import lk.ac.mrt.cse.cs4262.components.raft.state.protocol.RaftNonPersistentStateImpl;
+import lk.ac.mrt.cse.cs4262.components.raft.state.protocol.RaftPersistentState;
+import lk.ac.mrt.cse.cs4262.components.raft.state.protocol.RaftPersistentStateImpl;
 import lombok.ToString;
 import lombok.extern.log4j.Log4j2;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -63,6 +68,10 @@ public class RaftStateImpl implements RaftState {
      */
     @ToString.Include
     private final Map<RoomId, ParticipantId> roomOwnerMap;
+    private final RaftPersistentState persistentState;
+    private final RaftNonPersistentState nonPersistentState;
+
+
     /**
      * Listener to attach for the changes in the system.
      */
@@ -72,13 +81,16 @@ public class RaftStateImpl implements RaftState {
     /**
      * Create a system state. See {@link RaftStateImpl}.
      *
-     * @param currentServerId Current Server ID.
+     * @param currentServerId     Current Server ID.
+     * @param serverConfiguration Server configuration obj.
      */
-    public RaftStateImpl(ServerId currentServerId) {
+    public RaftStateImpl(ServerId currentServerId, ServerConfiguration serverConfiguration) {
         this.currentServerId = currentServerId;
         this.state = new HashMap<>();
         this.participantServerMap = new HashMap<>();
         this.roomOwnerMap = new HashMap<>();
+        this.persistentState = new RaftPersistentStateImpl();
+        this.nonPersistentState = new RaftNonPersistentStateImpl(serverConfiguration);
     }
 
     @Override
@@ -93,7 +105,8 @@ public class RaftStateImpl implements RaftState {
             this.roomOwnerMap.put(mainRoomId, systemUserId);
         }
 
-        // TODO: Restore persisted state.
+        // Restore persisted state.
+        this.persistentState.initialize();
     }
 
     /*
@@ -205,8 +218,8 @@ public class RaftStateImpl implements RaftState {
      */
 
     private void applyCreateIdentityLog(CreateIdentityLog logEntry) {
-        ParticipantId participantId = new ParticipantId(logEntry.getIdentity());
-        ServerId serverId = new ServerId(logEntry.getServerId());
+        ParticipantId participantId = logEntry.getIdentity();
+        ServerId serverId = logEntry.getServerId();
         if (!state.containsKey(serverId)) {
             throw new IllegalStateException("unknown server id");
         }
@@ -218,8 +231,8 @@ public class RaftStateImpl implements RaftState {
     }
 
     private void applyCreateRoomLog(CreateRoomLog logEntry) {
-        ParticipantId participantId = new ParticipantId(logEntry.getParticipantId());
-        RoomId roomId = new RoomId(logEntry.getRoomId());
+        ParticipantId participantId = logEntry.getParticipantId();
+        RoomId roomId = logEntry.getRoomId();
         ServerId serverId = participantServerMap.get(participantId);
         if (serverId == null || !state.containsKey(serverId)) {
             throw new IllegalStateException("unknown server id");
@@ -232,7 +245,7 @@ public class RaftStateImpl implements RaftState {
     }
 
     private void applyDeleteIdentityLog(DeleteIdentityLog logEntry) {
-        ParticipantId participantId = new ParticipantId(logEntry.getIdentity());
+        ParticipantId participantId = logEntry.getIdentity();
         ServerId serverId = participantServerMap.remove(participantId);
         if (serverId == null || !state.containsKey(serverId)) {
             throw new IllegalStateException("unknown server id");
@@ -247,7 +260,7 @@ public class RaftStateImpl implements RaftState {
     }
 
     private void applyDeleteRoomLog(DeleteRoomLog logEntry) {
-        RoomId roomId = new RoomId(logEntry.getRoomId());
+        RoomId roomId = logEntry.getRoomId();
         ParticipantId ownerId = roomOwnerMap.remove(roomId);
         if (ownerId == null) {
             throw new IllegalStateException("owner cannot be null");
@@ -260,5 +273,98 @@ public class RaftStateImpl implements RaftState {
         if (currentServerId.equals(serverId) && eventHandler != null) {
             eventHandler.roomIdDeleted(roomId);
         }
+    }
+
+    /*
+    ========================================================
+    Non Persistent State
+    ========================================================
+    */
+
+    @Override
+    public NodeState getState() {
+        return nonPersistentState.getState();
+    }
+
+    @Override
+    public void setState(NodeState state) {
+        nonPersistentState.setState(state);
+    }
+
+    @Override
+    public Optional<ServerId> getLeaderId() {
+        return nonPersistentState.getLeaderId();
+    }
+
+    @Override
+    public void setLeaderId(ServerId serverId) {
+        nonPersistentState.setLeaderId(serverId);
+    }
+
+    @Override
+    public int getCommitIndex() {
+        return nonPersistentState.getCommitIndex();
+    }
+
+    @Override
+    public void setCommitIndex(int commitIndex) {
+        nonPersistentState.setCommitIndex(commitIndex);
+    }
+
+    @Override
+    public int getNextIndex(ServerId serverId) {
+        return nonPersistentState.getNextIndex(serverId);
+    }
+
+    @Override
+    public void setNextIndex(ServerId serverId, int nextIndex) {
+        nonPersistentState.setNextIndex(serverId, nextIndex);
+    }
+
+    @Override
+    public int getMatchIndex(ServerId serverId) {
+        return nonPersistentState.getMatchIndex(serverId);
+    }
+
+    @Override
+    public void setMatchIndex(ServerId serverId, int matchIndex) {
+        nonPersistentState.setMatchIndex(serverId, matchIndex);
+    }
+
+    /*
+    ========================================================
+    Persistent State
+    ========================================================
+    */
+
+    @Deprecated
+    @Override
+    public void initialize() {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public int getCurrentTerm() {
+        return persistentState.getCurrentTerm();
+    }
+
+    @Override
+    public void setCurrentTerm(int currentTerm) {
+        persistentState.setCurrentTerm(currentTerm);
+    }
+
+    @Override
+    public Optional<ServerId> getVotedFor() {
+        return persistentState.getVotedFor();
+    }
+
+    @Override
+    public void setVotedFor(@Nullable ServerId votedFor) {
+        persistentState.setVotedFor(votedFor);
+    }
+
+    @Override
+    public void addLogEntry(RaftLog raftLog) {
+        persistentState.addLogEntry(raftLog);
     }
 }
