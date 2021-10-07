@@ -20,7 +20,7 @@ public class SharedTcpServer implements Runnable {
     /**
      * See {@link TcpServer}.
      *
-     * @param port       Port to run.
+     * @param port    Port to run.
      * @param timeout Timeout for the socket server. (milliseconds)
      */
     public SharedTcpServer(int port, int timeout) {
@@ -58,9 +58,16 @@ public class SharedTcpServer implements Runnable {
         @Override
         public String handleRequest(String request) {
             for (SharedTcpRequestHandler handler : requestHandlers) {
-                Optional<String> response = handler.handleRequest(request);
-                if (response.isPresent()) {
-                    return response.get();
+                try {
+                    Optional<String> response = handler.handleRequest(request);
+                    if (response.isPresent()) {
+                        return response.get();
+                    }
+                } catch (Exception e) {
+                    // On any kind of exception that is not handled,
+                    // Log it and respond with error message
+                    log.throwing(e);
+                    return "error: unhandled exception";
                 }
             }
             return "error: not handled";

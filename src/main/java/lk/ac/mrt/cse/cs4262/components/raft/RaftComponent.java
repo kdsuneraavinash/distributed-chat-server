@@ -1,7 +1,6 @@
 package lk.ac.mrt.cse.cs4262.components.raft;
 
 import com.google.gson.Gson;
-import com.google.gson.JsonSyntaxException;
 import lk.ac.mrt.cse.cs4262.ServerConfiguration;
 import lk.ac.mrt.cse.cs4262.common.symbols.ServerId;
 import lk.ac.mrt.cse.cs4262.common.tcp.TcpClient;
@@ -62,26 +61,31 @@ public class RaftComponent implements ServerComponent, SharedTcpRequestHandler, 
 
     @Override
     public Optional<String> handleRequest(String request) {
+        // Try to parse and if it fails, respond with unhandled
+        BaseRaftMessage baseRaftMessage;
         try {
-            BaseRaftMessage baseRaftMessage = serializer.fromJson(request, BaseRaftMessage.class);
+            baseRaftMessage = serializer.fromJson(request, BaseRaftMessage.class);
             log.info("{} -> {}", baseRaftMessage.getSenderId(), request);
-            if (baseRaftMessage instanceof VoteRequestMessage) {
-                raftController.handleVoteRequest((VoteRequestMessage) baseRaftMessage);
-            } else if (baseRaftMessage instanceof VoteReplyMessage) {
-                raftController.handleVoteReply((VoteReplyMessage) baseRaftMessage);
-            } else if (baseRaftMessage instanceof CommandRequestMessage) {
-                raftController.handleCommandRequest((CommandRequestMessage) baseRaftMessage);
-            } else if (baseRaftMessage instanceof AppendRequestMessage) {
-                raftController.handleAppendRequest((AppendRequestMessage) baseRaftMessage);
-            } else if (baseRaftMessage instanceof AppendReplyMessage) {
-                raftController.handleAppendReply((AppendReplyMessage) baseRaftMessage);
-            } else {
-                return Optional.empty();
-            }
-            return Optional.of("ok");
-        } catch (JsonSyntaxException e) {
+        } catch (Exception e) {
             return Optional.empty();
         }
+
+        // Process parsed message
+        if (baseRaftMessage instanceof VoteRequestMessage) {
+            raftController.handleVoteRequest((VoteRequestMessage) baseRaftMessage);
+        } else if (baseRaftMessage instanceof VoteReplyMessage) {
+            raftController.handleVoteReply((VoteReplyMessage) baseRaftMessage);
+        } else if (baseRaftMessage instanceof CommandRequestMessage) {
+            raftController.handleCommandRequest((CommandRequestMessage) baseRaftMessage);
+        } else if (baseRaftMessage instanceof AppendRequestMessage) {
+            raftController.handleAppendRequest((AppendRequestMessage) baseRaftMessage);
+        } else if (baseRaftMessage instanceof AppendReplyMessage) {
+            raftController.handleAppendReply((AppendReplyMessage) baseRaftMessage);
+        } else {
+            // Unknown type of raft message
+            return Optional.empty();
+        }
+        return Optional.of("ok");
     }
 
     @Override
