@@ -17,11 +17,11 @@ public interface RaftController extends AutoCloseable {
     /**
      * Time between elections.
      */
-    int T_DELTA_ELECTION_MS = 250;
+    int T_DELTA_ELECTION_MS = 5000;
     /**
      * Vote round duration.
      */
-    int T_DELTA_VOTE_MS = 500;
+    int T_DELTA_VOTE_MS = 2000;
 
     /**
      * Initialize controller and timers.

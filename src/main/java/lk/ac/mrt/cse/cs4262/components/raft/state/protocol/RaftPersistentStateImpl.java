@@ -34,7 +34,7 @@ public class RaftPersistentStateImpl implements RaftPersistentState {
      */
     public RaftPersistentStateImpl() {
         this.log = new ArrayList<>();
-        this.currentTerm = 0;
+        this.currentTerm = 1;
         this.votedFor = null;
     }
 
@@ -69,6 +69,9 @@ public class RaftPersistentStateImpl implements RaftPersistentState {
 
     @Override
     public int getLastLogTerm() {
+        if (log.isEmpty()) {
+            return 0;
+        }
         return log.get(log.size() - 1).getTerm();
     }
 

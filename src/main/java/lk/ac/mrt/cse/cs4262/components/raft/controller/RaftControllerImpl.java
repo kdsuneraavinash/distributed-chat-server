@@ -14,6 +14,7 @@ import lk.ac.mrt.cse.cs4262.components.raft.state.logs.BaseLog;
 import lk.ac.mrt.cse.cs4262.components.raft.state.protocol.NodeState;
 import lk.ac.mrt.cse.cs4262.components.raft.timeouts.ElectionTimeoutInvoker;
 import lk.ac.mrt.cse.cs4262.components.raft.timeouts.RpcTimeoutInvoker;
+import lombok.Synchronized;
 import lombok.extern.log4j.Log4j2;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -34,7 +35,7 @@ public class RaftControllerImpl implements RaftController {
     @Nullable
     private RaftMessageSender raftMessageSender;
 
-    private List<ServerId> votes;
+    private final List<ServerId> votes;
 
     /**
      * Create a raft controller. See {@link RaftControllerImpl}.
@@ -69,11 +70,12 @@ public class RaftControllerImpl implements RaftController {
     }
 
     @Override
+    @Synchronized
     public void handleElectionTimeout() {
         // Slide 26
-        log.info("Raft handleElectionTimeout");
+        if (NodeState.FOLLOWER.equals(raftState.getState()) || NodeState.CANDIDATE.equals(raftState.getState())) {
+            log.info("handleElectionTimeout");
 
-        if (raftState.getState() == NodeState.FOLLOWER || raftState.getState() == NodeState.CANDIDATE) {
             int t = (int) (Math.random() + 1) * T_DELTA_ELECTION_MS;
             electionTimeoutInvoker.setTimeout(t);
 
@@ -81,30 +83,34 @@ public class RaftControllerImpl implements RaftController {
             raftState.setState(NodeState.CANDIDATE);
             raftState.setVotedFor(currentServerId);
 
-            votes = new ArrayList<>();
+            votes.clear();
             votes.add(currentServerId);
 
             serverConfiguration.allServerIds().forEach(serverId -> {
-                rpcTimeoutInvoker.cancelTimeout(serverId);
-                rpcTimeoutInvoker.setTimeout(serverId, 0);
+                if (!serverId.equals(currentServerId)) {
+                    rpcTimeoutInvoker.cancelTimeout(serverId);
+                    rpcTimeoutInvoker.setTimeout(serverId, 0);
+                }
             });
         }
     }
 
     @Override
+    @Synchronized
     public void handleRpcTimeout(ServerId serverId) {
         // Slide 44
-        log.traceEntry("Raft handleRpcTimeout for serverId={}", serverId);
+        log.info("handleRpcTimeout for serverId={}", serverId);
 
-        if (raftState.getState() == NodeState.CANDIDATE) {
+        NodeState state = raftState.getState();
+        if (NodeState.CANDIDATE.equals(state)) {
             rpcTimeoutInvoker.setTimeout(serverId, T_DELTA_VOTE_MS);
+            sendVoteRequest(
+                    serverId,
+                    raftState.getCurrentTerm(),
+                    raftState.getLastLogTerm(),
+                    raftState.getLastLogIndex());
 
-            int lastLogTerm = raftState.getLastLogTerm();
-            int lastLogIndex = raftState.getLastLogIndex();
-            sendVoteRequest(serverId, raftState.getCurrentTerm(), lastLogTerm, lastLogIndex);
-        }
-
-        if (raftState.getState() == NodeState.LEADER) {
+        } else if (NodeState.LEADER.equals(state)) {
             rpcTimeoutInvoker.setTimeout(serverId, T_DELTA_ELECTION_MS / 2);
             sendAppendEntries(serverId);
         }
@@ -112,9 +118,10 @@ public class RaftControllerImpl implements RaftController {
     }
 
     @Override
+    @Synchronized
     public void handleVoteRequest(VoteRequestMessage request) {
         // Slide 45
-        log.traceEntry("Raft handleVoteRequest request={}", request);
+        log.info("handleVoteRequest request={}", request);
 
         ServerId q = request.getSenderId();
         int term = request.getTerm();
@@ -126,13 +133,14 @@ public class RaftControllerImpl implements RaftController {
 
         Optional<ServerId> votedFor = raftState.getVotedFor();
 
-        if (term == currentTerm && votedFor.isPresent() && votedFor.get().equals(q)) {
+        if (term == currentTerm && (votedFor.isEmpty() || votedFor.get().equals(q))) {
             int lastLogTerm = request.getLastLogTerm();
             int lastLogIndex = request.getLastLogIndex();
 
             if (lastLogTerm > raftState.getLastLogTerm()
                     || (lastLogTerm == raftState.getLastLogTerm() && lastLogIndex >= raftState.getLastLogIndex())) {
                 raftState.setVotedFor(q);
+
                 int t = (int) (Math.random() + 1) * T_DELTA_ELECTION_MS;
                 electionTimeoutInvoker.setTimeout(t);
 
@@ -142,9 +150,10 @@ public class RaftControllerImpl implements RaftController {
     }
 
     @Override
+    @Synchronized
     public void handleVoteReply(VoteReplyMessage request) {
         // Slide 29
-        log.traceEntry("Raft handleVoteReply request={}", request);
+        log.info("handleVoteReply request={}", request);
 
         ServerId q = request.getSenderId();
         int term = request.getTerm();
@@ -152,20 +161,23 @@ public class RaftControllerImpl implements RaftController {
 
         if (term > currentTerm) {
             stepDown(term);
-        }
 
-        if (term == currentTerm && raftState.getState() == NodeState.CANDIDATE) {
-            if (request.getVote() == currentServerId) {
+        } else if (term == currentTerm && NodeState.CANDIDATE.equals(raftState.getState())) {
+            if (request.getVote().equals(currentServerId)) {
                 votes.add(q);
             }
 
             rpcTimeoutInvoker.cancelTimeout(q);
 
-            if (votes.size() > serverConfiguration.allServerIds().size() / 2) {
+            int minVotes = serverConfiguration.allServerIds().size() / 2;
+            log.info("votes {}/{}", votes.size(), minVotes + 1);
+            if (votes.size() > minVotes) {
                 raftState.setState(NodeState.LEADER);
                 raftState.setLeaderId(currentServerId);
+                log.info("set Leader={}", currentServerId);
+
                 serverConfiguration.allServerIds().forEach(serverId -> {
-                    if (serverId != currentServerId) {
+                    if (!serverId.equals(currentServerId)) {
                         sendAppendEntries(serverId);
                     }
                 });
@@ -175,12 +187,13 @@ public class RaftControllerImpl implements RaftController {
     }
 
     @Override
+    @Synchronized
     public void handleCommandRequest(CommandRequestMessage request) {
         // slide 34
-        log.traceEntry("Raft handleCommandRequest request={}", request);
+        log.info("handleCommandRequest request={}", request);
         log.info(request);
 
-        if (raftState.getState() == NodeState.LEADER) {
+        if (NodeState.LEADER.equals(raftState.getState())) {
             raftState.addLogEntry(new RaftLog(request.getCommand(), raftState.getCurrentTerm()));
             serverConfiguration.allServerIds().forEach(serverId -> {
                 if (serverId != currentServerId) {
@@ -191,9 +204,10 @@ public class RaftControllerImpl implements RaftController {
     }
 
     @Override
+    @Synchronized
     public void handleAppendRequest(AppendRequestMessage request) {
         // Slide 40
-        log.traceEntry("Raft handleAppendRequest request={}", request);
+        log.info("handleAppendRequest request={}", request);
 
         ServerId q = request.getSenderId();
         int term = request.getTerm();
@@ -208,15 +222,17 @@ public class RaftControllerImpl implements RaftController {
     }
 
     @Override
+    @Synchronized
     public void handleAppendReply(AppendReplyMessage request) {
-        log.traceEntry("request={}", request);
+        log.info("handleAppendReply request={}", request);
         // TODO: Implement (Slide 51)
     }
 
     @Override
+    @Synchronized
     public void stepDown(int term) {
         // Slide 30
-        log.traceEntry("Raft stepDown term={}", term);
+        log.info("stepDown term={}", term);
 
         raftState.setCurrentTerm(term);
         raftState.setState(NodeState.FOLLOWER);
@@ -228,8 +244,20 @@ public class RaftControllerImpl implements RaftController {
 
     @Override
     public void sendAppendEntries(ServerId serverId) {
-        log.traceEntry("serverId={}", serverId);
+        log.info("sendAppendEntries serverId={}", serverId);
         // TODO: Implement (Slide 37)
+        rpcTimeoutInvoker.setTimeout(serverId, T_DELTA_ELECTION_MS / 2);
+        // TODO: ?
+        int lastLogIndex = Math.min(raftState.getNextIndex(serverId), raftState.getLastLogIndex());
+        raftState.setNextIndex(serverId, lastLogIndex);
+
+        sendAppendRequest(
+                serverId,
+                raftState.getCurrentTerm(),
+                0,
+                0,
+                List.of(),
+                raftState.getCommitIndex());
     }
 
     @Override
@@ -281,7 +309,7 @@ public class RaftControllerImpl implements RaftController {
                 .commitIndex(commitIndex).build());
     }
 
-    private void sendAppendRequest(ServerId toServerId, int term, boolean success, int index) {
+    private void sendAppendReply(ServerId toServerId, int term, boolean success, int index) {
         sendToServer(toServerId, AppendReplyMessage.builder()
                 .senderId(currentServerId)
                 .term(term)
