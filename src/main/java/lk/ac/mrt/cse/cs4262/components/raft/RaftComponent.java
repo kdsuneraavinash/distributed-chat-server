@@ -65,7 +65,7 @@ public class RaftComponent implements ServerComponent, SharedTcpRequestHandler, 
         BaseRaftMessage baseRaftMessage;
         try {
             baseRaftMessage = serializer.fromJson(request, BaseRaftMessage.class);
-            log.info("{} -> {}", baseRaftMessage.getSenderId(), request);
+            log.debug("{} -> {}", baseRaftMessage.getSenderId(), request);
         } catch (Exception e) {
             return Optional.empty();
         }
@@ -90,7 +90,7 @@ public class RaftComponent implements ServerComponent, SharedTcpRequestHandler, 
 
     @Override
     public void sendToServer(ServerId serverId, BaseRaftMessage message) {
-        log.info("{} <- {}", serverId, serializer.toJson(message));
+        log.debug("{} <- {}", serverId, serializer.toJson(message));
         String serverAddress = serverConfiguration.getServerAddress(serverId).orElseThrow();
         int coordinationPort = serverConfiguration.getCoordinationPort(serverId).orElseThrow();
         TcpClient.requestIgnoreErrors(serverAddress, coordinationPort, serializer.toJson(message));

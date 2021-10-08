@@ -34,7 +34,7 @@ public class RaftPersistentStateImpl implements RaftPersistentState {
      */
     public RaftPersistentStateImpl() {
         this.log = new ArrayList<>();
-        this.currentTerm = 1;
+        this.currentTerm = 0;
         this.votedFor = null;
     }
 
