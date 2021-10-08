@@ -1,6 +1,7 @@
 package lk.ac.mrt.cse.cs4262.components.raft.state;
 
-import lk.ac.mrt.cse.cs4262.components.raft.state.protocol.RaftNonPersistentState;
+import lk.ac.mrt.cse.cs4262.components.raft.state.protocol.RaftCommonState;
+import lk.ac.mrt.cse.cs4262.components.raft.state.protocol.RaftLeaderState;
 import lk.ac.mrt.cse.cs4262.components.raft.state.protocol.RaftPersistentState;
 
 
@@ -9,7 +10,7 @@ import lk.ac.mrt.cse.cs4262.components.raft.state.protocol.RaftPersistentState;
  * Will contain all the servers, participants and rooms.
  * This is only updated via log entries and will be persisted.
  */
-public interface RaftState extends RaftStateReadView, RaftNonPersistentState, RaftPersistentState {
+public interface RaftState extends RaftStateReadView, RaftCommonState, RaftLeaderState, RaftPersistentState {
     /**
      * Initializes state by applying all persisted logs.
      */

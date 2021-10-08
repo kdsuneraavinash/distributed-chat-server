@@ -212,7 +212,6 @@ public class RaftControllerImpl implements RaftController {
                     // Appoint myself as leader.
                     raftState.setState(NodeState.LEADER);
                     raftState.setLeaderId(currentServerId);
-                    log.info("appointed myself as leader");
 
                     // Send append entries to announce my leadership.
                     serverConfiguration.allServerIds().forEach(serverId -> {
@@ -269,7 +268,6 @@ public class RaftControllerImpl implements RaftController {
             // Logic to set leader. Log for first time.
             if (raftState.getLeaderId().isEmpty()
                     || !senderId.equals(raftState.getLeaderId().get())) {
-                log.info("leader set as {}", senderId);
                 raftState.setLeaderId(senderId);
             }
 

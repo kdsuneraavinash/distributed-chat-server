@@ -10,8 +10,10 @@ import lk.ac.mrt.cse.cs4262.components.raft.state.logs.CreateRoomLog;
 import lk.ac.mrt.cse.cs4262.components.raft.state.logs.DeleteIdentityLog;
 import lk.ac.mrt.cse.cs4262.components.raft.state.logs.DeleteRoomLog;
 import lk.ac.mrt.cse.cs4262.components.raft.state.protocol.NodeState;
-import lk.ac.mrt.cse.cs4262.components.raft.state.protocol.RaftNonPersistentState;
-import lk.ac.mrt.cse.cs4262.components.raft.state.protocol.RaftNonPersistentStateImpl;
+import lk.ac.mrt.cse.cs4262.components.raft.state.protocol.RaftCommonState;
+import lk.ac.mrt.cse.cs4262.components.raft.state.protocol.RaftCommonStateImpl;
+import lk.ac.mrt.cse.cs4262.components.raft.state.protocol.RaftLeaderState;
+import lk.ac.mrt.cse.cs4262.components.raft.state.protocol.RaftLeaderStateImpl;
 import lk.ac.mrt.cse.cs4262.components.raft.state.protocol.RaftPersistentState;
 import lk.ac.mrt.cse.cs4262.components.raft.state.protocol.RaftPersistentStateImpl;
 import lombok.ToString;
@@ -70,8 +72,8 @@ public class RaftStateImpl implements RaftState {
     private final Map<RoomId, ParticipantId> roomOwnerMap;
     private final ServerConfiguration serverConfiguration;
     private final RaftPersistentState persistentState;
-    private final RaftNonPersistentState nonPersistentState;
-
+    private final RaftCommonState commonState;
+    private RaftLeaderState leaderState;
 
     /**
      * Listener to attach for the changes in the system.
@@ -92,7 +94,8 @@ public class RaftStateImpl implements RaftState {
         this.participantServerMap = new HashMap<>();
         this.roomOwnerMap = new HashMap<>();
         this.persistentState = new RaftPersistentStateImpl();
-        this.nonPersistentState = new RaftNonPersistentStateImpl(serverConfiguration);
+        this.commonState = new RaftCommonStateImpl();
+        this.leaderState = new RaftLeaderStateImpl(serverConfiguration);
     }
 
     @Override
@@ -279,33 +282,38 @@ public class RaftStateImpl implements RaftState {
 
     /*
     ========================================================
-    Non Persistent State
+    Common Non Persistent State
     ========================================================
     */
 
     @Override
     public NodeState getState() {
-        return nonPersistentState.getState();
+        return commonState.getState();
     }
 
     @Override
     public void setState(NodeState state) {
-        nonPersistentState.setState(state);
+        commonState.setState(state);
     }
 
     @Override
     public Optional<ServerId> getLeaderId() {
-        return nonPersistentState.getLeaderId();
+        return commonState.getLeaderId();
     }
 
     @Override
     public void setLeaderId(ServerId serverId) {
-        nonPersistentState.setLeaderId(serverId);
+        if (currentServerId.equals(serverId)) {
+            log.info("appointed myself as leader");
+            leaderState = new RaftLeaderStateImpl(getLogSize(), serverConfiguration);
+        }
+        commonState.setLeaderId(serverId);
+        log.info("leader set as {}", serverId);
     }
 
     @Override
     public int getCommitIndex() {
-        return nonPersistentState.getCommitIndex();
+        return commonState.getCommitIndex();
     }
 
     @Override
@@ -315,28 +323,34 @@ public class RaftStateImpl implements RaftState {
             for (int i = currentCommitIndex; i < commitIndex; i++) {
                 commit(getLogEntry(commitIndex));
             }
-            nonPersistentState.setCommitIndex(commitIndex);
+            commonState.setCommitIndex(commitIndex);
         }
     }
 
+    /*
+    ========================================================
+    Leader Non Persistent State
+    ========================================================
+    */
+
     @Override
     public int getNextIndex(ServerId serverId) {
-        return nonPersistentState.getNextIndex(serverId);
+        return leaderState.getNextIndex(serverId);
     }
 
     @Override
     public void setNextIndex(ServerId serverId, int nextIndex) {
-        nonPersistentState.setNextIndex(serverId, nextIndex);
+        leaderState.setNextIndex(serverId, nextIndex);
     }
 
     @Override
     public int getMatchIndex(ServerId serverId) {
-        return nonPersistentState.getMatchIndex(serverId);
+        return leaderState.getMatchIndex(serverId);
     }
 
     @Override
     public void setMatchIndex(ServerId serverId, int matchIndex) {
-        nonPersistentState.setMatchIndex(serverId, matchIndex);
+        leaderState.setMatchIndex(serverId, matchIndex);
         commitIfNecessary();
     }
 
@@ -355,7 +369,7 @@ public class RaftStateImpl implements RaftState {
                 for (ServerId otherServerId : serverConfiguration.allServerIds()) {
                     // Vote if match index is equal or greater than n
                     if (!currentServerId.equals(otherServerId)) {
-                        if (nonPersistentState.getMatchIndex(otherServerId) >= n) {
+                        if (leaderState.getMatchIndex(otherServerId) >= n) {
                             votesForN++;
                         }
                     }
