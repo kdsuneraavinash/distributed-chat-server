@@ -41,17 +41,40 @@ public interface RaftPersistentState {
     void setVotedFor(@Nullable ServerId votedFor);
 
     /**
+     * Add uncommitted log entry.
+     * The added log entry is not committed but is just added.
+     * The command in the log entry is also not executed.
+     *
      * @param raftLog Log entry to add.
      */
-    void addLogEntry(RaftLog raftLog);
+    void appendLogEntry(RaftLog raftLog);
 
     /**
-     * @return The latest term of the log
+     * Inserts uncommitted log entry at an index.
+     * All the logs before that index are discarded.
+     * If index is same as log size, this is same as appending.
+     *
+     * @param raftLog Log entry to add.
+     * @param index   Index to add. 1-indexed.
      */
-    int getLastLogTerm();
+    void insertLogEntry(RaftLog raftLog, int index);
 
     /**
-     * @return The latest log index
+     * @param index Log entry index to fetch. 1-indexed.
+     * @return log entry.
      */
-    int getLastLogIndex();
+    RaftLog getLogEntry(int index);
+
+    /**
+     * Get the log term of the log of the given index.
+     *
+     * @param index Index to get. 1-indexed.
+     * @return Log term.
+     */
+    int getLogTermOf(int index);
+
+    /**
+     * @return Number of logs
+     */
+    int getLogSize();
 }

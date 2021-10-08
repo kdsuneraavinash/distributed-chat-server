@@ -15,18 +15,32 @@ import java.util.Optional;
  * Non-persistent state of server.
  */
 public class RaftNonPersistentStateImpl implements RaftNonPersistentState {
-    private static final int NEXT_INDEX_INITIAL = 1;
-    private static final int MATCH_INDEX_INITIAL = 0;
+    /*
+    ========================================================
+    FOR LEADERS
+    ========================================================
+    */
 
     /**
-     * Index of next log entry to send to peer.
+     * For each server, index of the next log entry
+     * to send to that server (initialized to leader
+     * last log index + 1).
+     * Initially initialized to 1.
      */
     private final Map<ServerId, Integer> nextIndices;
 
     /**
-     * Index of the highest log entry known to be replicated.
+     * For each server, index of highest log entry
+     * known to be replicated on server
+     * (initialized to 0, increases monotonically).
      */
     private final Map<ServerId, Integer> matchIndices;
+
+    /*
+    ========================================================
+    ALL SERVERS
+    ========================================================
+    */
 
     /**
      * Current state; could be leader, candidate, follower.
@@ -42,7 +56,9 @@ public class RaftNonPersistentStateImpl implements RaftNonPersistentState {
     private ServerId leaderId;
 
     /**
-     * Index of the highest log entry known to be committed.
+     * Index of highest log entry known to be
+     * committed (initialized to 0, increases
+     * monotonically).
      */
     @Getter
     @Setter
@@ -60,8 +76,8 @@ public class RaftNonPersistentStateImpl implements RaftNonPersistentState {
         this.nextIndices = new HashMap<>();
         this.matchIndices = new HashMap<>();
         serverConfiguration.allServerIds().forEach(serverId -> {
-            nextIndices.put(serverId, NEXT_INDEX_INITIAL);
-            matchIndices.put(serverId, MATCH_INDEX_INITIAL);
+            nextIndices.put(serverId, 1);
+            matchIndices.put(serverId, 0);
         });
     }
 
@@ -77,8 +93,7 @@ public class RaftNonPersistentStateImpl implements RaftNonPersistentState {
 
     @Override
     public int getNextIndex(ServerId serverId) {
-        return Optional.ofNullable(nextIndices.get(serverId))
-                .orElse(NEXT_INDEX_INITIAL);
+        return Optional.ofNullable(nextIndices.get(serverId)).orElseThrow();
     }
 
     @Override
@@ -88,8 +103,7 @@ public class RaftNonPersistentStateImpl implements RaftNonPersistentState {
 
     @Override
     public int getMatchIndex(ServerId serverId) {
-        return Optional.ofNullable(matchIndices.get(serverId))
-                .orElse(MATCH_INDEX_INITIAL);
+        return Optional.ofNullable(matchIndices.get(serverId)).orElseThrow();
     }
 
     @Override

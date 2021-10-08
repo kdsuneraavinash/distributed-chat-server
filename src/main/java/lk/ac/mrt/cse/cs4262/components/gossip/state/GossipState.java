@@ -1,7 +1,5 @@
 package lk.ac.mrt.cse.cs4262.components.gossip.state;
 
-import lk.ac.mrt.cse.cs4262.ServerConfiguration;
-
 import java.util.Map;
 
 /**
@@ -10,10 +8,8 @@ import java.util.Map;
 public interface GossipState extends GossipStateReadView {
     /**
      * Initialize the gossip state.
-     *
-     * @param serverConfiguration Server configuration
      */
-    void initialize(ServerConfiguration serverConfiguration);
+    void initialize();
 
     /**
      * Update the gossip state.

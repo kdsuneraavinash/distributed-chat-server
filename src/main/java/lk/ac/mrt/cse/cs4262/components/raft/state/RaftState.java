@@ -1,6 +1,5 @@
 package lk.ac.mrt.cse.cs4262.components.raft.state;
 
-import lk.ac.mrt.cse.cs4262.ServerConfiguration;
 import lk.ac.mrt.cse.cs4262.components.raft.state.protocol.RaftNonPersistentState;
 import lk.ac.mrt.cse.cs4262.components.raft.state.protocol.RaftPersistentState;
 
@@ -13,10 +12,8 @@ import lk.ac.mrt.cse.cs4262.components.raft.state.protocol.RaftPersistentState;
 public interface RaftState extends RaftStateReadView, RaftNonPersistentState, RaftPersistentState {
     /**
      * Initializes state by applying all persisted logs.
-     *
-     * @param serverConfiguration System configuration.
      */
-    void initialize(ServerConfiguration serverConfiguration);
+    void initialize();
 
     /**
      * Adds a log to the state. This can alter the state.
@@ -24,5 +21,6 @@ public interface RaftState extends RaftStateReadView, RaftNonPersistentState, Ra
      *
      * @param logEntry Log entry to apply to the system.
      */
+    @Deprecated
     void commit(RaftLog logEntry);
 }

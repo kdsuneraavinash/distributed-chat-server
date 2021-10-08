@@ -68,6 +68,7 @@ public class RaftStateImpl implements RaftState {
      */
     @ToString.Include
     private final Map<RoomId, ParticipantId> roomOwnerMap;
+    private final ServerConfiguration serverConfiguration;
     private final RaftPersistentState persistentState;
     private final RaftNonPersistentState nonPersistentState;
 
@@ -85,6 +86,7 @@ public class RaftStateImpl implements RaftState {
      * @param serverConfiguration Server configuration obj.
      */
     public RaftStateImpl(ServerId currentServerId, ServerConfiguration serverConfiguration) {
+        this.serverConfiguration = serverConfiguration;
         this.currentServerId = currentServerId;
         this.state = new HashMap<>();
         this.participantServerMap = new HashMap<>();
@@ -94,7 +96,7 @@ public class RaftStateImpl implements RaftState {
     }
 
     @Override
-    public void initialize(ServerConfiguration serverConfiguration) {
+    public void initialize() {
         // Add main rooms and system users
         for (ServerId serverId : serverConfiguration.allServerIds()) {
             RoomId mainRoomId = getMainRoomId(serverId);
@@ -117,14 +119,13 @@ public class RaftStateImpl implements RaftState {
 
     @Override
     public void commit(RaftLog logEntry) {
-        log.info("log: {}", logEntry);
         // TODO: Validate with term
         commit(logEntry.getCommand());
         // TODO: Persist state.
-        log.debug("state after: {}", this);
     }
 
     private void commit(BaseLog logEntry) {
+        log.info("log: {}", logEntry);
         if (logEntry instanceof CreateIdentityLog) {
             applyCreateIdentityLog((CreateIdentityLog) logEntry);
         } else if (logEntry instanceof CreateRoomLog) {
@@ -136,6 +137,7 @@ public class RaftStateImpl implements RaftState {
         } else {
             throw new UnsupportedOperationException();
         }
+        log.debug("state after: {}", this);
     }
 
     /*
@@ -308,7 +310,13 @@ public class RaftStateImpl implements RaftState {
 
     @Override
     public void setCommitIndex(int commitIndex) {
-        nonPersistentState.setCommitIndex(commitIndex);
+        int currentCommitIndex = getCommitIndex();
+        if (commitIndex != currentCommitIndex) {
+            for (int i = currentCommitIndex; i < commitIndex; i++) {
+                commit(getLogEntry(commitIndex));
+            }
+            nonPersistentState.setCommitIndex(commitIndex);
+        }
     }
 
     @Override
@@ -329,6 +337,40 @@ public class RaftStateImpl implements RaftState {
     @Override
     public void setMatchIndex(ServerId serverId, int matchIndex) {
         nonPersistentState.setMatchIndex(serverId, matchIndex);
+        commitIfNecessary();
+    }
+
+    private void commitIfNecessary() {
+        // If there exists an N such that N > commitIndex, a majority
+        // of matchIndex[i] ≥ N, and log[N].term == currentTerm:
+        // set commitIndex = N
+        int commitIndex = getCommitIndex();
+        int myMatchIndex = getLogSize();
+        int myTerm = getCurrentTerm();
+        for (int n = myMatchIndex; n > commitIndex; n--) {
+            int nThLogTerm = getLogTermOf(n);
+            if (nThLogTerm == myTerm) {
+                // n should have the same term as leader
+                int votesForN = 1; // Leader's vote
+                for (ServerId otherServerId : serverConfiguration.allServerIds()) {
+                    // Vote if match index is equal or greater than n
+                    if (!currentServerId.equals(otherServerId)) {
+                        if (nonPersistentState.getMatchIndex(otherServerId) >= n) {
+                            votesForN++;
+                        }
+                    }
+                }
+                // If there are majority votes, we can commit.
+                if (votesForN > serverConfiguration.allServerIds().size() / 2) {
+                    setCommitIndex(n);
+                    break;
+                }
+            } else if (nThLogTerm < myTerm) {
+                // If nth term is less, the going forward its going to be
+                // lesser. So no need to even continue.
+                break;
+            }
+        }
     }
 
     /*
@@ -336,12 +378,6 @@ public class RaftStateImpl implements RaftState {
     Persistent State
     ========================================================
     */
-
-    @Deprecated
-    @Override
-    public void initialize() {
-        throw new UnsupportedOperationException();
-    }
 
     @Override
     public int getCurrentTerm() {
@@ -364,18 +400,28 @@ public class RaftStateImpl implements RaftState {
     }
 
     @Override
-    public void addLogEntry(RaftLog raftLog) {
-        persistentState.addLogEntry(raftLog);
+    public void appendLogEntry(RaftLog raftLog) {
+        persistentState.appendLogEntry(raftLog);
     }
 
     @Override
-    public int getLastLogTerm() {
-        return persistentState.getLastLogTerm();
+    public void insertLogEntry(RaftLog raftLog, int index) {
+        persistentState.insertLogEntry(raftLog, index);
     }
 
     @Override
-    public int getLastLogIndex() {
-        return persistentState.getLastLogIndex();
+    public RaftLog getLogEntry(int index) {
+        return persistentState.getLogEntry(index);
+    }
+
+    @Override
+    public int getLogTermOf(int index) {
+        return persistentState.getLogTermOf(index);
+    }
+
+    @Override
+    public int getLogSize() {
+        return persistentState.getLogSize();
     }
 
 

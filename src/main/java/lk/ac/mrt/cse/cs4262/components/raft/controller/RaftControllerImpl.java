@@ -18,9 +18,11 @@ import lombok.Synchronized;
 import lombok.extern.log4j.Log4j2;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Random;
 import java.util.Set;
 
 /**
@@ -33,6 +35,7 @@ public class RaftControllerImpl implements RaftController {
     private final ServerConfiguration serverConfiguration;
     private final ElectionTimeoutInvoker electionTimeoutInvoker;
     private final RpcTimeoutInvoker rpcTimeoutInvoker;
+    private final Random randomGenerator;
 
     // List holding votes that this server received
     private final Set<ServerId> votes;
@@ -54,6 +57,7 @@ public class RaftControllerImpl implements RaftController {
         this.serverConfiguration = serverConfiguration;
         this.electionTimeoutInvoker = new ElectionTimeoutInvoker();
         this.rpcTimeoutInvoker = new RpcTimeoutInvoker();
+        this.randomGenerator = new Random();
         this.votes = new HashSet<>();
     }
 
@@ -119,10 +123,9 @@ public class RaftControllerImpl implements RaftController {
             rpcTimeoutInvoker.setTimeout(serverId, T_DELTA_VOTE_MS);
 
             // Send vote request asking for the vote.
-            int currentTerm = raftState.getCurrentTerm();
-            int lastLogTerm = raftState.getLastLogTerm();
-            int lastLogIndex = raftState.getLastLogIndex();
-            sendVoteRequest(serverId, currentTerm, lastLogTerm, lastLogIndex);
+            int lastLogIndex = raftState.getLogSize();
+            int lastLogTerm = raftState.getLogTermOf(lastLogIndex);
+            sendVoteRequest(serverId, raftState.getCurrentTerm(), lastLogTerm, lastLogIndex);
 
         } else if (NodeState.LEADER.equals(nodeState)) {
             log.trace("sending append entries to {}", serverId);
@@ -160,11 +163,10 @@ public class RaftControllerImpl implements RaftController {
                 // If sender has logs that are same or newer, vote.
                 int senderLastLogTerm = request.getLastLogTerm();
                 int senderLastLogIndex = request.getLastLogIndex();
-                int lastLogTerm = raftState.getLastLogTerm();
-                int lastLogIndex = raftState.getLastLogIndex();
+                int lastLogTerm = raftState.getLogTermOf(raftState.getLogSize());
                 if (senderLastLogTerm > lastLogTerm
                         || (senderLastLogTerm == lastLogTerm
-                        && senderLastLogIndex >= lastLogIndex)) {
+                        && senderLastLogIndex >= raftState.getLogSize())) {
                     log.info("voted for {}", senderId);
 
                     // Vote for the server.
@@ -233,12 +235,12 @@ public class RaftControllerImpl implements RaftController {
         if (NodeState.LEADER.equals(raftState.getState())) {
             // Add the log in uncommitted state.
             RaftLog uncommittedLogEntry = new RaftLog(request.getCommand(), raftState.getCurrentTerm());
-            raftState.addLogEntry(uncommittedLogEntry); // TODO: Add as uncommitted
+            raftState.appendLogEntry(uncommittedLogEntry);
             log.info("adding log (uncommitted): {}", uncommittedLogEntry);
 
             // Send append entries to announce the new log.
             serverConfiguration.allServerIds().forEach(serverId -> {
-                if (serverId != currentServerId) {
+                if (!serverId.equals(currentServerId)) {
                     sendAppendEntries(serverId);
                 }
             });
@@ -273,8 +275,22 @@ public class RaftControllerImpl implements RaftController {
 
             // TODO: Following line is required ???? But not in slides.
             restartElectionTimeout();
-            // TODO: Implement slide 40
-            sendAppendReply(senderId, currentTerm, true, 0);
+
+            int prevIndex = request.getPrevIndex();
+            int prevTerm = request.getPrevTerm();
+
+            int index = 0;
+            // Success check if logs are consistent.
+            // Term of the last log should match.
+            boolean success = (prevIndex == 0)
+                    || (prevIndex <= raftState.getLogSize()
+                    && raftState.getLogTermOf(prevIndex) == prevTerm);
+            // If logs are consistent, store them
+            if (success) {
+                index = storeEntries(prevIndex, request.getEntries(), request.getCommitIndex());
+            }
+
+            sendAppendReply(senderId, currentTerm, success, index);
         }
     }
 
@@ -291,11 +307,25 @@ public class RaftControllerImpl implements RaftController {
             stepDown(senderTerm);
 
         } else if (senderTerm == currentTerm) {
-            // If the term is same and I am the leader handle.
+            // If the term is same and I am the leader, handle.
             NodeState currentState = raftState.getState();
             if (NodeState.LEADER.equals(currentState)) {
-                log.trace("append success from {}", senderId);
-                // TODO: Implement (Slide 51)
+                int index = request.getIndex();
+                int currentNextIndex = raftState.getNextIndex(senderId);
+                if (request.isSuccess()) {
+                    // Successfully updated.
+                    raftState.setNextIndex(senderId, index + 1);
+                    raftState.setMatchIndex(senderId, index);
+                } else {
+                    // If update was not successful, go back one index.
+                    // This is to find last successful log eventually.
+                    int reducedNextIndex = Math.max(1, currentNextIndex - 1);
+                    raftState.setNextIndex(senderId, reducedNextIndex);
+                }
+                // If there are still entries to send, send them.
+                if (currentNextIndex <= raftState.getLogSize()) {
+                    sendAppendEntries(senderId);
+                }
             }
         }
     }
@@ -337,25 +367,49 @@ public class RaftControllerImpl implements RaftController {
         // Reset time to send next append entries message.
         rpcTimeoutInvoker.setTimeout(serverId, T_DELTA_ELECTION_MS / 2);
 
-        // Placeholder
+        // TODO: Following section deviates from slides.
+        int nextIndex = raftState.getNextIndex(serverId);
+        int prevIndex = nextIndex - 1;
+        int prevTerm = raftState.getLogTermOf(prevIndex);
+
+        // Collect all log entries after next index.
+        List<RaftLog> sendingLogs = new ArrayList<>();
+        for (int i = nextIndex; i <= raftState.getLogSize(); i++) {
+            sendingLogs.add(raftState.getLogEntry(i));
+        }
+
+        // Send append request upto specified point.
         sendAppendRequest(serverId, raftState.getCurrentTerm(),
-                0, 0, List.of(), raftState.getCommitIndex());
-        // TODO: Implement (Slide 37)
+                prevIndex, prevTerm, sendingLogs, raftState.getCommitIndex());
     }
 
     /**
-     * Stores log entries.
+     * Stores log senderEntries.
      * <p>
      * Implementation: Slide 53
      *
-     * @param prevIndex         Index to start writing logs.
-     * @param entries           Log entries to add.
-     * @param minCommittedIndex Committed entry index.
+     * @param prevIndex            Index to start writing logs.
+     * @param senderEntries        Log senderEntries to add.
+     * @param senderCommittedIndex Committed entry index.
+     * @return Added last log index.
      */
-    private void storeEntries(int prevIndex, List<RaftLog> entries, int minCommittedIndex) {
-        log.traceEntry("prevIndex={} entries={} minCommittedIndex={}",
-                prevIndex, entries, minCommittedIndex);
-        // TODO: Implement (Slide 53)
+    private int storeEntries(int prevIndex, List<RaftLog> senderEntries, int senderCommittedIndex) {
+        log.traceEntry("prevIndex={} senderEntries={} senderCommittedIndex={}",
+                prevIndex, senderEntries, senderCommittedIndex);
+
+        int index = prevIndex;
+        for (RaftLog entry : senderEntries) {
+            index = index + 1;
+            // If the log is totally new or, even if it is already there but
+            // it has a different term, insert one from the senderEntries.
+            if (index >= raftState.getLogSize()
+                    || raftState.getLogEntry(index).getTerm() != entry.getTerm()) {
+                raftState.insertLogEntry(entry, index);
+            }
+        }
+        // Commit
+        raftState.setCommitIndex(Math.min(senderCommittedIndex, index));
+        return index;
     }
 
     /**
@@ -364,7 +418,7 @@ public class RaftControllerImpl implements RaftController {
      * or vote request from a valid candidate.
      */
     private void restartElectionTimeout() {
-        int nextElectionTimeout = (int) (Math.random() + 1) * T_DELTA_ELECTION_MS;
+        int nextElectionTimeout = randomGenerator.nextInt(T_DELTA_ELECTION_MS) + T_DELTA_ELECTION_MS;
         electionTimeoutInvoker.setTimeout(nextElectionTimeout);
     }
 
