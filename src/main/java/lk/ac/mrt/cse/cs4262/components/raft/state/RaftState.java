@@ -24,4 +24,11 @@ public interface RaftState extends RaftStateReadView, RaftCommonState, RaftLeade
      */
     @Deprecated
     void commit(RaftLog logEntry);
+
+    /**
+     * Commit log entries if necessary.
+     * This checks match indices and decides to commit if it is possible to commit
+     * depending on replicated logs in the system.
+     */
+    void performCommitIfNecessary();
 }

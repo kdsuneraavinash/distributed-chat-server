@@ -127,8 +127,45 @@ public class RaftStateImpl implements RaftState {
         // TODO: Persist state.
     }
 
+    @Override
+    public void performCommitIfNecessary() {
+        int myCommitIndex = getCommitIndex();
+        int myCurrentTerm = getCurrentTerm();
+
+        // Condition:
+        // If there exists an N such that N > commitIndex, a majority
+        // of matchIndex[i] ≥ N, and log[N].term == currentTerm:
+        // set commitIndex = N
+
+        // Note: newCommitIndex is N.
+        // Go from LEN to my commit index (since N > commitIndex).
+        // We go from biggest to smallest since we need largest N.
+        for (int newCommitIndex = getLogSize(); newCommitIndex > myCommitIndex; newCommitIndex--) {
+            int newCommitTerm = getLogTermOf(newCommitIndex);
+            if (newCommitTerm < myCurrentTerm) {
+                // If N term is less, the going forward its going to be
+                // lesser. So no need to even continue.
+                break;
+            } else if (newCommitTerm == myCurrentTerm) {
+                // N should have the same term as leader.
+                int replicatedServers = 0;
+                for (ServerId serverId : serverConfiguration.allServerIds()) {
+                    // The log is replicated if match index is equal or greater than n
+                    if (leaderState.getMatchIndex(serverId) >= newCommitIndex) {
+                        replicatedServers++;
+                    }
+                }
+                // If the majority of servers have replicated, we can safely commit.
+                if (replicatedServers > serverConfiguration.allServerIds().size() / 2) {
+                    setCommitIndex(newCommitIndex);
+                    break;
+                }
+            }
+        }
+    }
+
     private void commit(BaseLog logEntry) {
-        log.info("log: {}", logEntry);
+        log.info("committing log: {}", logEntry);
         if (logEntry instanceof CreateIdentityLog) {
             applyCreateIdentityLog((CreateIdentityLog) logEntry);
         } else if (logEntry instanceof CreateRoomLog) {
@@ -351,40 +388,6 @@ public class RaftStateImpl implements RaftState {
     @Override
     public void setMatchIndex(ServerId serverId, int matchIndex) {
         leaderState.setMatchIndex(serverId, matchIndex);
-        commitIfNecessary();
-    }
-
-    private void commitIfNecessary() {
-        // If there exists an N such that N > commitIndex, a majority
-        // of matchIndex[i] ≥ N, and log[N].term == currentTerm:
-        // set commitIndex = N
-        int commitIndex = getCommitIndex();
-        int myMatchIndex = getLogSize();
-        int myTerm = getCurrentTerm();
-        for (int n = myMatchIndex; n > commitIndex; n--) {
-            int nThLogTerm = getLogTermOf(n);
-            if (nThLogTerm == myTerm) {
-                // n should have the same term as leader
-                int votesForN = 1; // Leader's vote
-                for (ServerId otherServerId : serverConfiguration.allServerIds()) {
-                    // Vote if match index is equal or greater than n
-                    if (!currentServerId.equals(otherServerId)) {
-                        if (leaderState.getMatchIndex(otherServerId) >= n) {
-                            votesForN++;
-                        }
-                    }
-                }
-                // If there are majority votes, we can commit.
-                if (votesForN > serverConfiguration.allServerIds().size() / 2) {
-                    setCommitIndex(n);
-                    break;
-                }
-            } else if (nThLogTerm < myTerm) {
-                // If nth term is less, the going forward its going to be
-                // lesser. So no need to even continue.
-                break;
-            }
-        }
     }
 
     /*

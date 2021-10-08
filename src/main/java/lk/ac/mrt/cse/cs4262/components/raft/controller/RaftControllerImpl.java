@@ -18,7 +18,6 @@ import lombok.Synchronized;
 import lombok.extern.log4j.Log4j2;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
@@ -235,7 +234,7 @@ public class RaftControllerImpl implements RaftController {
             // Add the log in uncommitted state.
             RaftLog uncommittedLogEntry = new RaftLog(request.getCommand(), raftState.getCurrentTerm());
             raftState.appendLogEntry(uncommittedLogEntry);
-            log.info("adding log (uncommitted): {}", uncommittedLogEntry);
+            raftState.setMatchIndex(currentServerId, raftState.getLogSize());
 
             // Send append entries to announce the new log.
             serverConfiguration.allServerIds().forEach(serverId -> {
@@ -313,7 +312,10 @@ public class RaftControllerImpl implements RaftController {
                 if (request.isSuccess()) {
                     // Successfully updated.
                     raftState.setNextIndex(senderId, index + 1);
-                    raftState.setMatchIndex(senderId, index);
+                    if (index != raftState.getMatchIndex(senderId)) {
+                        raftState.setMatchIndex(senderId, index);
+                        raftState.performCommitIfNecessary();
+                    }
                 } else {
                     // If update was not successful, go back one index.
                     // This is to find last successful log eventually.
@@ -365,20 +367,18 @@ public class RaftControllerImpl implements RaftController {
         // Reset time to send next append entries message.
         rpcTimeoutInvoker.setTimeout(serverId, T_DELTA_ELECTION_MS / 2);
 
-        // TODO: Following section deviates from slides.
-        int nextIndex = raftState.getNextIndex(serverId);
-        int prevIndex = nextIndex - 1;
-        int prevTerm = raftState.getLogTermOf(prevIndex);
+        // TODO: Modify to send more than one log at a time.
+        int sendingLogIndex = raftState.getNextIndex(serverId);
+        int prevLogIndex = sendingLogIndex - 1;
+        int prevLogTerm = raftState.getLogTermOf(prevLogIndex);
 
-        // Collect all log entries after next index.
-        List<RaftLog> sendingLogs = new ArrayList<>();
-        for (int i = nextIndex; i <= raftState.getLogSize(); i++) {
-            sendingLogs.add(raftState.getLogEntry(i));
-        }
+        // Sending log is empty if index is too large. (Already replicated remaining)
+        List<RaftLog> sendingLogs = sendingLogIndex <= raftState.getLogSize()
+                ? List.of(raftState.getLogEntry(sendingLogIndex)) : List.of();
 
         // Send append request upto specified point.
         sendAppendRequest(serverId, raftState.getCurrentTerm(),
-                prevIndex, prevTerm, sendingLogs, raftState.getCommitIndex());
+                prevLogIndex, prevLogTerm, sendingLogs, raftState.getCommitIndex());
     }
 
     /**

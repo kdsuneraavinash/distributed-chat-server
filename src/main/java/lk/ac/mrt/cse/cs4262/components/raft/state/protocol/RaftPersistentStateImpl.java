@@ -70,6 +70,7 @@ public class RaftPersistentStateImpl implements RaftPersistentState {
     @Override
     public void appendLogEntry(RaftLog raftLog) {
         raftLogs.add(raftLog);
+        log.info("appended uncommitted log: {}", raftLog);
         saveState();
     }
 
@@ -78,7 +79,7 @@ public class RaftPersistentStateImpl implements RaftPersistentState {
         // Decrementing index because index is 1-indexed.
         raftLogs.subList(index - 1, raftLogs.size()).clear();
         raftLogs.add(raftLog);
-        log.info("new logs: {}", raftLogs);
+        log.info("inserting uncommitted log at {}: {}", index, raftLog);
         saveState();
     }
 
