@@ -28,6 +28,9 @@ Help() {
 if [ "$1" == "run" ]; then
   Run INFO ${@:2}
 
+elif [ "$1" == "rundefault" ]; then
+  Run INFO -s ${@:2} -f default.tsv
+
 elif [ "$1" == "trace" ]; then
   Run TRACE ${@:2}
 
