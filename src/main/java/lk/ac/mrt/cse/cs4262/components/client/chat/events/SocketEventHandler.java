@@ -27,8 +27,8 @@ import lk.ac.mrt.cse.cs4262.components.client.messages.responses.NewIdentityClie
 import lk.ac.mrt.cse.cs4262.components.client.messages.responses.RoomChangeBroadcastResponse;
 import lk.ac.mrt.cse.cs4262.components.client.messages.responses.WhoClientResponse;
 import lk.ac.mrt.cse.cs4262.components.gossip.state.GossipStateReadView;
-import lk.ac.mrt.cse.cs4262.components.raft.state.RaftLog;
-import lk.ac.mrt.cse.cs4262.components.raft.state.RaftState;
+import lk.ac.mrt.cse.cs4262.components.raft.messages.CommandRequestMessage;
+import lk.ac.mrt.cse.cs4262.components.raft.state.RaftStateReadView;
 import lk.ac.mrt.cse.cs4262.components.raft.state.logs.BaseLog;
 import lk.ac.mrt.cse.cs4262.components.raft.state.logs.CreateIdentityLog;
 import lk.ac.mrt.cse.cs4262.components.raft.state.logs.CreateRoomLog;
@@ -47,7 +47,7 @@ import java.util.Optional;
 public class SocketEventHandler extends AbstractEventHandler implements ClientSocketListener.EventHandler {
     private final ServerId currentServerId;
     private final GossipStateReadView gossipState;
-    private final RaftState raftState;
+    private final RaftStateReadView raftState;
     private final ChatRoomState chatRoomState;
     private final ChatRoomWaitingList waitingList;
     private final Gson serializer;
@@ -66,7 +66,7 @@ public class SocketEventHandler extends AbstractEventHandler implements ClientSo
      */
     @Builder
     public SocketEventHandler(ServerId currentServerId,
-                              GossipStateReadView gossipState, RaftState raftState,
+                              GossipStateReadView gossipState, RaftStateReadView raftState,
                               ChatRoomState chatRoomState, ChatRoomWaitingList waitingList,
                               Gson serializer, @Nullable MessageSender messageSender) {
         super(messageSender);
@@ -178,20 +178,19 @@ public class SocketEventHandler extends AbstractEventHandler implements ClientSo
     @Synchronized
     private void processNewIdentityRequest(ClientId clientId, ParticipantId participantId) {
         log.traceEntry("clientId={} participantId={}", clientId, participantId);
-        // If participant id is invalid locally, REJECT
-        // Add client to waiting list. If someone is already waiting, REJECT
-        boolean acceptedLocally = !raftState.hasParticipant(participantId)
-                && waitingList.waitForParticipantCreation(clientId, participantId);
-        if (!acceptedLocally) {
-            String message = createParticipantCreateRejectedMsg();
-            sendToClient(clientId, message);
-            return;
-        }
-        // TODO: Send to leader via RAFT.
-        // For now put a log manually.
         BaseLog baseLog = CreateIdentityLog.builder()
                 .serverId(currentServerId).identity(participantId).build();
-        raftState.commit(new RaftLog(baseLog, -1));
+        // If participant id is invalid locally, REJECT
+        // Add client to waiting list. If someone is already waiting, REJECT
+        boolean acceptedLocally = raftState.isAcceptable(baseLog)
+                && waitingList.waitForParticipantCreation(clientId, participantId);
+        if (acceptedLocally) {
+            sendCommandRequest(baseLog);
+            return;
+        }
+        // Send REJECT message
+        String message = createParticipantCreateRejectedMsg();
+        sendToClient(clientId, message);
     }
 
     /**
@@ -204,7 +203,7 @@ public class SocketEventHandler extends AbstractEventHandler implements ClientSo
         log.traceEntry("authenticatedClient={}", authenticatedClient);
         log.info("failedKnownServerIds={}", gossipState.failedServerIds());
         // TODO: Integrate Gossip state
-        Collection<RoomId> roomIds = raftState.getRoomsInServer(currentServerId);
+        Collection<RoomId> roomIds = raftState.getRoomsInSystem();
         String message = createRoomListMsg(roomIds);
         sendToClient(authenticatedClient.getClientId(), message);
     }
@@ -252,22 +251,19 @@ public class SocketEventHandler extends AbstractEventHandler implements ClientSo
         log.traceEntry("authenticatedClient={} roomId={}", authenticatedClient, roomId);
         ClientId clientId = authenticatedClient.getClientId();
         ParticipantId participantId = authenticatedClient.getParticipantId();
-        // If room id is invalid locally, REJECT
-        // If client already has a room, REJECT
-        // Add client to waiting list. If someone is already waiting, REJECT
-        boolean acceptedLocally = !raftState.hasRoom(roomId)
-                && raftState.getRoomOwnedByParticipant(participantId).isEmpty()
-                && waitingList.waitForRoomCreation(clientId, roomId);
-        if (!acceptedLocally) {
-            String message = createRoomCreateRejectedMsg(roomId);
-            sendToClient(clientId, message);
-            return;
-        }
-        // TODO: Send to leader via RAFT.
-        // For now put a log manually.
         BaseLog baseLog = CreateRoomLog.builder()
                 .roomId(roomId).participantId(participantId).build();
-        raftState.commit(new RaftLog(baseLog, -1));
+        // If room id is invalid locally, REJECT
+        // Add client to waiting list. If someone is already waiting, REJECT
+        boolean acceptedLocally = raftState.isAcceptable(baseLog)
+                && waitingList.waitForRoomCreation(clientId, roomId);
+        if (acceptedLocally) {
+            sendCommandRequest(baseLog);
+            return;
+        }
+        // Send REJECT message
+        String message = createRoomCreateRejectedMsg(roomId);
+        sendToClient(clientId, message);
     }
 
     /**
@@ -280,24 +276,23 @@ public class SocketEventHandler extends AbstractEventHandler implements ClientSo
     private void processDeleteRoomRequest(AuthenticatedClient authenticatedClient, RoomId roomId) {
         log.traceEntry("authenticatedClient={} roomId={}", authenticatedClient, roomId);
         ClientId clientId = authenticatedClient.getClientId();
+        BaseLog baseLog = DeleteRoomLog.builder()
+                .roomId(roomId).build();
         // If the room does not exist, REJECT
         // If client is not the owner of the room, REJECT
         // Add client to waiting list. If someone is already waiting, REJECT
         boolean isSameOwner = raftState.getOwnerOfRoom(roomId)
                 .map(authenticatedClient.getParticipantId()::equals).orElse(false);
-        boolean acceptedLocally = raftState.hasRoom(roomId)
+        boolean acceptedLocally = raftState.isAcceptable(baseLog)
                 && isSameOwner
                 && waitingList.waitForRoomDeletion(clientId, roomId);
-        if (!acceptedLocally) {
-            String message = createRoomDeleteRejectedMsg(roomId);
-            sendToClient(clientId, message);
+        if (acceptedLocally) {
+            sendCommandRequest(baseLog);
             return;
         }
-        // TODO: Send to leader via RAFT.
-        // For now put a log manually.
-        BaseLog baseLog = DeleteRoomLog.builder()
-                .roomId(roomId).build();
-        raftState.commit(new RaftLog(baseLog, -1));
+        // Send REJECT message
+        String message = createRoomDeleteRejectedMsg(roomId);
+        sendToClient(clientId, message);
     }
 
     /**
@@ -346,8 +341,6 @@ public class SocketEventHandler extends AbstractEventHandler implements ClientSo
         ClientId clientId = authenticatedClient.getClientId();
         RoomId currentRoomId = authenticatedClient.getCurrentRoomId();
         ParticipantId participantId = authenticatedClient.getParticipantId();
-        // Update chat room maps.
-        chatRoomState.participantQuit(clientId);
         // Send room change to all in old room and to client.
         String message = createRoomChangeBroadcastMsg(participantId, currentRoomId, RoomId.NULL);
         sendToRoom(currentRoomId, message);
@@ -357,7 +350,20 @@ public class SocketEventHandler extends AbstractEventHandler implements ClientSo
         // For now put a log manually.
         BaseLog baseLog = DeleteIdentityLog.builder()
                 .identity(participantId).build();
-        raftState.commit(new RaftLog(baseLog, -1));
+        sendCommandRequest(baseLog);
+    }
+
+    /**
+     * Send a message to the leader.
+     *
+     * @param command Command to send.
+     */
+    private void sendCommandRequest(BaseLog command) {
+        CommandRequestMessage message = CommandRequestMessage.builder()
+                .senderId(currentServerId)
+                .command(command).build();
+        raftState.getLeaderId()
+                .ifPresent(leaderId -> sendToServer(leaderId, serializer.toJson(message)));
     }
 
     /*

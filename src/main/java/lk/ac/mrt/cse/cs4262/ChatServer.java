@@ -44,13 +44,14 @@ public class ChatServer implements AutoCloseable {
 
         // System State
         RaftState raftState = new RaftStateImpl(currentServerId, serverConfiguration);
-        GossipState gossipState = new GossipStateImpl(currentServerId);
-        raftState.initialize(serverConfiguration);
-        gossipState.initialize(serverConfiguration);
+        GossipState gossipState = new GossipStateImpl(currentServerId, serverConfiguration);
+        raftState.initialize();
+        gossipState.initialize();
         // Coordination server
         this.coordinationServer = new SharedTcpServer(coordinationPort, COORDINATION_TIMEOUT_MS);
         // Components
-        this.clientComponent = new ClientComponent(clientPort, currentServerId, gossipState, raftState);
+        this.clientComponent = new ClientComponent(clientPort, currentServerId,
+                gossipState, raftState, serverConfiguration);
         this.clientComponent.connect();
         this.gossipComponent = new GossipComponent(currentServerId, gossipState, serverConfiguration);
         this.gossipComponent.connect();

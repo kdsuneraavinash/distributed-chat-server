@@ -2,6 +2,7 @@ package lk.ac.mrt.cse.cs4262.components.client.chat.events;
 
 import lk.ac.mrt.cse.cs4262.common.symbols.ClientId;
 import lk.ac.mrt.cse.cs4262.common.symbols.RoomId;
+import lk.ac.mrt.cse.cs4262.common.symbols.ServerId;
 import lk.ac.mrt.cse.cs4262.components.client.chat.MessageSender;
 import lombok.AllArgsConstructor;
 import lombok.extern.log4j.Log4j2;
@@ -46,6 +47,12 @@ public abstract class AbstractEventHandler {
     protected void disconnectClient(ClientId clientId) {
         if (messageSender != null) {
             messageSender.disconnect(clientId);
+        }
+    }
+
+    protected void sendToServer(ServerId serverId, String message) {
+        if (messageSender != null) {
+            messageSender.sendToServer(serverId, message);
         }
     }
 }

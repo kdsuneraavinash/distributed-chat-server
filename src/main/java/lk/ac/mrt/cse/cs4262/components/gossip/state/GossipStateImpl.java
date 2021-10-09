@@ -24,21 +24,24 @@ public class GossipStateImpl implements GossipState {
     private final ServerId currentServerId;
     private final Map<ServerId, Integer> heartBeatCounters;
     private final Map<ServerId, Long> lastUpdatedTimestamps;
+    private final ServerConfiguration serverConfiguration;
 
     /**
      * Create a gossip state. See {@link GossipState}.
      *
-     * @param currentServerId The server id of current server.
+     * @param currentServerId     The server id of current server.
+     * @param serverConfiguration Server configuration obj.
      */
-    public GossipStateImpl(ServerId currentServerId) {
+    public GossipStateImpl(ServerId currentServerId, ServerConfiguration serverConfiguration) {
         this.currentServerId = currentServerId;
+        this.serverConfiguration = serverConfiguration;
         this.heartBeatCounters = new HashMap<>();
         this.lastUpdatedTimestamps = new HashMap<>();
     }
 
     @Synchronized
     @Override
-    public void initialize(ServerConfiguration serverConfiguration) {
+    public void initialize() {
         for (ServerId serverId : serverConfiguration.allServerIds()) {
             // Put 0 counter as the oldest entry (0 timestamp)
             heartBeatCounters.put(serverId, 0);

@@ -1,9 +1,11 @@
 package lk.ac.mrt.cse.cs4262.components.client;
 
 import com.google.gson.Gson;
+import lk.ac.mrt.cse.cs4262.ServerConfiguration;
 import lk.ac.mrt.cse.cs4262.common.symbols.ClientId;
 import lk.ac.mrt.cse.cs4262.common.symbols.RoomId;
 import lk.ac.mrt.cse.cs4262.common.symbols.ServerId;
+import lk.ac.mrt.cse.cs4262.common.tcp.TcpClient;
 import lk.ac.mrt.cse.cs4262.common.utils.NamedThreadFactory;
 import lk.ac.mrt.cse.cs4262.components.ServerComponent;
 import lk.ac.mrt.cse.cs4262.components.client.chat.ChatRoomState;
@@ -34,8 +36,11 @@ import java.util.concurrent.Executors;
  */
 @Log4j2
 public class ClientComponent implements ServerComponent, Runnable, AutoCloseable, MessageSender {
+    private static final int PROXY_TIMEOUT = 1000;
+
     private final RaftStateEventHandler raftStateEventHandler;
     private final RaftState raftState;
+    private final ServerConfiguration serverConfiguration;
     private final SocketEventHandler socketEventHandler;
     private final Map<ClientId, ChatClient> allClients;
     private final ChatRoomState chatRoomState;
@@ -45,13 +50,15 @@ public class ClientComponent implements ServerComponent, Runnable, AutoCloseable
     /**
      * Create a client connector. See {@link ClientComponent}.
      *
-     * @param port            Port to listen.
-     * @param currentServerId Current server id.
-     * @param gossipState     Gossip read only view.
-     * @param raftState       System read only view.
+     * @param port                Port to listen.
+     * @param currentServerId     Current server id.
+     * @param gossipState         Gossip read only view.
+     * @param raftState           System read only view.
+     * @param serverConfiguration System server information.
      */
     public ClientComponent(int port, ServerId currentServerId,
-                           GossipStateReadView gossipState, RaftState raftState) {
+                           GossipStateReadView gossipState, RaftState raftState,
+                           ServerConfiguration serverConfiguration) {
         RoomId mainRoomId = raftState.getMainRoomId(currentServerId);
         Gson serializer = new Gson();
         ChatRoomWaitingList waitingList = new ChatRoomWaitingList();
@@ -74,8 +81,8 @@ public class ClientComponent implements ServerComponent, Runnable, AutoCloseable
                 .serializer(serializer).build();
 
         this.executorService = Executors.newCachedThreadPool(
-                new NamedThreadFactory("client")
-        );
+                new NamedThreadFactory("client"));
+        this.serverConfiguration = serverConfiguration;
     }
 
     @Override
@@ -157,6 +164,17 @@ public class ClientComponent implements ServerComponent, Runnable, AutoCloseable
             }
         } catch (Exception e) {
             log.error(e);
+        }
+    }
+
+    @Override
+    public void sendToServer(ServerId serverId, String message) {
+        String serverAddress = serverConfiguration.getServerAddress(serverId).orElseThrow();
+        int serverPort = serverConfiguration.getCoordinationPort(serverId).orElseThrow();
+        try {
+            TcpClient.request(serverAddress, serverPort, message, PROXY_TIMEOUT);
+        } catch (Exception e) {
+            log.trace("sending to server failed: {}", e.toString());
         }
     }
 }
