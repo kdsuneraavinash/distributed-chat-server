@@ -18,6 +18,7 @@ import lombok.extern.log4j.Log4j2;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.util.Collection;
+import java.util.Optional;
 
 /**
  * An event handler that will listen to updates from system state.
@@ -60,46 +61,50 @@ public class RaftStateEventHandler extends AbstractEventHandler implements RaftS
     @Synchronized
     @Override
     public void participantIdCreated(ParticipantId createdParticipantId) {
+        log.traceEntry("createdParticipantId={}", createdParticipantId);
         // Get client from waiting list.
-        waitingList.getWaitingForParticipantCreation(createdParticipantId).ifPresent(clientId -> {
-            log.traceEntry("createdParticipantId={}", createdParticipantId);
-            // Update chat room maps.
-            chatRoomState.participantCreate(clientId, createdParticipantId);
-            // Send APPROVED message to client.
-            String message1 = createParticipantCreateAcceptedMsg();
-            sendToClient(clientId, message1);
-            // Send room change to all in main room.
-            String message2 = createRoomChangeBroadcastMsg(createdParticipantId, RoomId.NULL, mainRoomId);
-            sendToRoom(mainRoomId, message2);
-        });
+        ClientId clientId = waitingList.getWaitingForParticipantCreation(createdParticipantId)
+                .orElse(ClientId.unique());
+
+        // Update chat room maps.
+        chatRoomState.participantCreate(clientId, createdParticipantId);
+        // Send APPROVED message to client.
+        String message1 = createParticipantCreateAcceptedMsg();
+        sendToClient(clientId, message1);
+        // Send room change to all in main room.
+        String message2 = createRoomChangeBroadcastMsg(createdParticipantId, RoomId.NULL, mainRoomId);
+        sendToRoom(mainRoomId, message2);
     }
 
     @Synchronized
     @Override
     public void roomIdCreated(ParticipantId ownerParticipantId, RoomId createdRoomId) {
-        waitingList.getWaitingForRoomCreation(createdRoomId).ifPresent(ownerClientId ->
-                chatRoomState.getCurrentRoomIdOf(ownerParticipantId).ifPresent(formerRoomId -> {
-                    log.traceEntry("ownerId={} createdRoomId={}", ownerParticipantId, createdRoomId);
-                    // Update chat room maps.
-                    chatRoomState.roomCreate(ownerClientId, createdRoomId);
-                    // Send APPROVED message to client.
-                    String message1 = createRoomCreateAcceptedMsg(createdRoomId);
-                    sendToClient(ownerClientId, message1);
-                    // Send room change to all in former room and client.
-                    String message2 = createRoomChangeBroadcastMsg(ownerParticipantId, formerRoomId, createdRoomId);
-                    sendToClient(ownerClientId, message2);
-                    sendToRoom(formerRoomId, message2);
-                }));
+        log.traceEntry("ownerId={} createdRoomId={}", ownerParticipantId, createdRoomId);
+        // Get owners client id and former chat room (this must exist)
+        ClientId ownerClientId = chatRoomState.getClientIdOf(ownerParticipantId).orElseThrow();
+        RoomId formerRoomId = chatRoomState.getCurrentRoomIdOf(ownerParticipantId).orElseThrow();
+        waitingList.getWaitingForRoomCreation(createdRoomId);
+
+        // Update chat room maps.
+        chatRoomState.roomCreate(ownerClientId, createdRoomId);
+        // Send APPROVED message to client.
+        String message1 = createRoomCreateAcceptedMsg(createdRoomId);
+        sendToClient(ownerClientId, message1);
+        // Send room change to all in former room and client.
+        String message2 = createRoomChangeBroadcastMsg(ownerParticipantId, formerRoomId, createdRoomId);
+        sendToClient(ownerClientId, message2);
+        sendToRoom(formerRoomId, message2);
     }
 
     @Synchronized
     @Override
     public void participantIdDeleted(ParticipantId deletedParticipantId, @Nullable RoomId deletedRoomId) {
+        log.traceEntry("deletedId={} deletedRoomId={}", deletedParticipantId, Optional.ofNullable(deletedRoomId));
+        chatRoomState.participantDelete(deletedParticipantId);
         if (deletedRoomId == null) {
             // Nothing more to do
             return;
         }
-        log.traceEntry("deletedId={} deletedRoomId={}", deletedParticipantId, deletedRoomId);
         // Update chat room maps.
         Collection<ClientId> prevClientIds = chatRoomState.roomDelete(deletedRoomId);
         // Send room change to all old users.
@@ -113,23 +118,23 @@ public class RaftStateEventHandler extends AbstractEventHandler implements RaftS
 
     @Synchronized
     @Override
-    public void roomIdDeleted(RoomId deletedRoomId) {
+    public void roomIdDeleted(RoomId deletedRoomId, ParticipantId ownerId) {
         log.traceEntry("deletedRoomId={}", deletedRoomId);
-        // Remove owner from waiting list
-        waitingList.getWaitingForDeletion(deletedRoomId).ifPresent(ownerClientId -> {
-            // Update chat room maps.
-            Collection<ClientId> prevClientIds = chatRoomState.roomDelete(deletedRoomId);
-            // Send APPROVED message.
-            String message1 = createRoomDeleteAcceptedMsg(deletedRoomId);
-            sendToClient(ownerClientId, message1);
-            // Send room change to all old users.
-            for (ClientId prevClientId : prevClientIds) {
-                chatRoomState.getParticipantIdOf(prevClientId).ifPresent((prevParticipantId) -> {
-                    String message2 = createRoomChangeBroadcastMsg(prevParticipantId, deletedRoomId, mainRoomId);
-                    sendToRoom(mainRoomId, message2);
-                });
-            }
-        });
+        ClientId ownerClientId = chatRoomState.getClientIdOf(ownerId).orElseThrow();
+        waitingList.getWaitingForDeletion(deletedRoomId);
+
+        // Update chat room maps.
+        Collection<ClientId> prevClientIds = chatRoomState.roomDelete(deletedRoomId);
+        // Send APPROVED message.
+        String message1 = createRoomDeleteAcceptedMsg(deletedRoomId);
+        sendToClient(ownerClientId, message1);
+        // Send room change to all old users.
+        for (ClientId prevClientId : prevClientIds) {
+            chatRoomState.getParticipantIdOf(prevClientId).ifPresent((prevParticipantId) -> {
+                String message2 = createRoomChangeBroadcastMsg(prevParticipantId, deletedRoomId, mainRoomId);
+                sendToRoom(mainRoomId, message2);
+            });
+        }
     }
 
     /*

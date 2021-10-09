@@ -341,8 +341,6 @@ public class SocketEventHandler extends AbstractEventHandler implements ClientSo
         ClientId clientId = authenticatedClient.getClientId();
         RoomId currentRoomId = authenticatedClient.getCurrentRoomId();
         ParticipantId participantId = authenticatedClient.getParticipantId();
-        // Update chat room maps.
-        chatRoomState.participantQuit(clientId);
         // Send room change to all in old room and to client.
         String message = createRoomChangeBroadcastMsg(participantId, currentRoomId, RoomId.NULL);
         sendToRoom(currentRoomId, message);

@@ -312,7 +312,7 @@ public class RaftStateImpl implements RaftState {
         }
         state.get(serverId).put(ownerId, null);
         if (currentServerId.equals(serverId) && eventHandler != null) {
-            eventHandler.roomIdDeleted(roomId);
+            eventHandler.roomIdDeleted(roomId, ownerId);
         }
     }
 

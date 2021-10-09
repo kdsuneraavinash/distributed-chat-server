@@ -116,7 +116,8 @@ public interface RaftStateReadView {
 
         /**
          * @param deletedRoomId Deleted room id.
+         * @param ownerId       Owner id.
          */
-        void roomIdDeleted(RoomId deletedRoomId);
+        void roomIdDeleted(RoomId deletedRoomId, ParticipantId ownerId);
     }
 }

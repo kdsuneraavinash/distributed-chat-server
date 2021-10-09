@@ -31,6 +31,11 @@ public class ChatRoomState {
     private final Map<ClientId, ParticipantId> clientParticipantMap;
 
     /**
+     * Data structure to track client id of participants.
+     */
+    private final Map<ParticipantId, ClientId> participantClientMap;
+
+    /**
      * Data structure to track all the participants in a given room.
      * The clients in the map should have a participant id.
      */
@@ -50,6 +55,7 @@ public class ChatRoomState {
         this.mainRoomId = mainRoomId;
 
         this.clientParticipantMap = new HashMap<>();
+        this.participantClientMap = new HashMap<>();
         this.roomClientListMap = new HashMap<>();
         this.roomClientListMap.put(this.mainRoomId, new ArrayList<>());
         this.participantRoomMap = new HashMap<>();
@@ -74,27 +80,27 @@ public class ChatRoomState {
             throw new IllegalStateException("main room does not exist");
         }
         clientParticipantMap.put(clientId, participantId);
+        participantClientMap.put(participantId, clientId);
         roomClientListMap.get(mainRoomId).add(clientId);
         participantRoomMap.put(participantId, mainRoomId);
         log.traceExit("state modified: {}", this);
     }
 
     /**
-     * Participant quit the server.
+     * Delete participant from the server.
      *
-     * @param clientId ID of the client.
+     * @param participantId ID of the participant.
      */
     @Synchronized
-    public void participantQuit(ClientId clientId) {
-        log.traceEntry("clientId={}", clientId);
-        Optional.ofNullable(clientParticipantMap.remove(clientId)) // remove participant id
-                .flatMap(this::getCurrentRoomIdOf) // get current room of each participant
-                .ifPresent(formerRoomId -> {
-                    // Ignore if former room does not exist
-                    if (roomClientListMap.containsKey(formerRoomId)) {
-                        roomClientListMap.get(formerRoomId).remove(clientId);
-                    }
-                });
+    public void participantDelete(ParticipantId participantId) {
+        log.traceEntry("participantId={}", participantId);
+        ClientId clientId = Optional.ofNullable(participantClientMap.remove(participantId)).orElseThrow();
+        RoomId formerRoomId = getCurrentRoomIdOf(participantId).orElseThrow();
+        clientParticipantMap.remove(clientId);
+        participantRoomMap.remove(participantId);
+        if (roomClientListMap.containsKey(formerRoomId)) {
+            roomClientListMap.get(formerRoomId).remove(clientId);
+        }
         log.traceExit("state modified: {}", this);
     }
 
@@ -190,6 +196,16 @@ public class ChatRoomState {
      */
     public Optional<ParticipantId> getParticipantIdOf(ClientId clientId) {
         return Optional.ofNullable(clientParticipantMap.get(clientId));
+    }
+
+    /**
+     * Get the client id of a participant.
+     *
+     * @param participantId ID of the participant.
+     * @return ID of the corresponding client if any.
+     */
+    public Optional<ClientId> getClientIdOf(ParticipantId participantId) {
+        return Optional.ofNullable(participantClientMap.get(participantId));
     }
 
     /**
