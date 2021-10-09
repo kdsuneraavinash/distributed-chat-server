@@ -2,6 +2,7 @@ package lk.ac.mrt.cse.cs4262.components.raft.state.protocol;
 
 import lk.ac.mrt.cse.cs4262.common.symbols.ServerId;
 import lk.ac.mrt.cse.cs4262.components.raft.state.RaftLog;
+import lk.ac.mrt.cse.cs4262.components.raft.state.logs.BaseLog;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.util.Optional;
@@ -77,4 +78,10 @@ public interface RaftPersistentState {
      * @return Number of logs
      */
     int getLogSize();
+
+    /**
+     * @param baseLog Log to check.
+     * @return Whether the log can be safely applied.
+     */
+    boolean isAcceptable(BaseLog baseLog);
 }

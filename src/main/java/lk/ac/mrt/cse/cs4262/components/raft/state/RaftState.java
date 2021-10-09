@@ -17,15 +17,6 @@ public interface RaftState extends RaftStateReadView, RaftCommonState, RaftLeade
     void initialize();
 
     /**
-     * Adds a log to the state. This can alter the state.
-     * Any changes done to the state will be persisted.
-     *
-     * @param logEntry Log entry to apply to the system.
-     */
-    @Deprecated
-    void commit(RaftLog logEntry);
-
-    /**
      * Commit log entries if necessary.
      * This checks match indices and decides to commit if it is possible to commit
      * depending on replicated logs in the system.

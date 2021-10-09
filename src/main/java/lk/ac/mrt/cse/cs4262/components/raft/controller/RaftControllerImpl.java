@@ -231,17 +231,20 @@ public class RaftControllerImpl implements RaftController {
         // TODO: Check if request is valid depending on its type and current state.
         // TODO: Send reply with correct leader if I am not the leader.
         if (NodeState.LEADER.equals(raftState.getState())) {
-            // Add the log in uncommitted state.
-            RaftLog uncommittedLogEntry = new RaftLog(request.getCommand(), raftState.getCurrentTerm());
-            raftState.appendLogEntry(uncommittedLogEntry);
-            raftState.setMatchIndex(currentServerId, raftState.getLogSize());
+            BaseLog baseLog = request.getCommand();
+            if (raftState.isAcceptable(baseLog)) {
+                // Add the log in uncommitted state.
+                RaftLog uncommittedLogEntry = new RaftLog(request.getCommand(), raftState.getCurrentTerm());
+                raftState.appendLogEntry(uncommittedLogEntry);
+                raftState.setMatchIndex(currentServerId, raftState.getLogSize());
 
-            // Send append entries to announce the new log.
-            serverConfiguration.allServerIds().forEach(serverId -> {
-                if (!serverId.equals(currentServerId)) {
-                    sendAppendEntries(serverId);
-                }
-            });
+                // Send append entries to announce the new log.
+                serverConfiguration.allServerIds().forEach(serverId -> {
+                    if (!serverId.equals(currentServerId)) {
+                        sendAppendEntries(serverId);
+                    }
+                });
+            }
         }
     }
 
@@ -451,12 +454,6 @@ public class RaftControllerImpl implements RaftController {
                 .senderId(currentServerId)
                 .term(term)
                 .vote(vote).build());
-    }
-
-    private void sendCommandRequest(ServerId toServerId, BaseLog command) {
-        sendToServer(toServerId, CommandRequestMessage.builder()
-                .senderId(currentServerId)
-                .command(command).build());
     }
 
     private void sendAppendRequest(ServerId toServerId, int term, int prevIndex, int prevTerm,

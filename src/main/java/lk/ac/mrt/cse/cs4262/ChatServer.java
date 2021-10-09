@@ -50,7 +50,8 @@ public class ChatServer implements AutoCloseable {
         // Coordination server
         this.coordinationServer = new SharedTcpServer(coordinationPort, COORDINATION_TIMEOUT_MS);
         // Components
-        this.clientComponent = new ClientComponent(clientPort, currentServerId, gossipState, raftState);
+        this.clientComponent = new ClientComponent(clientPort, currentServerId,
+                gossipState, raftState, serverConfiguration);
         this.clientComponent.connect();
         this.gossipComponent = new GossipComponent(currentServerId, gossipState, serverConfiguration);
         this.gossipComponent.connect();

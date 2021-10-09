@@ -3,6 +3,7 @@ package lk.ac.mrt.cse.cs4262.components.raft.state;
 import lk.ac.mrt.cse.cs4262.common.symbols.ParticipantId;
 import lk.ac.mrt.cse.cs4262.common.symbols.RoomId;
 import lk.ac.mrt.cse.cs4262.common.symbols.ServerId;
+import lk.ac.mrt.cse.cs4262.components.raft.state.logs.BaseLog;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.util.Collection;
@@ -39,6 +40,11 @@ public interface RaftStateReadView {
     Collection<RoomId> getRoomsInServer(ServerId serverId);
 
     /**
+     * @return A list of all the active room IDs in the system.
+     */
+    Collection<RoomId> getRoomsInSystem();
+
+    /**
      * @param roomId ID of the room.
      * @return Participant ID of the owner of the room.
      */
@@ -67,6 +73,17 @@ public interface RaftStateReadView {
      * @return The ID of the main room of specified server.
      */
     RoomId getMainRoomId(ServerId serverId);
+
+    /**
+     * @return The current leader of system.
+     */
+    Optional<ServerId> getLeaderId();
+
+    /**
+     * @param baseLog Log to check.
+     * @return Whether the log can be safely applied.
+     */
+    boolean isAcceptable(BaseLog baseLog);
 
     /**
      * Attaches a listener to listen state events.

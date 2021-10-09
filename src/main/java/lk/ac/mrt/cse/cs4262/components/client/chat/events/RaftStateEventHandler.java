@@ -1,7 +1,6 @@
 package lk.ac.mrt.cse.cs4262.components.client.chat.events;
 
 import com.google.gson.Gson;
-import lk.ac.mrt.cse.cs4262.components.raft.state.RaftStateReadView;
 import lk.ac.mrt.cse.cs4262.common.symbols.ClientId;
 import lk.ac.mrt.cse.cs4262.common.symbols.ParticipantId;
 import lk.ac.mrt.cse.cs4262.common.symbols.RoomId;
@@ -12,6 +11,7 @@ import lk.ac.mrt.cse.cs4262.components.client.messages.responses.CreateRoomClien
 import lk.ac.mrt.cse.cs4262.components.client.messages.responses.DeleteRoomClientResponse;
 import lk.ac.mrt.cse.cs4262.components.client.messages.responses.NewIdentityClientResponse;
 import lk.ac.mrt.cse.cs4262.components.client.messages.responses.RoomChangeBroadcastResponse;
+import lk.ac.mrt.cse.cs4262.components.raft.state.RaftStateReadView;
 import lombok.Builder;
 import lombok.Synchronized;
 import lombok.extern.log4j.Log4j2;

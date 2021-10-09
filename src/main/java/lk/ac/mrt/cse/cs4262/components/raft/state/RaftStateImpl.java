@@ -21,6 +21,7 @@ import lombok.extern.log4j.Log4j2;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -121,13 +122,6 @@ public class RaftStateImpl implements RaftState {
      */
 
     @Override
-    public void commit(RaftLog logEntry) {
-        // TODO: Validate with term
-        commit(logEntry.getCommand());
-        // TODO: Persist state.
-    }
-
-    @Override
     public void performCommitIfNecessary() {
         int myCommitIndex = getCommitIndex();
         int myCurrentTerm = getCurrentTerm();
@@ -221,6 +215,11 @@ public class RaftStateImpl implements RaftState {
                     .collect(Collectors.toList());
         }
         return List.of();
+    }
+
+    @Override
+    public Collection<RoomId> getRoomsInSystem() {
+        return Collections.unmodifiableCollection(roomOwnerMap.keySet());
     }
 
     @Override
@@ -358,7 +357,7 @@ public class RaftStateImpl implements RaftState {
         int currentCommitIndex = getCommitIndex();
         if (commitIndex != currentCommitIndex) {
             for (int i = currentCommitIndex; i < commitIndex; i++) {
-                commit(getLogEntry(commitIndex));
+                commit(getLogEntry(commitIndex).getCommand());
             }
             commonState.setCommitIndex(commitIndex);
         }
@@ -441,5 +440,8 @@ public class RaftStateImpl implements RaftState {
         return persistentState.getLogSize();
     }
 
-
+    @Override
+    public boolean isAcceptable(BaseLog baseLog) {
+        return persistentState.isAcceptable(baseLog);
+    }
 }

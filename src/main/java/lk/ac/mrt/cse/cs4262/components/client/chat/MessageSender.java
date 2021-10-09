@@ -2,6 +2,7 @@ package lk.ac.mrt.cse.cs4262.components.client.chat;
 
 import lk.ac.mrt.cse.cs4262.common.symbols.ClientId;
 import lk.ac.mrt.cse.cs4262.common.symbols.RoomId;
+import lk.ac.mrt.cse.cs4262.common.symbols.ServerId;
 
 /**
  * The interface of a class that manages client-server connection
@@ -39,4 +40,12 @@ public interface MessageSender {
      * @param clientId ID of client.
      */
     void disconnect(ClientId clientId);
+
+    /**
+     * Sends a message to a server.
+     *
+     * @param serverId ID of server.
+     * @param message  Message to send.
+     */
+    void sendToServer(ServerId serverId, String message);
 }

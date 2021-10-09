@@ -87,7 +87,7 @@ public class ChatRoomState {
     @Synchronized
     public void participantQuit(ClientId clientId) {
         log.traceEntry("clientId={}", clientId);
-        getParticipantIdOf(clientId) // get participant id
+        Optional.ofNullable(clientParticipantMap.remove(clientId)) // remove participant id
                 .flatMap(this::getCurrentRoomIdOf) // get current room of each participant
                 .ifPresent(formerRoomId -> {
                     // Ignore if former room does not exist
