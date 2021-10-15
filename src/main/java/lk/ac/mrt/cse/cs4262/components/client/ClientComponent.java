@@ -3,10 +3,12 @@ package lk.ac.mrt.cse.cs4262.components.client;
 import com.google.gson.Gson;
 import lk.ac.mrt.cse.cs4262.ServerConfiguration;
 import lk.ac.mrt.cse.cs4262.common.symbols.ClientId;
+import lk.ac.mrt.cse.cs4262.common.symbols.ParticipantId;
 import lk.ac.mrt.cse.cs4262.common.symbols.RoomId;
 import lk.ac.mrt.cse.cs4262.common.symbols.ServerId;
 import lk.ac.mrt.cse.cs4262.common.tcp.TcpClient;
 import lk.ac.mrt.cse.cs4262.common.utils.NamedThreadFactory;
+import lk.ac.mrt.cse.cs4262.common.utils.PeriodicInvoker;
 import lk.ac.mrt.cse.cs4262.components.ServerComponent;
 import lk.ac.mrt.cse.cs4262.components.client.chat.ChatRoomState;
 import lk.ac.mrt.cse.cs4262.components.client.chat.ChatRoomWaitingList;
@@ -24,6 +26,7 @@ import lombok.extern.log4j.Log4j2;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
@@ -35,8 +38,10 @@ import java.util.concurrent.Executors;
  * Command messages will be proxied to other servers.
  */
 @Log4j2
-public class ClientComponent implements ServerComponent, Runnable, AutoCloseable, MessageSender {
+public class ClientComponent
+        implements ServerComponent, Runnable, AutoCloseable, MessageSender, PeriodicInvoker.EventHandler {
     private static final int PROXY_TIMEOUT = 1000;
+    private static final int CHECK_DELETED_ID_ROOMID_TIMEOUT = 5000;
 
     private final RaftStateEventHandler raftStateEventHandler;
     private final RaftState raftState;
@@ -46,6 +51,10 @@ public class ClientComponent implements ServerComponent, Runnable, AutoCloseable
     private final ChatRoomState chatRoomState;
     private final ExecutorService executorService;
     private final int port;
+
+    private final ServerId currentServerId;
+    private final PeriodicInvoker periodicInvoker;
+
 
     /**
      * Create a client connector. See {@link ClientComponent}.
@@ -83,6 +92,10 @@ public class ClientComponent implements ServerComponent, Runnable, AutoCloseable
         this.executorService = Executors.newCachedThreadPool(
                 new NamedThreadFactory("client"));
         this.serverConfiguration = serverConfiguration;
+
+        this.currentServerId = currentServerId;
+        this.periodicInvoker = new PeriodicInvoker("check-deleted-id-roomId");
+
     }
 
     @Override
@@ -91,6 +104,8 @@ public class ClientComponent implements ServerComponent, Runnable, AutoCloseable
         raftStateEventHandler.attachMessageSender(this);
         raftState.attachListener(raftStateEventHandler);
         log.info("client component connected");
+
+        periodicInvoker.startExecution(this, 0, CHECK_DELETED_ID_ROOMID_TIMEOUT);
     }
 
     @Override
@@ -176,5 +191,24 @@ public class ClientComponent implements ServerComponent, Runnable, AutoCloseable
         } catch (Exception e) {
             log.trace("sending to server failed: {}", e.toString());
         }
+    }
+
+    @Override
+    public void handleTimedEvent() {
+        Collection<ParticipantId> raftStateParticipantIds = raftState.getParticipantsInServer(currentServerId);
+        Collection<ParticipantId> chatStateParticipantIds = chatRoomState.getAllParticipantIds();
+        raftStateParticipantIds.forEach(participantId -> {
+            if (!chatStateParticipantIds.contains(participantId)) {
+                chatRoomState.participantDelete(participantId);
+            }
+        });
+
+        Collection<RoomId> raftStateroomIds = raftState.getRoomsInServer(currentServerId);
+        Collection<RoomId> chatStateRoomIds = chatRoomState.getAllRoomIds();
+        raftStateroomIds.forEach(roomId -> {
+            if (!chatStateRoomIds.contains(roomId)) {
+                chatRoomState.roomDelete(roomId);
+            }
+        });
     }
 }
