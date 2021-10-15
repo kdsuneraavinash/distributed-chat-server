@@ -73,7 +73,8 @@ public class ClientComponent implements ServerComponent, Runnable, AutoCloseable
                 .raftState(raftState)
                 .chatRoomState(chatRoomState)
                 .waitingList(waitingList)
-                .serializer(serializer).build();
+                .serializer(serializer)
+                .serverConfiguration(serverConfiguration).build();
         this.raftStateEventHandler = RaftStateEventHandler.builder()
                 .mainRoomId(mainRoomId)
                 .chatRoomState(chatRoomState)

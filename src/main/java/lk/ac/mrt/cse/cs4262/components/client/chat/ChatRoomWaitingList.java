@@ -33,12 +33,18 @@ public class ChatRoomWaitingList {
     private final Map<RoomId, ClientId> waitingForRoomIdDeletion;
 
     /**
+     * Clients that are waiting for a server change to connect to a chat room in another server.
+     */
+    private final Map<ParticipantId, RoomId> waitingForServerChange;
+
+    /**
      * See {@link ChatRoomWaitingList}.
      */
     public ChatRoomWaitingList() {
         this.waitingForParticipantIdCreation = new HashMap<>();
         this.waitingForRoomIdCreation = new HashMap<>();
         this.waitingForRoomIdDeletion = new HashMap<>();
+        this.waitingForServerChange = new HashMap<>();
     }
 
     /**
@@ -96,6 +102,23 @@ public class ChatRoomWaitingList {
     }
 
     /**
+     * Add to a watching list to wait until the destination server validation occurs.
+     *
+     * @param participantId - Participant ID
+     * @param roomId - Room ID
+     * @return Whether the entry is correctly added or not.
+     */
+    @Synchronized
+    public boolean waitForServerChange(ParticipantId participantId, RoomId roomId) {
+        if (participantId == null || roomId == null) {
+            return false;
+        }
+        // If previous value exist, provided value will overwrite previous value.
+        waitingForServerChange.put(participantId, roomId);
+        return true;
+    }
+
+    /**
      * Get the client that is waiting for this participant id creation.
      *
      * @param participantId Participant ID.
@@ -126,5 +149,17 @@ public class ChatRoomWaitingList {
     @Synchronized
     public Optional<ClientId> getWaitingForDeletion(RoomId roomId) {
         return Optional.ofNullable(waitingForRoomIdDeletion.remove(roomId));
+    }
+
+    /**
+     * Get the room id for a specific participant id in a server change process.
+     * Used by the destination server to validate the server change source server.
+     *
+     * @param participantId Participant ID.
+     * @return Related room id involved in the server change if any.
+     */
+    @Synchronized
+    public Optional<RoomId> getWaitingForServerChange(ParticipantId participantId) {
+        return Optional.ofNullable(waitingForServerChange.remove(participantId));
     }
 }

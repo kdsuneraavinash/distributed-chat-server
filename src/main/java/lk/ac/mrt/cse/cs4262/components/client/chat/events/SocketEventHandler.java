@@ -1,6 +1,7 @@
 package lk.ac.mrt.cse.cs4262.components.client.chat.events;
 
 import com.google.gson.Gson;
+import lk.ac.mrt.cse.cs4262.ServerConfiguration;
 import lk.ac.mrt.cse.cs4262.common.symbols.ClientId;
 import lk.ac.mrt.cse.cs4262.common.symbols.ParticipantId;
 import lk.ac.mrt.cse.cs4262.common.symbols.RoomId;
@@ -19,6 +20,7 @@ import lk.ac.mrt.cse.cs4262.components.client.messages.requests.MessageClientReq
 import lk.ac.mrt.cse.cs4262.components.client.messages.requests.NewIdentityClientRequest;
 import lk.ac.mrt.cse.cs4262.components.client.messages.requests.QuitClientRequest;
 import lk.ac.mrt.cse.cs4262.components.client.messages.requests.WhoClientRequest;
+import lk.ac.mrt.cse.cs4262.components.client.messages.requests.MoveJoinClientRequest;
 import lk.ac.mrt.cse.cs4262.components.client.messages.responses.CreateRoomClientResponse;
 import lk.ac.mrt.cse.cs4262.components.client.messages.responses.DeleteRoomClientResponse;
 import lk.ac.mrt.cse.cs4262.components.client.messages.responses.ListClientResponse;
@@ -26,6 +28,7 @@ import lk.ac.mrt.cse.cs4262.components.client.messages.responses.MessageBroadcas
 import lk.ac.mrt.cse.cs4262.components.client.messages.responses.NewIdentityClientResponse;
 import lk.ac.mrt.cse.cs4262.components.client.messages.responses.RoomChangeBroadcastResponse;
 import lk.ac.mrt.cse.cs4262.components.client.messages.responses.WhoClientResponse;
+import lk.ac.mrt.cse.cs4262.components.client.messages.responses.RouteServerClientResponse;
 import lk.ac.mrt.cse.cs4262.components.gossip.state.GossipStateReadView;
 import lk.ac.mrt.cse.cs4262.components.raft.messages.CommandRequestMessage;
 import lk.ac.mrt.cse.cs4262.components.raft.state.RaftStateReadView;
@@ -51,6 +54,7 @@ public class SocketEventHandler extends AbstractEventHandler implements ClientSo
     private final ChatRoomState chatRoomState;
     private final ChatRoomWaitingList waitingList;
     private final Gson serializer;
+    private final ServerConfiguration serverConfiguration;
 
 
     /**
@@ -68,7 +72,8 @@ public class SocketEventHandler extends AbstractEventHandler implements ClientSo
     public SocketEventHandler(ServerId currentServerId,
                               GossipStateReadView gossipState, RaftStateReadView raftState,
                               ChatRoomState chatRoomState, ChatRoomWaitingList waitingList,
-                              Gson serializer, @Nullable MessageSender messageSender) {
+                              Gson serializer, @Nullable MessageSender messageSender,
+                              ServerConfiguration serverConfiguration) {
         super(messageSender);
         this.currentServerId = currentServerId;
         this.gossipState = gossipState;
@@ -76,6 +81,7 @@ public class SocketEventHandler extends AbstractEventHandler implements ClientSo
         this.chatRoomState = chatRoomState;
         this.waitingList = waitingList;
         this.serializer = serializer;
+        this.serverConfiguration = serverConfiguration;
     }
 
     /*
@@ -120,6 +126,11 @@ public class SocketEventHandler extends AbstractEventHandler implements ClientSo
             // Process only if identity field is present.
             Optional.ofNullable(request.getIdentity()).ifPresent(participantId ->
                     processNewIdentityRequest(clientId, new ParticipantId(participantId)));
+            return false;
+        } else if (baseRequest instanceof MoveJoinClientRequest) {
+            log.debug("MoveJoinClientRequest: {}", baseRequest);
+            MoveJoinClientRequest request = (MoveJoinClientRequest) baseRequest;
+            processMoveJoinRequest(request);
             return false;
         } else {
             return authenticate(clientId).map(authenticatedClient -> {
@@ -311,23 +322,37 @@ public class SocketEventHandler extends AbstractEventHandler implements ClientSo
         ClientId clientId = authenticatedClient.getClientId();
         // If the room does not exist, REJECT
         // If client owns a room, REJECT
-        // If the room not in same server, REJECT
-        boolean isSameServer = raftState.getServerOfRoom(roomId)
-                .map(currentServerId::equals).orElse(false);
-        boolean acceptedLocally = raftState.hasRoom(roomId)
-                && raftState.getRoomOwnedByParticipant(participantId).isEmpty()
-                && isSameServer;
-        if (!acceptedLocally) {
+        boolean accepted = raftState.hasRoom(roomId) && raftState.getRoomOwnedByParticipant(participantId).isEmpty();
+        if (!accepted) {
             String message = createRoomChangeBroadcastMsg(participantId, formerRoomId, formerRoomId);
             sendToClient(clientId, message);
             return;
         }
-        // Update chat room maps.
-        chatRoomState.roomJoinInternal(clientId, roomId);
-        // Send room change to all in new/old room.
-        String message = createRoomChangeBroadcastMsg(participantId, formerRoomId, roomId);
-        sendToRoom(formerRoomId, message);
-        sendToRoom(roomId, message);
+        boolean isSameServer = raftState.getServerOfRoom(roomId)
+                .map(currentServerId::equals).orElse(false);
+        if (isSameServer) {
+            // Update chat room maps.
+            chatRoomState.roomJoinInternal(clientId, roomId);
+            // Send room change to all in new/old room.
+            String message = createRoomChangeBroadcastMsg(participantId, formerRoomId, roomId);
+            sendToRoom(formerRoomId, message);
+            sendToRoom(roomId, message);
+        } else {
+            waitingList.waitForServerChange(participantId, roomId);
+            // Safe to directly unwrap optional due to previous check and synchronized methods
+            ServerId serverId = raftState.getServerOfRoom(roomId).get();
+            String serverAddress = serverConfiguration.getServerAddress(serverId).orElse(null);
+            Integer serverPort = serverConfiguration.getClientPort(serverId).orElse(null);
+            if (serverAddress == null || serverPort == null) {
+                String message = createRoomChangeBroadcastMsg(participantId, formerRoomId, formerRoomId);
+                sendToClient(clientId, message);
+                return;
+            }
+            String message = createRouteMsg(roomId, serverAddress, serverPort);
+            sendToClient(clientId, message);
+            // TODO: Send a broadcast to the former chat room participants.
+        }
+
     }
 
     /**
@@ -351,6 +376,17 @@ public class SocketEventHandler extends AbstractEventHandler implements ClientSo
         BaseLog baseLog = DeleteIdentityLog.builder()
                 .identity(participantId).build();
         sendCommandRequest(baseLog);
+    }
+
+    /**
+     * MoveJoin.
+     *
+     * @param moveJoinClientRequest - MoveJoinClientRequest
+     */
+    @Synchronized
+    private void processMoveJoinRequest(MoveJoinClientRequest moveJoinClientRequest) {
+        log.info("MoveJoinRequest by={}", moveJoinClientRequest);
+
     }
 
     /**
@@ -413,6 +449,12 @@ public class SocketEventHandler extends AbstractEventHandler implements ClientSo
     private String createWhoMsg(ParticipantId ownerId, Collection<ParticipantId> friendIds, RoomId roomId) {
         WhoClientResponse response = WhoClientResponse.builder()
                 .ownerId(ownerId).roomId(roomId).participantIds(friendIds).build();
+        return serializer.toJson(response);
+    }
+
+    private String createRouteMsg(RoomId roomId, String host, Integer port) {
+        RouteServerClientResponse response = RouteServerClientResponse.builder()
+                .roomId(roomId).host(host).port(port).build();
         return serializer.toJson(response);
     }
 }
