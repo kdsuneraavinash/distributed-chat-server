@@ -20,6 +20,7 @@ import lombok.ToString;
 import lombok.extern.log4j.Log4j2;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -205,6 +206,15 @@ public class RaftStateImpl implements RaftState {
             }
         }
         return Optional.empty();
+    }
+
+
+    @Override
+    public Collection<ParticipantId> getParticipantsInServer(ServerId serverId) {
+        if (state.containsKey(serverId)) {
+            return new ArrayList<>(state.get(serverId).keySet());
+        }
+        return List.of();
     }
 
     @Override
