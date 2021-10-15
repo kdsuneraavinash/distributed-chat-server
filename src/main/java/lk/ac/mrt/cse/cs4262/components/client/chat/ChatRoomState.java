@@ -231,4 +231,22 @@ public class ChatRoomState {
     public Optional<RoomId> getCurrentRoomIdOf(ParticipantId participantId) {
         return Optional.ofNullable(participantRoomMap.get(participantId));
     }
+
+    /**
+     * Get all participant Ids.
+     *
+     * @return All current participant ids.
+     */
+    public Collection<ParticipantId> getAllParticipantIds() {
+        return new ArrayList<>(participantRoomMap.keySet());
+    }
+
+    /**
+     * Get all room Ids.
+     *
+     * @return All current room ids.
+     */
+    public Collection<RoomId> getAllRoomIds() {
+        return new ArrayList<>(roomClientListMap.keySet());
+    }
 }
