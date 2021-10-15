@@ -6,6 +6,7 @@ import lk.ac.mrt.cse.cs4262.common.symbols.ClientId;
 import lk.ac.mrt.cse.cs4262.common.symbols.ParticipantId;
 import lk.ac.mrt.cse.cs4262.common.symbols.RoomId;
 import lk.ac.mrt.cse.cs4262.common.symbols.ServerId;
+import lk.ac.mrt.cse.cs4262.common.tcp.TcpClient;
 import lk.ac.mrt.cse.cs4262.components.client.chat.AuthenticatedClient;
 import lk.ac.mrt.cse.cs4262.components.client.chat.ChatRoomState;
 import lk.ac.mrt.cse.cs4262.components.client.chat.ChatRoomWaitingList;
@@ -21,6 +22,7 @@ import lk.ac.mrt.cse.cs4262.components.client.messages.requests.NewIdentityClien
 import lk.ac.mrt.cse.cs4262.components.client.messages.requests.QuitClientRequest;
 import lk.ac.mrt.cse.cs4262.components.client.messages.requests.WhoClientRequest;
 import lk.ac.mrt.cse.cs4262.components.client.messages.requests.MoveJoinClientRequest;
+import lk.ac.mrt.cse.cs4262.components.client.messages.requests.MoveJoinValidateRequest;
 import lk.ac.mrt.cse.cs4262.components.client.messages.responses.CreateRoomClientResponse;
 import lk.ac.mrt.cse.cs4262.components.client.messages.responses.DeleteRoomClientResponse;
 import lk.ac.mrt.cse.cs4262.components.client.messages.responses.ListClientResponse;
@@ -29,6 +31,7 @@ import lk.ac.mrt.cse.cs4262.components.client.messages.responses.NewIdentityClie
 import lk.ac.mrt.cse.cs4262.components.client.messages.responses.RoomChangeBroadcastResponse;
 import lk.ac.mrt.cse.cs4262.components.client.messages.responses.WhoClientResponse;
 import lk.ac.mrt.cse.cs4262.components.client.messages.responses.RouteServerClientResponse;
+import lk.ac.mrt.cse.cs4262.components.client.messages.responses.MoveJoinValidateResponse;
 import lk.ac.mrt.cse.cs4262.components.gossip.state.GossipStateReadView;
 import lk.ac.mrt.cse.cs4262.components.raft.messages.CommandRequestMessage;
 import lk.ac.mrt.cse.cs4262.components.raft.state.RaftStateReadView;
@@ -42,6 +45,7 @@ import lombok.Synchronized;
 import lombok.extern.log4j.Log4j2;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Optional;
@@ -130,8 +134,14 @@ public class SocketEventHandler extends AbstractEventHandler implements ClientSo
         } else if (baseRequest instanceof MoveJoinClientRequest) {
             log.debug("MoveJoinClientRequest: {}", baseRequest);
             MoveJoinClientRequest request = (MoveJoinClientRequest) baseRequest;
-            processMoveJoinRequest(request);
-            return false;
+            if(Optional.ofNullable(request.getIdentity()).isPresent() ||
+                    Optional.ofNullable(request.getFormer()).isPresent() ||
+                    Optional.ofNullable(request.getRoomId()).isPresent()){
+                processMoveJoinRequest(request, clientId);
+                return false;
+            }
+            // TODO: Handle this case appropriately. Protocol doesn't specify any return type.
+            return true;
         } else {
             return authenticate(clientId).map(authenticatedClient -> {
                 if (baseRequest instanceof ListClientRequest) {
@@ -379,14 +389,60 @@ public class SocketEventHandler extends AbstractEventHandler implements ClientSo
     }
 
     /**
-     * MoveJoin.
-     *
-     * @param moveJoinClientRequest - MoveJoinClientRequest
+     * Process requests of MoveJoin type sent by the client. Request is locally validated
+     * by checking for required fields and then validated against the source server of the
+     * movejoin process and if validated command request is sent to the leader for log replication.
+     * @param request - MoveJoinClientRequest
+     * @param clientId - Client ID
      */
     @Synchronized
-    private void processMoveJoinRequest(MoveJoinClientRequest moveJoinClientRequest) {
-        log.info("MoveJoinRequest by={}", moveJoinClientRequest);
+    private void processMoveJoinRequest(MoveJoinClientRequest request, ClientId clientId) {
+        log.debug("MoveJoinRequest by={}", request);
+        ParticipantId participantId = new ParticipantId(Optional.ofNullable(request.getIdentity()).orElseThrow());
+        RoomId formerRoomId = new RoomId(Optional.ofNullable(request.getFormer()).orElseThrow());
+        RoomId newRoomId = new RoomId(Optional.ofNullable(request.getRoomId()).orElseThrow());
+        MoveJoinValidateRequest validateRequest = new MoveJoinValidateRequest(participantId.getValue(),
+                newRoomId.getValue());
+        // TODO: Handle the invalid cases properly. Protocol doesn't specify.
+        raftState.getServerOfRoom(formerRoomId).ifPresent(serverId -> {
+            String formerServerAddress = serverConfiguration.getServerAddress(serverId).orElse(null);
+            Integer formerServerPort = serverConfiguration.getCoordinationPort(serverId).orElse(null);
+            if (formerServerAddress != null && formerServerPort != null) {
+                try {
+                    String response = TcpClient.request(formerServerAddress, formerServerPort,
+                            serializer.toJson(validateRequest),
+                            5000);
+                    log.debug("MoveJoin validation response: {} ", response);
+                    MoveJoinValidateResponse validateResponse = serializer.fromJson(response,
+                            MoveJoinValidateResponse.class);
+                    if (validateResponse.isValidated()) {
+                        waitingList.waitForServerChange(participantId, newRoomId);
+                    }
+                } catch (IOException e) {
+                    log.error("Error: {}", e.toString());
+                    e.printStackTrace();
+                }
+            }
+        });
+    }
 
+    /**
+     * Validates a MoveJoin request by comparing the room id of a participant stored
+     * on the source server. Destination server sends a MoveJoinValidateRequest to the
+     * source server and the source server uses this method to validate against room id.
+     * @param participantId - Participant ID
+     * @param roomId - Room ID
+     * @return - Validated or not
+     */
+    @Synchronized
+    public boolean validateMoveJoinRequest(ParticipantId participantId, RoomId roomId) {
+        return waitingList.getWaitingForServerChange(participantId).map(roomIdSaved -> {
+            if (roomIdSaved.equals(roomId)) {
+                return true;
+            } else {
+                return false;
+            }
+        }).orElse(false);
     }
 
     /**

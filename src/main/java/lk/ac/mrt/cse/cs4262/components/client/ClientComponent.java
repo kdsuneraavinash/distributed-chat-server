@@ -3,9 +3,11 @@ package lk.ac.mrt.cse.cs4262.components.client;
 import com.google.gson.Gson;
 import lk.ac.mrt.cse.cs4262.ServerConfiguration;
 import lk.ac.mrt.cse.cs4262.common.symbols.ClientId;
+import lk.ac.mrt.cse.cs4262.common.symbols.ParticipantId;
 import lk.ac.mrt.cse.cs4262.common.symbols.RoomId;
 import lk.ac.mrt.cse.cs4262.common.symbols.ServerId;
 import lk.ac.mrt.cse.cs4262.common.tcp.TcpClient;
+import lk.ac.mrt.cse.cs4262.common.tcp.server.shared.SharedTcpRequestHandler;
 import lk.ac.mrt.cse.cs4262.common.utils.NamedThreadFactory;
 import lk.ac.mrt.cse.cs4262.components.ServerComponent;
 import lk.ac.mrt.cse.cs4262.components.client.chat.ChatRoomState;
@@ -16,6 +18,8 @@ import lk.ac.mrt.cse.cs4262.components.client.chat.client.ChatClientImpl;
 import lk.ac.mrt.cse.cs4262.components.client.chat.client.ClientSocketListener;
 import lk.ac.mrt.cse.cs4262.components.client.chat.events.RaftStateEventHandler;
 import lk.ac.mrt.cse.cs4262.components.client.chat.events.SocketEventHandler;
+import lk.ac.mrt.cse.cs4262.components.client.messages.requests.MoveJoinValidateRequest;
+import lk.ac.mrt.cse.cs4262.components.client.messages.responses.MoveJoinValidateResponse;
 import lk.ac.mrt.cse.cs4262.components.gossip.state.GossipStateReadView;
 import lk.ac.mrt.cse.cs4262.components.raft.state.RaftState;
 import lombok.Cleanup;
@@ -26,6 +30,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -35,7 +40,7 @@ import java.util.concurrent.Executors;
  * Command messages will be proxied to other servers.
  */
 @Log4j2
-public class ClientComponent implements ServerComponent, Runnable, AutoCloseable, MessageSender {
+public class ClientComponent implements ServerComponent, Runnable, AutoCloseable, MessageSender, SharedTcpRequestHandler {
     private static final int PROXY_TIMEOUT = 1000;
 
     private final RaftStateEventHandler raftStateEventHandler;
@@ -46,6 +51,7 @@ public class ClientComponent implements ServerComponent, Runnable, AutoCloseable
     private final ChatRoomState chatRoomState;
     private final ExecutorService executorService;
     private final int port;
+    private final Gson serializer;
 
     /**
      * Create a client connector. See {@link ClientComponent}.
@@ -84,6 +90,7 @@ public class ClientComponent implements ServerComponent, Runnable, AutoCloseable
         this.executorService = Executors.newCachedThreadPool(
                 new NamedThreadFactory("client"));
         this.serverConfiguration = serverConfiguration;
+        this.serializer = serializer;
     }
 
     @Override
@@ -176,6 +183,20 @@ public class ClientComponent implements ServerComponent, Runnable, AutoCloseable
             TcpClient.request(serverAddress, serverPort, message, PROXY_TIMEOUT);
         } catch (Exception e) {
             log.trace("sending to server failed: {}", e.toString());
+        }
+    }
+
+    @Override
+    public Optional<String> handleRequest(String request) {
+        log.debug("Client Component MoveJoin Validation: {}", request);
+        try {
+            MoveJoinValidateRequest validateRequest = serializer.fromJson(request, MoveJoinValidateRequest.class);
+            boolean isValid = socketEventHandler.validateMoveJoinRequest(
+                    new ParticipantId(validateRequest.getParticipantId()), new RoomId(validateRequest.getRoomid()));
+            MoveJoinValidateResponse response = new MoveJoinValidateResponse(isValid);
+            return Optional.of(serializer.toJson(response));
+        } catch (Exception e) {
+            return Optional.empty();
         }
     }
 }
