@@ -359,9 +359,10 @@ public class SocketEventHandler extends AbstractEventHandler implements ClientSo
                 sendToClient(clientId, message);
                 return;
             }
+            String broadcastMsg = createRoomChangeBroadcastMsg(participantId, formerRoomId, roomId);
             String message = createRouteMsg(roomId, serverAddress, serverPort);
+            sendToRoom(formerRoomId, broadcastMsg, clientId);
             sendToClient(clientId, message);
-            // TODO: Send a broadcast to the former chat room participants.
         }
 
     }
