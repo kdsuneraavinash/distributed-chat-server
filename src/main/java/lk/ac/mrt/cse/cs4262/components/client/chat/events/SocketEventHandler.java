@@ -383,6 +383,10 @@ public class SocketEventHandler extends AbstractEventHandler implements ClientSo
         sendToRoom(currentRoomId, message);
         sendToClient(clientId, message);
         disconnectClient(clientId);
+        // If the client disconnect is due to server change, participant is not deleted.
+        if (waitingList.isWaitingForServerChange(participantId)) {
+            return;
+        }
         // TODO: Send to leader via RAFT.
         // For now put a log manually.
         BaseLog baseLog = DeleteIdentityLog.builder()
@@ -445,7 +449,7 @@ public class SocketEventHandler extends AbstractEventHandler implements ClientSo
      */
     @Synchronized
     public boolean validateMoveJoinRequest(ParticipantId participantId, RoomId roomId) {
-        return waitingList.getWaitingForServerChange(participantId).map(roomIdSaved ->
+        return waitingList.getWaitingForServerChange(participantId, false).map(roomIdSaved ->
                 roomIdSaved.equals(roomId)).orElse(false);
     }
 

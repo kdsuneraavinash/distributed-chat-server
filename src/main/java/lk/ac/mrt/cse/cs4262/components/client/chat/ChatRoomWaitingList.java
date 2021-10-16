@@ -156,10 +156,24 @@ public class ChatRoomWaitingList {
      * Used by the destination server to validate the server change source server.
      *
      * @param participantId Participant ID.
+     * @param remove Remove the entry or not. If true remove.
      * @return Related room id involved in the server change if any.
      */
     @Synchronized
-    public Optional<RoomId> getWaitingForServerChange(ParticipantId participantId) {
-        return Optional.ofNullable(waitingForServerChange.remove(participantId));
+    public Optional<RoomId> getWaitingForServerChange(ParticipantId participantId, boolean remove) {
+        if (remove) {
+            return Optional.ofNullable(waitingForServerChange.remove(participantId));
+        }
+        return Optional.ofNullable(waitingForServerChange.get(participantId));
+    }
+
+    /**
+     * Helper method to check for participants waiting for server change.
+     * @param participantId - Participant ID
+     * @return waiting for server change or not
+     */
+    @Synchronized
+    public boolean isWaitingForServerChange(ParticipantId participantId) {
+        return waitingForServerChange.containsKey(participantId);
     }
 }

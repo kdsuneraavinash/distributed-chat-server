@@ -149,7 +149,7 @@ public class RaftStateEventHandler extends AbstractEventHandler implements RaftS
     public void participantMoved(ParticipantId movedParticipant) {
         log.traceEntry("participantMoved={}", movedParticipant);
         ClientId clientId = chatRoomState.getClientIdOf(movedParticipant).orElseThrow();
-        waitingList.getWaitingForServerChange(movedParticipant);
+        waitingList.getWaitingForServerChange(movedParticipant, true);
         chatRoomState.getCurrentRoomIdOf(movedParticipant).ifPresent(roomId -> {
             chatRoomState.deleteMovedParticipant(clientId, roomId);
         });
@@ -167,7 +167,7 @@ public class RaftStateEventHandler extends AbstractEventHandler implements RaftS
     public void participantJoined(ParticipantId joinedParticipant, ServerId serverId) {
         log.traceEntry("participantJoined={}", joinedParticipant);
         ClientId clientId = chatRoomState.getClientIdOf(joinedParticipant).orElseThrow();
-        waitingList.getWaitingForServerChange(joinedParticipant).ifPresentOrElse(
+        waitingList.getWaitingForServerChange(joinedParticipant, true).ifPresentOrElse(
                 roomId -> {
                     chatRoomState.roomJoinExternal(clientId, roomId); },
                 () -> {
