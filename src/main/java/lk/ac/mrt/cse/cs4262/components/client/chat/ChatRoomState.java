@@ -130,6 +130,42 @@ public class ChatRoomState {
     }
 
     /**
+     * Participants join from an external server.
+     * @param clientId - Client ID
+     * @param roomId - Room ID
+     */
+    @Synchronized
+    public void roomJoinExternal(ClientId clientId, RoomId roomId) {
+        log.traceEntry("clientId={} roomId={}", clientId, roomId);
+        if (!roomClientListMap.containsKey(roomId)) {
+            throw new IllegalArgumentException("next room does not exist");
+        }
+        getParticipantIdOf(clientId).ifPresent(participantId -> {
+            participantRoomMap.put(participantId, roomId);
+            roomClientListMap.get(roomId).add(clientId);
+        });
+    }
+
+    /**
+     * Delete participants who have moved to another server. Participants
+     * get deleted after moving the destination server successfully.
+     *
+     * @param clientId - Client ID
+     * @param roomId - Room ID
+     */
+    @Synchronized
+    public void deleteMovedParticipant(ClientId clientId, RoomId roomId) {
+        log.traceEntry("clientId={} roomId={}", clientId, roomId);
+        if (!roomClientListMap.containsKey(roomId)) {
+            throw new IllegalArgumentException("previous room does not exist");
+        }
+        getParticipantIdOf(clientId).ifPresent(participantId -> {
+            participantRoomMap.remove(participantId);
+            roomClientListMap.get(roomId).remove(clientId);
+        });
+    }
+
+    /**
      * Create a room.
      *
      * @param clientId ID of the client.

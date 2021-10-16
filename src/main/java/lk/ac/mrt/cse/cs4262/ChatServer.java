@@ -73,6 +73,7 @@ public class ChatServer implements AutoCloseable {
         // Attach components
         coordinationServer.attachRequestHandler(raftComponent);
         coordinationServer.attachRequestHandler(gossipComponent);
+        coordinationServer.attachRequestHandler(clientComponent);
         // Start threads
         coordinationServerThread.start();
         clientComponentThread.start();
