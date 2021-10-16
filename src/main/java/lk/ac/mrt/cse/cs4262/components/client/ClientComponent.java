@@ -193,7 +193,7 @@ public class ClientComponent implements ServerComponent, Runnable, AutoCloseable
             MoveJoinValidateRequest validateRequest = serializer.fromJson(request, MoveJoinValidateRequest.class);
             boolean isValid = socketEventHandler.validateMoveJoinRequest(
                     new ParticipantId(validateRequest.getParticipantId()), new RoomId(validateRequest.getRoomid()));
-            MoveJoinValidateResponse response = new MoveJoinValidateResponse(isValid);
+            MoveJoinValidateResponse response = MoveJoinValidateResponse.builder().validated(isValid).build();
             return Optional.of(serializer.toJson(response));
         } catch (Exception e) {
             return Optional.empty();

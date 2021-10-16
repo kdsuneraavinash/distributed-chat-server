@@ -40,6 +40,7 @@ import lk.ac.mrt.cse.cs4262.components.raft.state.logs.CreateIdentityLog;
 import lk.ac.mrt.cse.cs4262.components.raft.state.logs.CreateRoomLog;
 import lk.ac.mrt.cse.cs4262.components.raft.state.logs.DeleteIdentityLog;
 import lk.ac.mrt.cse.cs4262.components.raft.state.logs.DeleteRoomLog;
+import lk.ac.mrt.cse.cs4262.components.raft.state.logs.ServerChangeLog;
 import lombok.Builder;
 import lombok.Synchronized;
 import lombok.extern.log4j.Log4j2;
@@ -404,6 +405,7 @@ public class SocketEventHandler extends AbstractEventHandler implements ClientSo
         MoveJoinValidateRequest validateRequest = new MoveJoinValidateRequest(participantId.getValue(),
                 newRoomId.getValue());
         // TODO: Handle the invalid cases properly. Protocol doesn't specify.
+        chatRoomState.participantCreate(clientId, participantId);
         raftState.getServerOfRoom(formerRoomId).ifPresent(serverId -> {
             String formerServerAddress = serverConfiguration.getServerAddress(serverId).orElse(null);
             Integer formerServerPort = serverConfiguration.getCoordinationPort(serverId).orElse(null);
@@ -412,11 +414,16 @@ public class SocketEventHandler extends AbstractEventHandler implements ClientSo
                     String response = TcpClient.request(formerServerAddress, formerServerPort,
                             serializer.toJson(validateRequest),
                             5000);
-                    log.debug("MoveJoin validation response: {} ", response);
+                    log.traceEntry("MoveJoin validation response: {} ", response);
                     MoveJoinValidateResponse validateResponse = serializer.fromJson(response,
                             MoveJoinValidateResponse.class);
                     if (validateResponse.isValidated()) {
+                        // Add to waitinglist and send command to leader
                         waitingList.waitForServerChange(participantId, newRoomId);
+                        BaseLog baselog = ServerChangeLog.builder().formerServerId(serverId)
+                                .newServerId(currentServerId).participantId(participantId).build();
+                        log.traceEntry("ServerChangeLog: {}", baselog);
+                        sendCommandRequest(baselog);
                     }
                 } catch (IOException e) {
                     log.error("Error: {}", e.toString());
@@ -436,13 +443,8 @@ public class SocketEventHandler extends AbstractEventHandler implements ClientSo
      */
     @Synchronized
     public boolean validateMoveJoinRequest(ParticipantId participantId, RoomId roomId) {
-        return waitingList.getWaitingForServerChange(participantId).map(roomIdSaved -> {
-            if (roomIdSaved.equals(roomId)) {
-                return true;
-            } else {
-                return false;
-            }
-        }).orElse(false);
+        return waitingList.getWaitingForServerChange(participantId).map(roomIdSaved ->
+                roomIdSaved.equals(roomId)).orElse(false);
     }
 
     /**
