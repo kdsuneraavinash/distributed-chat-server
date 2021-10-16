@@ -61,6 +61,7 @@ public class SocketEventHandler extends AbstractEventHandler implements ClientSo
     private final ChatRoomWaitingList waitingList;
     private final Gson serializer;
     private final ServerConfiguration serverConfiguration;
+    private static final int TCP_TIMEOUT = 5000;
 
     /**
      * Create a Event Handler for client socket. See {@link SocketEventHandler}.
@@ -421,7 +422,7 @@ public class SocketEventHandler extends AbstractEventHandler implements ClientSo
             try {
                 String response = TcpClient.request(formerServerAddress, formerServerPort,
                         serializer.toJson(validateRequest),
-                        serverConfiguration.getTcpTimeout());
+                        TCP_TIMEOUT);
                 log.traceEntry("MoveJoin validation response: {} ", response);
                 MoveJoinValidateResponse validateResponse = serializer.fromJson(response,
                         MoveJoinValidateResponse.class);
