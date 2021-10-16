@@ -8,7 +8,7 @@ import lombok.ToString;
 
 @ToString
 @Builder
-public class MoveJoinAcceptedResponse {
+public class MoveJoinClientResponse {
     private final String type = "serverchange";
 
     @JsonAdapter(ToStringSerializer.class)

@@ -32,6 +32,7 @@ import lk.ac.mrt.cse.cs4262.components.client.messages.responses.RoomChangeBroad
 import lk.ac.mrt.cse.cs4262.components.client.messages.responses.WhoClientResponse;
 import lk.ac.mrt.cse.cs4262.components.client.messages.responses.RouteServerClientResponse;
 import lk.ac.mrt.cse.cs4262.components.client.messages.responses.MoveJoinValidateResponse;
+import lk.ac.mrt.cse.cs4262.components.client.messages.responses.MoveJoinClientResponse;
 import lk.ac.mrt.cse.cs4262.components.gossip.state.GossipStateReadView;
 import lk.ac.mrt.cse.cs4262.components.raft.messages.CommandRequestMessage;
 import lk.ac.mrt.cse.cs4262.components.raft.state.RaftStateReadView;
@@ -432,7 +433,12 @@ public class SocketEventHandler extends AbstractEventHandler implements ClientSo
                             .newServerId(currentServerId).participantId(participantId).build();
                     log.traceEntry("ServerChangeLog: {}", baselog);
                     sendCommandRequest(baselog);
+                    return;
                 }
+                raftState.getServerOfRoom(newRoomId).ifPresent(newServerId -> {
+                    String rejectedMsg = createMoveJoinRejectMsg(newServerId);
+                    sendToClient(clientId, rejectedMsg);
+                });
             } catch (IOException e) {
                 log.error("Error: {}", e.toString());
                 e.printStackTrace();
@@ -520,6 +526,12 @@ public class SocketEventHandler extends AbstractEventHandler implements ClientSo
     private String createRouteMsg(RoomId roomId, String host, Integer port) {
         RouteServerClientResponse response = RouteServerClientResponse.builder()
                 .roomId(roomId).host(host).port(port).build();
+        return serializer.toJson(response);
+    }
+
+    private String createMoveJoinRejectMsg(ServerId serverId) {
+        MoveJoinClientResponse response = MoveJoinClientResponse.builder()
+                .serverId(serverId.getValue()).approved(false).build();
         return serializer.toJson(response);
     }
 }

@@ -12,7 +12,7 @@ import lk.ac.mrt.cse.cs4262.components.client.messages.responses.CreateRoomClien
 import lk.ac.mrt.cse.cs4262.components.client.messages.responses.DeleteRoomClientResponse;
 import lk.ac.mrt.cse.cs4262.components.client.messages.responses.NewIdentityClientResponse;
 import lk.ac.mrt.cse.cs4262.components.client.messages.responses.RoomChangeBroadcastResponse;
-import lk.ac.mrt.cse.cs4262.components.client.messages.responses.MoveJoinAcceptedResponse;
+import lk.ac.mrt.cse.cs4262.components.client.messages.responses.MoveJoinClientResponse;
 import lk.ac.mrt.cse.cs4262.components.raft.state.RaftStateReadView;
 import lombok.Builder;
 import lombok.Synchronized;
@@ -172,13 +172,12 @@ public class RaftStateEventHandler extends AbstractEventHandler implements RaftS
                     chatRoomState.roomJoinExternal(clientId, roomId); },
                 () -> {
                     chatRoomState.roomJoinExternal(clientId, mainRoomId); });
-        RoomId former = waitingList.getServerChangeFormerRoom(joinedParticipant).orElse(null);
-        RoomId newer = waitingList.getWaitingForServerChange(joinedParticipant, true).orElse(null);
-        if (former == null || newer == null) {
-            return;
-        }
+        // Unrecoverable if fails.
+        RoomId former = waitingList.getServerChangeFormerRoom(joinedParticipant).orElseThrow();
+        RoomId newer = waitingList.getWaitingForServerChange(joinedParticipant, true).orElseThrow();
+        // Send messages to client and new group.
         String broadcastMsg = createRoomChangeBroadcastMsg(joinedParticipant, former, newer);
-        String message = createMoveJoinAcceptedMsg(serverId);
+        String message = createMoveJoinClientMsg(serverId, true);
         sendToClient(clientId, message);
         sendToRoom(newer, broadcastMsg);
     }
@@ -215,9 +214,15 @@ public class RaftStateEventHandler extends AbstractEventHandler implements RaftS
         return serializer.toJson(response);
     }
 
-    private String createMoveJoinAcceptedMsg(ServerId serverId) {
-        MoveJoinAcceptedResponse response = MoveJoinAcceptedResponse.builder()
-                .approved(true).serverId(serverId.getValue()).build();
+    /**
+     * Client message for MoveJoin.
+     * @param serverId Server ID
+     * @param approved approval status
+     * @return client message
+     */
+    public String createMoveJoinClientMsg(ServerId serverId, boolean approved) {
+        MoveJoinClientResponse response = MoveJoinClientResponse.builder()
+                .approved(approved).serverId(serverId.getValue()).build();
         return serializer.toJson(response);
     }
 }
