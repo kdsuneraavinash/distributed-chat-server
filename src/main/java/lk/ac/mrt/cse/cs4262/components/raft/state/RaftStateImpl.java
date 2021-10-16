@@ -468,10 +468,15 @@ public class RaftStateImpl implements RaftState {
     @Override
     public boolean isAcceptable(BaseLog baseLog) {
         if (baseLog instanceof ServerChangeLog) {
+            // Handling this here since server change logs does not alter
+            // participants nor rooms.
             ServerChangeLog serverChangeLog = (ServerChangeLog) baseLog;
             ParticipantId participantId = serverChangeLog.getParticipantId();
             ServerId newServerId = serverChangeLog.getNewServerId();
-            return (state.containsKey(newServerId) && participantServerMap.containsKey(participantId));
+            ServerId formerServerId = serverChangeLog.getFormerServerId();
+            return state.containsKey(newServerId)
+                    && participantServerMap.containsKey(participantId)
+                    && formerServerId.equals(participantServerMap.get(participantId));
         } else {
             return persistentState.isAcceptable(baseLog);
         }

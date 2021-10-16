@@ -73,24 +73,24 @@ public class ClientComponent implements ServerComponent, Runnable, AutoCloseable
         this.allClients = new HashMap<>();
         this.raftState = raftState;
         this.chatRoomState = new ChatRoomState(mainRoomId);
+        this.serializer = new Gson();
         this.socketEventHandler = SocketEventHandler.builder()
                 .currentServerId(currentServerId)
                 .gossipState(gossipState)
                 .raftState(raftState)
                 .chatRoomState(chatRoomState)
                 .waitingList(waitingList)
-                .serializer(new Gson())
+                .serializer(serializer)
                 .serverConfiguration(serverConfiguration).build();
         this.raftStateEventHandler = RaftStateEventHandler.builder()
                 .mainRoomId(mainRoomId)
                 .chatRoomState(chatRoomState)
                 .waitingList(waitingList)
-                .serializer(new Gson()).build();
+                .serializer(serializer).build();
 
         this.executorService = Executors.newCachedThreadPool(
                 new NamedThreadFactory("client"));
         this.serverConfiguration = serverConfiguration;
-        this.serializer = new Gson();
     }
 
     @Override
@@ -188,12 +188,13 @@ public class ClientComponent implements ServerComponent, Runnable, AutoCloseable
 
     @Override
     public Optional<String> handleRequest(String request) {
-        log.debug("Client Component MoveJoin Validation: {}", request);
+        log.debug("client component movejoin handler: {}", request);
         try {
             MoveJoinValidateRequest validateRequest = serializer.fromJson(request, MoveJoinValidateRequest.class);
             boolean isValid = socketEventHandler.validateMoveJoinRequest(
-                    new ParticipantId(validateRequest.getParticipantId()), new RoomId(validateRequest.getRoomid()));
-            MoveJoinValidateResponse response = MoveJoinValidateResponse.builder().validated(isValid).build();
+                    new ParticipantId(validateRequest.getParticipantId()), new RoomId(validateRequest.getRoomId()));
+            MoveJoinValidateResponse response = MoveJoinValidateResponse.builder()
+                    .validated(isValid).build();
             return Optional.of(serializer.toJson(response));
         } catch (Exception e) {
             return Optional.empty();

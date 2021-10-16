@@ -131,8 +131,9 @@ public class ChatRoomState {
 
     /**
      * Participants join from an external server.
+     *
      * @param clientId - Client ID
-     * @param roomId - Room ID
+     * @param roomId   - Room ID
      */
     @Synchronized
     public void roomJoinExternal(ClientId clientId, RoomId roomId) {
@@ -151,7 +152,7 @@ public class ChatRoomState {
      * get deleted after moving the destination server successfully.
      *
      * @param clientId - Client ID
-     * @param roomId - Room ID
+     * @param roomId   - Room ID
      */
     @Synchronized
     public void deleteMovedParticipant(ClientId clientId, RoomId roomId) {

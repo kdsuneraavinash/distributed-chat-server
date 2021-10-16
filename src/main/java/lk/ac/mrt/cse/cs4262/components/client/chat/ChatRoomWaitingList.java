@@ -112,7 +112,7 @@ public class ChatRoomWaitingList {
      * Add to a watching list to wait until the destination server validation occurs.
      *
      * @param participantId - Participant ID
-     * @param roomId - Room ID
+     * @param roomId        - Room ID
      * @return Whether the entry is correctly added or not.
      */
     @Synchronized
@@ -163,7 +163,7 @@ public class ChatRoomWaitingList {
      * Used by the destination server to validate the server change source server.
      *
      * @param participantId Participant ID.
-     * @param remove Remove the entry or not. If true remove.
+     * @param remove        Remove the entry or not. If true remove.
      * @return Related room id involved in the server change if any.
      */
     @Synchronized
@@ -176,6 +176,7 @@ public class ChatRoomWaitingList {
 
     /**
      * Helper method to check for participants waiting for server change.
+     *
      * @param participantId - Participant ID
      * @return waiting for server change or not
      */
@@ -186,8 +187,9 @@ public class ChatRoomWaitingList {
 
     /**
      * Adding former room involved in Server change.
+     *
      * @param participantId - Participant ID
-     * @param roomId - Room ID
+     * @param roomId        - Room ID
      */
     public void addServerChangeFormerRoom(ParticipantId participantId, RoomId roomId) {
         serverChangeFormerRoom.put(participantId, roomId);
@@ -195,6 +197,7 @@ public class ChatRoomWaitingList {
 
     /**
      * Getter for former room involved in server change.
+     *
      * @param participantId - Participant ID
      * @return - Room ID
      */

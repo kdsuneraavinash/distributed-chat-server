@@ -12,5 +12,5 @@ public class MoveJoinValidateRequest {
     private String participantId;
 
     @SerializedName("roomid")
-    private String roomid;
+    private String roomId;
 }

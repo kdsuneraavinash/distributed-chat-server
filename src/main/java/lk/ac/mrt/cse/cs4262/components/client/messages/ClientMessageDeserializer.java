@@ -8,10 +8,10 @@ import lk.ac.mrt.cse.cs4262.components.client.messages.requests.DeleteRoomClient
 import lk.ac.mrt.cse.cs4262.components.client.messages.requests.JoinRoomClientRequest;
 import lk.ac.mrt.cse.cs4262.components.client.messages.requests.ListClientRequest;
 import lk.ac.mrt.cse.cs4262.components.client.messages.requests.MessageClientRequest;
+import lk.ac.mrt.cse.cs4262.components.client.messages.requests.MoveJoinClientRequest;
 import lk.ac.mrt.cse.cs4262.components.client.messages.requests.NewIdentityClientRequest;
 import lk.ac.mrt.cse.cs4262.components.client.messages.requests.QuitClientRequest;
 import lk.ac.mrt.cse.cs4262.components.client.messages.requests.WhoClientRequest;
-import lk.ac.mrt.cse.cs4262.components.client.messages.requests.MoveJoinClientRequest;
 
 
 /**

@@ -19,8 +19,8 @@ public class ServerChangeLog extends BaseLog {
      * See {@link ServerChangeLog}.
      *
      * @param formerServerId - Former server id of the participant.
-     * @param newServerId - New server id of the participant.
-     * @param participantId - Participant ID.
+     * @param newServerId    - New server id of the participant.
+     * @param participantId  - Participant ID.
      */
     @Builder
     public ServerChangeLog(ServerId formerServerId, ServerId newServerId, ParticipantId participantId) {
@@ -32,6 +32,7 @@ public class ServerChangeLog extends BaseLog {
 
     /**
      * Getter for formerServerID.
+     *
      * @return ServerID
      */
     public ServerId getFormerServerId() {
@@ -40,6 +41,7 @@ public class ServerChangeLog extends BaseLog {
 
     /**
      * Getter for new server ID.
+     *
      * @return Server ID
      */
     public ServerId getNewServerId() {
@@ -48,6 +50,7 @@ public class ServerChangeLog extends BaseLog {
 
     /**
      * Getter for Participant ID.
+     *
      * @return Participant ID
      */
     public ParticipantId getParticipantId() {
