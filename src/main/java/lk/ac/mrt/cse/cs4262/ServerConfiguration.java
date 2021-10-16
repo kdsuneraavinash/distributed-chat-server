@@ -25,6 +25,7 @@ public final class ServerConfiguration {
     private static final int SERVER_ADDRESS_COL_INDEX = 1;
     private static final int CLIENT_PORT_COL_INDEX = 2;
     private static final int COORD_PORT_COL_INDEX = 3;
+    private static final int TCP_TIMEOUT = 5000;
 
     private final Map<ServerId, Info> configuration;
 
@@ -92,5 +93,13 @@ public final class ServerConfiguration {
         private final String serverAddress;
         private final int clientPort;
         private final int coordinationPort;
+    }
+
+    /**
+     * Getter for TCP timeout.
+     * @return TCP timeout.
+     */
+    public int getTcpTimeout() {
+        return TCP_TIMEOUT;
     }
 }

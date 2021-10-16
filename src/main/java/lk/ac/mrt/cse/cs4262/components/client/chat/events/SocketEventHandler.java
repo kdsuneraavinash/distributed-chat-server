@@ -61,7 +61,6 @@ public class SocketEventHandler extends AbstractEventHandler implements ClientSo
     private final Gson serializer;
     private final ServerConfiguration serverConfiguration;
 
-
     /**
      * Create a Event Handler for client socket. See {@link SocketEventHandler}.
      *
@@ -72,6 +71,7 @@ public class SocketEventHandler extends AbstractEventHandler implements ClientSo
      * @param waitingList     Waiting list
      * @param serializer      Serializer
      * @param messageSender   Message Sender
+     * @param serverConfiguration ServerConfiguration
      */
     @Builder
     public SocketEventHandler(ServerId currentServerId,
@@ -135,9 +135,9 @@ public class SocketEventHandler extends AbstractEventHandler implements ClientSo
         } else if (baseRequest instanceof MoveJoinClientRequest) {
             log.debug("MoveJoinClientRequest: {}", baseRequest);
             MoveJoinClientRequest request = (MoveJoinClientRequest) baseRequest;
-            if(Optional.ofNullable(request.getIdentity()).isPresent() ||
-                    Optional.ofNullable(request.getFormer()).isPresent() ||
-                    Optional.ofNullable(request.getRoomId()).isPresent()){
+            if (Optional.ofNullable(request.getIdentity()).isPresent()
+                    || Optional.ofNullable(request.getFormer()).isPresent()
+                    || Optional.ofNullable(request.getRoomId()).isPresent()) {
                 processMoveJoinRequest(request, clientId);
                 return false;
             }
@@ -410,26 +410,27 @@ public class SocketEventHandler extends AbstractEventHandler implements ClientSo
         raftState.getServerOfRoom(formerRoomId).ifPresent(serverId -> {
             String formerServerAddress = serverConfiguration.getServerAddress(serverId).orElse(null);
             Integer formerServerPort = serverConfiguration.getCoordinationPort(serverId).orElse(null);
-            if (formerServerAddress != null && formerServerPort != null) {
-                try {
-                    String response = TcpClient.request(formerServerAddress, formerServerPort,
-                            serializer.toJson(validateRequest),
-                            5000);
-                    log.traceEntry("MoveJoin validation response: {} ", response);
-                    MoveJoinValidateResponse validateResponse = serializer.fromJson(response,
-                            MoveJoinValidateResponse.class);
-                    if (validateResponse.isValidated()) {
-                        // Add to waitinglist and send command to leader
-                        waitingList.waitForServerChange(participantId, newRoomId);
-                        BaseLog baselog = ServerChangeLog.builder().formerServerId(serverId)
-                                .newServerId(currentServerId).participantId(participantId).build();
-                        log.traceEntry("ServerChangeLog: {}", baselog);
-                        sendCommandRequest(baselog);
-                    }
-                } catch (IOException e) {
-                    log.error("Error: {}", e.toString());
-                    e.printStackTrace();
+            if (formerServerAddress == null || formerServerPort == null) {
+                return;
+            }
+            try {
+                String response = TcpClient.request(formerServerAddress, formerServerPort,
+                        serializer.toJson(validateRequest),
+                        serverConfiguration.getTcpTimeout());
+                log.traceEntry("MoveJoin validation response: {} ", response);
+                MoveJoinValidateResponse validateResponse = serializer.fromJson(response,
+                        MoveJoinValidateResponse.class);
+                if (validateResponse.isValidated()) {
+                    // Add to waitinglist and send command to leader
+                    waitingList.waitForServerChange(participantId, newRoomId);
+                    BaseLog baselog = ServerChangeLog.builder().formerServerId(serverId)
+                            .newServerId(currentServerId).participantId(participantId).build();
+                    log.traceEntry("ServerChangeLog: {}", baselog);
+                    sendCommandRequest(baselog);
                 }
+            } catch (IOException e) {
+                log.error("Error: {}", e.toString());
+                e.printStackTrace();
             }
         });
     }

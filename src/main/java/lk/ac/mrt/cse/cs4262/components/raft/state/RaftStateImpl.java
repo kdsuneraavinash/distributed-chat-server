@@ -326,8 +326,8 @@ public class RaftStateImpl implements RaftState {
         if (!participantServerMap.containsKey(participantId)) {
             throw new IllegalStateException("Participant Unknown");
         }
-        if (!state.containsKey(former) ||
-                !state.containsKey(newer)) {
+        if (!state.containsKey(former)
+                || !state.containsKey(newer)) {
             throw new IllegalStateException("Unknown server id");
         }
         state.get(former).remove(participantId);

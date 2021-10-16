@@ -40,7 +40,8 @@ import java.util.concurrent.Executors;
  * Command messages will be proxied to other servers.
  */
 @Log4j2
-public class ClientComponent implements ServerComponent, Runnable, AutoCloseable, MessageSender, SharedTcpRequestHandler {
+public class ClientComponent implements ServerComponent, Runnable, AutoCloseable, MessageSender,
+        SharedTcpRequestHandler {
     private static final int PROXY_TIMEOUT = 1000;
 
     private final RaftStateEventHandler raftStateEventHandler;
@@ -66,7 +67,6 @@ public class ClientComponent implements ServerComponent, Runnable, AutoCloseable
                            GossipStateReadView gossipState, RaftState raftState,
                            ServerConfiguration serverConfiguration) {
         RoomId mainRoomId = raftState.getMainRoomId(currentServerId);
-        Gson serializer = new Gson();
         ChatRoomWaitingList waitingList = new ChatRoomWaitingList();
 
         this.port = port;
@@ -79,18 +79,18 @@ public class ClientComponent implements ServerComponent, Runnable, AutoCloseable
                 .raftState(raftState)
                 .chatRoomState(chatRoomState)
                 .waitingList(waitingList)
-                .serializer(serializer)
+                .serializer(new Gson())
                 .serverConfiguration(serverConfiguration).build();
         this.raftStateEventHandler = RaftStateEventHandler.builder()
                 .mainRoomId(mainRoomId)
                 .chatRoomState(chatRoomState)
                 .waitingList(waitingList)
-                .serializer(serializer).build();
+                .serializer(new Gson()).build();
 
         this.executorService = Executors.newCachedThreadPool(
                 new NamedThreadFactory("client"));
         this.serverConfiguration = serverConfiguration;
-        this.serializer = serializer;
+        this.serializer = new Gson();
     }
 
     @Override

@@ -10,7 +10,7 @@ import lombok.ToString;
  * to another.
  */
 @ToString
-public class ServerChangeLog extends BaseLog{
+public class ServerChangeLog extends BaseLog {
     private final String formerServerId;
     private final String newServerId;
     private final String participantId;
@@ -30,14 +30,26 @@ public class ServerChangeLog extends BaseLog{
         this.participantId = participantId.getValue();
     }
 
+    /**
+     * Getter for formerServerID.
+     * @return ServerID
+     */
     public ServerId getFormerServerId() {
         return new ServerId(formerServerId);
     }
 
+    /**
+     * Getter for new server ID.
+     * @return Server ID
+     */
     public ServerId getNewServerId() {
         return new ServerId(newServerId);
     }
 
+    /**
+     * Getter for Participant ID.
+     * @return Participant ID
+     */
     public ParticipantId getParticipantId() {
         return new ParticipantId(participantId);
     }

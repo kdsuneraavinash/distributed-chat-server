@@ -31,6 +31,9 @@ public abstract class BaseLog {
      */
     public static final String DELETE_ROOM_LOG = "DELETE_ROOM_LOG";
 
+    /**
+     * Log type for server change log.
+     */
     public static final String SERVER_CHANGE_LOG = "SERVER_CHANGE_LOG";
 
     private final String type;
