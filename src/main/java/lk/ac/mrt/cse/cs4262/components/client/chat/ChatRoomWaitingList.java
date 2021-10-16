@@ -38,6 +38,12 @@ public class ChatRoomWaitingList {
     private final Map<ParticipantId, RoomId> waitingForServerChange;
 
     /**
+     * Additional Map to track the former Room IDs of participants involved in a server change.
+     * Required because raftstate does not track any detail about rooms.
+     */
+    private final Map<ParticipantId, RoomId> serverChangeFormerRoom;
+
+    /**
      * See {@link ChatRoomWaitingList}.
      */
     public ChatRoomWaitingList() {
@@ -45,6 +51,7 @@ public class ChatRoomWaitingList {
         this.waitingForRoomIdCreation = new HashMap<>();
         this.waitingForRoomIdDeletion = new HashMap<>();
         this.waitingForServerChange = new HashMap<>();
+        this.serverChangeFormerRoom = new HashMap<>();
     }
 
     /**
@@ -175,5 +182,24 @@ public class ChatRoomWaitingList {
     @Synchronized
     public boolean isWaitingForServerChange(ParticipantId participantId) {
         return waitingForServerChange.containsKey(participantId);
+    }
+
+    /**
+     * Adding former room involved in Server change.
+     * @param participantId - Participant ID
+     * @param roomId - Room ID
+     */
+    public void addServerChangeFormerRoom(ParticipantId participantId, RoomId roomId) {
+        serverChangeFormerRoom.put(participantId, roomId);
+    }
+
+    /**
+     * Getter for former room involved in server change.
+     * @param participantId - Participant ID
+     * @return - Room ID
+     */
+    @Synchronized
+    public Optional<RoomId> getServerChangeFormerRoom(ParticipantId participantId) {
+        return Optional.ofNullable(serverChangeFormerRoom.remove(participantId));
     }
 }

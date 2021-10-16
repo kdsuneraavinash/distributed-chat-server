@@ -427,6 +427,7 @@ public class SocketEventHandler extends AbstractEventHandler implements ClientSo
                 if (validateResponse.isValidated()) {
                     // Add to waitinglist and send command to leader
                     waitingList.waitForServerChange(participantId, newRoomId);
+                    waitingList.addServerChangeFormerRoom(participantId, formerRoomId);
                     BaseLog baselog = ServerChangeLog.builder().formerServerId(serverId)
                             .newServerId(currentServerId).participantId(participantId).build();
                     log.traceEntry("ServerChangeLog: {}", baselog);

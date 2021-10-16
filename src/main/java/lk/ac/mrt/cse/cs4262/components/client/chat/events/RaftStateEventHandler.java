@@ -167,14 +167,20 @@ public class RaftStateEventHandler extends AbstractEventHandler implements RaftS
     public void participantJoined(ParticipantId joinedParticipant, ServerId serverId) {
         log.traceEntry("participantJoined={}", joinedParticipant);
         ClientId clientId = chatRoomState.getClientIdOf(joinedParticipant).orElseThrow();
-        waitingList.getWaitingForServerChange(joinedParticipant, true).ifPresentOrElse(
+        waitingList.getWaitingForServerChange(joinedParticipant, false).ifPresentOrElse(
                 roomId -> {
                     chatRoomState.roomJoinExternal(clientId, roomId); },
                 () -> {
                     chatRoomState.roomJoinExternal(clientId, mainRoomId); });
+        RoomId former = waitingList.getServerChangeFormerRoom(joinedParticipant).orElse(null);
+        RoomId newer = waitingList.getWaitingForServerChange(joinedParticipant, true).orElse(null);
+        if (former == null || newer == null) {
+            return;
+        }
+        String broadcastMsg = createRoomChangeBroadcastMsg(joinedParticipant, former, newer);
         String message = createMoveJoinAcceptedMsg(serverId);
         sendToClient(clientId, message);
-        // TODO: Send broadcast message to all participants in the joining room.
+        sendToRoom(newer, broadcastMsg);
     }
 
     /*
