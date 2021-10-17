@@ -23,6 +23,7 @@ import lk.ac.mrt.cse.cs4262.components.client.messages.requests.MoveJoinValidate
 import lk.ac.mrt.cse.cs4262.components.client.messages.requests.NewIdentityClientRequest;
 import lk.ac.mrt.cse.cs4262.components.client.messages.requests.QuitClientRequest;
 import lk.ac.mrt.cse.cs4262.components.client.messages.requests.WhoClientRequest;
+import lk.ac.mrt.cse.cs4262.components.client.messages.responses.CommandAckResponse;
 import lk.ac.mrt.cse.cs4262.components.client.messages.responses.CreateRoomClientResponse;
 import lk.ac.mrt.cse.cs4262.components.client.messages.responses.DeleteRoomClientResponse;
 import lk.ac.mrt.cse.cs4262.components.client.messages.responses.ListClientResponse;
@@ -499,12 +500,10 @@ public class SocketEventHandler extends AbstractEventHandler implements ClientSo
             String serverAddress = serverConfiguration.getServerAddress(leaderId).orElseThrow();
             int coordinationPort = serverConfiguration.getCoordinationPort(leaderId).orElseThrow();
             try {
-                String response = TcpClient.request(serverAddress, coordinationPort,
+                String rawResponse = TcpClient.request(serverAddress, coordinationPort,
                         serializer.toJson(message), TCP_TIMEOUT);
-                // TODO: Use Json
-                if (response.strip().equals("ok")) {
-                    return true;
-                }
+                CommandAckResponse response = serializer.fromJson(rawResponse, CommandAckResponse.class);
+                return response.isAccepted();
             } catch (IOException ignored) {
             }
         }
