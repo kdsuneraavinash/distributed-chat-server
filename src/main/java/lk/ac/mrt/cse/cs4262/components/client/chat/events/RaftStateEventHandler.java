@@ -4,11 +4,13 @@ import com.google.gson.Gson;
 import lk.ac.mrt.cse.cs4262.common.symbols.ClientId;
 import lk.ac.mrt.cse.cs4262.common.symbols.ParticipantId;
 import lk.ac.mrt.cse.cs4262.common.symbols.RoomId;
+import lk.ac.mrt.cse.cs4262.common.symbols.ServerId;
 import lk.ac.mrt.cse.cs4262.components.client.chat.ChatRoomState;
 import lk.ac.mrt.cse.cs4262.components.client.chat.ChatRoomWaitingList;
 import lk.ac.mrt.cse.cs4262.components.client.chat.MessageSender;
 import lk.ac.mrt.cse.cs4262.components.client.messages.responses.CreateRoomClientResponse;
 import lk.ac.mrt.cse.cs4262.components.client.messages.responses.DeleteRoomClientResponse;
+import lk.ac.mrt.cse.cs4262.components.client.messages.responses.MoveJoinClientResponse;
 import lk.ac.mrt.cse.cs4262.components.client.messages.responses.NewIdentityClientResponse;
 import lk.ac.mrt.cse.cs4262.components.client.messages.responses.RoomChangeBroadcastResponse;
 import lk.ac.mrt.cse.cs4262.components.raft.state.RaftStateReadView;
@@ -137,6 +139,46 @@ public class RaftStateEventHandler extends AbstractEventHandler implements RaftS
         }
     }
 
+    /**
+     * Deleting Participant from the former server after a successful server change.
+     *
+     * @param movedParticipant - Participant ID
+     */
+    @Synchronized
+    @Override
+    public void participantMoved(ParticipantId movedParticipant) {
+        log.traceEntry("participantMoved={}", movedParticipant);
+        ClientId clientId = chatRoomState.getClientIdOf(movedParticipant).orElseThrow();
+        waitingList.getWaitingForServerChange(movedParticipant, true);
+        chatRoomState.getCurrentRoomIdOf(movedParticipant)
+                .ifPresent(roomId -> chatRoomState.deleteMovedParticipant(clientId, roomId));
+
+    }
+
+    /**
+     * Adding participant to the destination server chatroom after a successful server change.
+     *
+     * @param joinedParticipant - Participant ID
+     * @param serverId          - Server ID
+     */
+    @Synchronized
+    @Override
+    public void participantJoined(ParticipantId joinedParticipant, ServerId serverId) {
+        log.traceEntry("participantJoined={}", joinedParticipant);
+        ClientId clientId = chatRoomState.getClientIdOf(joinedParticipant).orElseThrow();
+        waitingList.getWaitingForServerChange(joinedParticipant, false).ifPresentOrElse(
+                roomId -> chatRoomState.roomJoinExternal(clientId, roomId),
+                () -> chatRoomState.roomJoinExternal(clientId, mainRoomId));
+        // Unrecoverable if fails.
+        RoomId former = waitingList.getServerChangeFormerRoom(joinedParticipant).orElseThrow();
+        RoomId newer = waitingList.getWaitingForServerChange(joinedParticipant, true).orElseThrow();
+        // Send messages to client and new group.
+        String broadcastMsg = createRoomChangeBroadcastMsg(joinedParticipant, former, newer);
+        String message = createMoveJoinClientMsg(serverId, true);
+        sendToClient(clientId, message);
+        sendToRoom(newer, broadcastMsg);
+    }
+
     /*
     ========================================================
     Response message creators
@@ -166,6 +208,19 @@ public class RaftStateEventHandler extends AbstractEventHandler implements RaftS
                 .participantId(participantId)
                 .formerRoomId(fromRoomId)
                 .currentRoomId(toRoomId).build();
+        return serializer.toJson(response);
+    }
+
+    /**
+     * Client message for MoveJoin.
+     *
+     * @param serverId Server ID
+     * @param approved approval status
+     * @return client message
+     */
+    public String createMoveJoinClientMsg(ServerId serverId, boolean approved) {
+        MoveJoinClientResponse response = MoveJoinClientResponse.builder()
+                .approved(approved).serverId(serverId.getValue()).build();
         return serializer.toJson(response);
     }
 }

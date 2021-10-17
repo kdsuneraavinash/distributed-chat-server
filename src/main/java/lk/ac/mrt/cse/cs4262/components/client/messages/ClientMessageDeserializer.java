@@ -8,9 +8,11 @@ import lk.ac.mrt.cse.cs4262.components.client.messages.requests.DeleteRoomClient
 import lk.ac.mrt.cse.cs4262.components.client.messages.requests.JoinRoomClientRequest;
 import lk.ac.mrt.cse.cs4262.components.client.messages.requests.ListClientRequest;
 import lk.ac.mrt.cse.cs4262.components.client.messages.requests.MessageClientRequest;
+import lk.ac.mrt.cse.cs4262.components.client.messages.requests.MoveJoinClientRequest;
 import lk.ac.mrt.cse.cs4262.components.client.messages.requests.NewIdentityClientRequest;
 import lk.ac.mrt.cse.cs4262.components.client.messages.requests.QuitClientRequest;
 import lk.ac.mrt.cse.cs4262.components.client.messages.requests.WhoClientRequest;
+
 
 /**
  * A serializer for client messages.
@@ -24,6 +26,7 @@ public class ClientMessageDeserializer extends TypedJsonDeserializer<BaseClientR
     private static final String DELETE_ROOM_TYPE = "deleteroom";
     private static final String JOIN_ROOM_TYPE = "joinroom";
     private static final String QUIT_ROOM_TYPE = "quit";
+    private static final String MOVE_JOIN_TYPE = "movejoin";
 
     protected ClientMessageDeserializer() {
         // Use field `type` to deserialization.
@@ -50,6 +53,8 @@ public class ClientMessageDeserializer extends TypedJsonDeserializer<BaseClientR
                 return JoinRoomClientRequest.class;
             case QUIT_ROOM_TYPE:
                 return QuitClientRequest.class;
+            case MOVE_JOIN_TYPE:
+                return MoveJoinClientRequest.class;
             default:
                 throw new JsonParseException("unknown type: " + type);
         }

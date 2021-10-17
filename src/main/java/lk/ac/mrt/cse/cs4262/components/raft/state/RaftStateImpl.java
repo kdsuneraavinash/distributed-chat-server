@@ -9,6 +9,7 @@ import lk.ac.mrt.cse.cs4262.components.raft.state.logs.CreateIdentityLog;
 import lk.ac.mrt.cse.cs4262.components.raft.state.logs.CreateRoomLog;
 import lk.ac.mrt.cse.cs4262.components.raft.state.logs.DeleteIdentityLog;
 import lk.ac.mrt.cse.cs4262.components.raft.state.logs.DeleteRoomLog;
+import lk.ac.mrt.cse.cs4262.components.raft.state.logs.ServerChangeLog;
 import lk.ac.mrt.cse.cs4262.components.raft.state.protocol.NodeState;
 import lk.ac.mrt.cse.cs4262.components.raft.state.protocol.RaftCommonState;
 import lk.ac.mrt.cse.cs4262.components.raft.state.protocol.RaftCommonStateImpl;
@@ -169,6 +170,8 @@ public class RaftStateImpl implements RaftState {
             applyDeleteIdentityLog((DeleteIdentityLog) logEntry);
         } else if (logEntry instanceof DeleteRoomLog) {
             applyDeleteRoomLog((DeleteRoomLog) logEntry);
+        } else if (logEntry instanceof ServerChangeLog) {
+            applyServerChangeLog((ServerChangeLog) logEntry);
         } else {
             throw new UnsupportedOperationException();
         }
@@ -326,6 +329,28 @@ public class RaftStateImpl implements RaftState {
         }
     }
 
+    private void applyServerChangeLog(ServerChangeLog logEntry) {
+        ParticipantId participantId = logEntry.getParticipantId();
+        ServerId former = logEntry.getFormerServerId();
+        ServerId newer = logEntry.getNewServerId();
+        if (!participantServerMap.containsKey(participantId)) {
+            throw new IllegalStateException("Participant Unknown");
+        }
+        if (!state.containsKey(former)
+                || !state.containsKey(newer)) {
+            throw new IllegalStateException("Unknown server id");
+        }
+        state.get(former).remove(participantId);
+        state.get(newer).put(participantId, null);
+        participantServerMap.put(participantId, newer);
+        if (currentServerId.equals(former) && eventHandler != null) {
+            eventHandler.participantMoved(participantId);
+        }
+        if (currentServerId.equals(newer) && eventHandler != null) {
+            eventHandler.participantJoined(participantId, newer);
+        }
+    }
+
     /*
     ========================================================
     Common Non Persistent State
@@ -452,6 +477,18 @@ public class RaftStateImpl implements RaftState {
 
     @Override
     public boolean isAcceptable(BaseLog baseLog) {
-        return persistentState.isAcceptable(baseLog);
+        if (baseLog instanceof ServerChangeLog) {
+            // Handling this here since server change logs does not alter
+            // participants nor rooms.
+            ServerChangeLog serverChangeLog = (ServerChangeLog) baseLog;
+            ParticipantId participantId = serverChangeLog.getParticipantId();
+            ServerId newServerId = serverChangeLog.getNewServerId();
+            ServerId formerServerId = serverChangeLog.getFormerServerId();
+            return state.containsKey(newServerId)
+                    && participantServerMap.containsKey(participantId)
+                    && formerServerId.equals(participantServerMap.get(participantId));
+        } else {
+            return persistentState.isAcceptable(baseLog);
+        }
     }
 }
