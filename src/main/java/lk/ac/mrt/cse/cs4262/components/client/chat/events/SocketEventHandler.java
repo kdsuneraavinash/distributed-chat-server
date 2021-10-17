@@ -379,15 +379,17 @@ public class SocketEventHandler extends AbstractEventHandler implements ClientSo
         ClientId clientId = authenticatedClient.getClientId();
         RoomId currentRoomId = authenticatedClient.getCurrentRoomId();
         ParticipantId participantId = authenticatedClient.getParticipantId();
+
+        // If the client disconnect is due to server change, simply disconnect the client.
+        if (waitingList.getWaitingForServerChange(participantId).isPresent()) {
+            disconnectClient(clientId);
+            return;
+        }
         // Send room change to all in old room and to client.
         String message = createRoomChangeBroadcastMsg(participantId, currentRoomId, RoomId.NULL);
         sendToRoom(currentRoomId, message);
         sendToClient(clientId, message);
         disconnectClient(clientId);
-        // If the client disconnect is due to server change, participant is not deleted.
-        if (waitingList.getWaitingForServerChange(participantId).isPresent()) {
-            return;
-        }
         // Send the log, and ignore whether it is accepted or not
         BaseLog baseLog = DeleteIdentityLog.builder()
                 .identity(participantId).build();
