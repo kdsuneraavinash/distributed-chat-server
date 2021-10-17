@@ -149,8 +149,12 @@ public class ChatRoomWaitingList {
      * @return ID of waiting Client (if any)
      */
     @Synchronized
-    public Optional<ClientId> removeWaitingForCreation(ParticipantId participantId) {
-        return Optional.ofNullable(waitingForParticipantIdCreation.remove(participantId));
+    public ClientId removeWaitingForCreation(ParticipantId participantId) {
+        ClientId waitedClientId = waitingForParticipantIdCreation.remove(participantId);
+        if (waitedClientId != null) {
+            return waitedClientId;
+        }
+        throw new IllegalStateException("no client is waiting for participant creation");
     }
 
     /**
@@ -161,8 +165,12 @@ public class ChatRoomWaitingList {
      * @return ID of waiting Client (if any)
      */
     @Synchronized
-    public Optional<ClientId> removeWaitingForCreation(RoomId roomId) {
-        return Optional.ofNullable(waitingForRoomIdCreation.remove(roomId));
+    public ClientId removeWaitingForCreation(RoomId roomId) {
+        ClientId waitedClientId = waitingForRoomIdCreation.remove(roomId);
+        if (waitedClientId != null) {
+            return waitedClientId;
+        }
+        throw new IllegalStateException("no client is waiting for room creation");
     }
 
     /**
@@ -173,8 +181,12 @@ public class ChatRoomWaitingList {
      * @return ID of waiting Client (if any)
      */
     @Synchronized
-    public Optional<ClientId> removeWaitingForDeletion(RoomId roomId) {
-        return Optional.ofNullable(waitingForRoomIdDeletion.remove(roomId));
+    public ClientId removeWaitingForDeletion(RoomId roomId) {
+        ClientId waitedClientId = waitingForRoomIdDeletion.remove(roomId);
+        if (waitedClientId != null) {
+            return waitedClientId;
+        }
+        throw new IllegalStateException("no client is waiting for room deletion");
     }
 
     /**
@@ -186,8 +198,12 @@ public class ChatRoomWaitingList {
      * @return Related data involved in the server change if any.
      */
     @Synchronized
-    public Optional<ServerChangeRecord> removeWaitingForServerChange(ParticipantId participantId) {
-        return Optional.ofNullable(waitingForServerChange.remove(participantId));
+    public ServerChangeRecord removeWaitingForServerChange(ParticipantId participantId) {
+        ServerChangeRecord changeRecord = waitingForServerChange.remove(participantId);
+        if (changeRecord != null) {
+            return changeRecord;
+        }
+        throw new IllegalStateException("no record found for server change");
     }
 
     /**

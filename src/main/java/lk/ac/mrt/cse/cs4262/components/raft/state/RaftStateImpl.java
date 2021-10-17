@@ -226,18 +226,28 @@ public class RaftStateImpl implements RaftState {
     }
 
     @Override
-    public Optional<ParticipantId> getOwnerOfRoom(RoomId roomId) {
-        return Optional.ofNullable(roomOwnerMap.get(roomId));
+    public ParticipantId getOwnerOfRoom(RoomId roomId) {
+        if (roomOwnerMap.containsKey(roomId)) {
+            return roomOwnerMap.get(roomId);
+        }
+        throw new IllegalStateException("room does not exist");
     }
 
     @Override
-    public Optional<ServerId> getServerOfRoom(RoomId roomId) {
-        return getOwnerOfRoom(roomId).map(participantServerMap::get);
+    public ServerId getServerOfRoom(RoomId roomId) {
+        ParticipantId ownerId = getOwnerOfRoom(roomId);
+        if (participantServerMap.containsKey(ownerId)) {
+            return participantServerMap.get(ownerId);
+        }
+        throw new IllegalStateException("owner does not belong to a server");
     }
 
     @Override
-    public Optional<ServerId> getServerOfParticipant(ParticipantId participantId) {
-        return Optional.ofNullable(participantServerMap.get(participantId));
+    public ServerId getServerOfParticipant(ParticipantId participantId) {
+        if (participantServerMap.containsKey(participantId)) {
+            return participantServerMap.get(participantId);
+        }
+        throw new IllegalStateException("participant does not exist");
     }
 
     @Override

@@ -172,8 +172,9 @@ public class RaftControllerImpl implements RaftController {
                     raftState.setVotedFor(senderId);
                     // Restart election timeout.
                     restartElectionTimeout();
-                    // Send the vote reply. Here voted for should be set already by above.
-                    sendVoteReply(senderId, senderTerm, raftState.getVotedFor().orElseThrow());
+                    // Send the vote reply. Here voted for should be set
+                    // already by above to be sender id.
+                    sendVoteReply(senderId, senderTerm, senderId);
                 }
             }
         }

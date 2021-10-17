@@ -48,19 +48,19 @@ public interface RaftStateReadView {
      * @param roomId ID of the room.
      * @return Participant ID of the owner of the room.
      */
-    Optional<ParticipantId> getOwnerOfRoom(RoomId roomId);
+    ParticipantId getOwnerOfRoom(RoomId roomId);
 
     /**
      * @param roomId ID of the room.
      * @return The ID of the server with the room.
      */
-    Optional<ServerId> getServerOfRoom(RoomId roomId);
+    ServerId getServerOfRoom(RoomId roomId);
 
     /**
      * @param participantId ID of the participant.
      * @return The ID of the server with the participant.
      */
-    Optional<ServerId> getServerOfParticipant(ParticipantId participantId);
+    ServerId getServerOfParticipant(ParticipantId participantId);
 
     /**
      * @param serverId ID of the server.

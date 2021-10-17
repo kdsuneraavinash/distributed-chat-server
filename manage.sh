@@ -41,7 +41,7 @@ elif [ "$1" == "buildrun" ]; then
   Build && Run INFO ${@:2}
 
 elif [ "$1" == "check" ]; then
-  ./gradlew checkStyleMain
+  ./gradlew build checkStyleMain
 
 elif [ "$1" == "client" ]; then
   Client ${@:2}

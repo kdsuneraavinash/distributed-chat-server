@@ -33,6 +33,7 @@ checkstyleMain {
 checkerFramework {
     checkers = [
             'org.checkerframework.checker.nullness.NullnessChecker',
+            'org.checkerframework.checker.optional.OptionalChecker',
     ]
 }
 

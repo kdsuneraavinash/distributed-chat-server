@@ -177,8 +177,8 @@ public class ClientComponent implements ServerComponent, Runnable, AutoCloseable
 
     @Override
     public void sendToServer(ServerId serverId, String message) {
-        String serverAddress = serverConfiguration.getServerAddress(serverId).orElseThrow();
-        int serverPort = serverConfiguration.getCoordinationPort(serverId).orElseThrow();
+        String serverAddress = serverConfiguration.getServerAddress(serverId);
+        int serverPort = serverConfiguration.getCoordinationPort(serverId);
         try {
             TcpClient.request(serverAddress, serverPort, message, PROXY_TIMEOUT);
         } catch (Exception e) {
