@@ -165,9 +165,10 @@ public class RaftStateEventHandler extends AbstractEventHandler implements RaftS
     @Override
     public void participantJoined(ParticipantId joinedParticipant, ServerId serverId) {
         log.traceEntry("participantJoined={}", joinedParticipant);
-        // Unrecoverable if fails.
+        // If not stored, assume moving from main room
         ChatRoomWaitingList.ServerChangeRecord record = waitingList
-                .removeWaitingForServerChange(joinedParticipant).orElseThrow();
+                .removeWaitingForServerChange(joinedParticipant).orElseGet(
+                        () -> new ChatRoomWaitingList.ServerChangeRecord(ClientId.unique(), mainRoomId, mainRoomId));
         ClientId clientId = record.getClientId();
         RoomId formerRoomId = record.getFormerRoomId();
         RoomId newRoomId = record.getNewRoomId();
