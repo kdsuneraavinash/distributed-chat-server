@@ -95,7 +95,7 @@ public class RaftStateImpl implements RaftState {
         this.state = new HashMap<>();
         this.participantServerMap = new HashMap<>();
         this.roomOwnerMap = new HashMap<>();
-        this.persistentState = new RaftPersistentStateImpl();
+        this.persistentState = new RaftPersistentStateImpl(currentServerId);
         this.commonState = new RaftCommonStateImpl();
         this.leaderState = new RaftLeaderStateImpl(serverConfiguration);
     }

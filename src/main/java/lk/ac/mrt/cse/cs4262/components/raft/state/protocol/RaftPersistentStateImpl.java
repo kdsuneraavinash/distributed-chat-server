@@ -1,8 +1,13 @@
 package lk.ac.mrt.cse.cs4262.components.raft.state.protocol;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import lk.ac.mrt.cse.cs4262.common.symbols.ParticipantId;
 import lk.ac.mrt.cse.cs4262.common.symbols.RoomId;
 import lk.ac.mrt.cse.cs4262.common.symbols.ServerId;
+import lk.ac.mrt.cse.cs4262.common.utils.ParticipantIdDeserializer;
+import lk.ac.mrt.cse.cs4262.common.utils.RoomIdDeserializer;
+import lk.ac.mrt.cse.cs4262.common.utils.ServerIdDeserializer;
 import lk.ac.mrt.cse.cs4262.components.raft.state.RaftLog;
 import lk.ac.mrt.cse.cs4262.components.raft.state.logs.BaseLog;
 import lk.ac.mrt.cse.cs4262.components.raft.state.logs.CreateIdentityLog;
@@ -14,6 +19,11 @@ import lombok.Synchronized;
 import lombok.extern.log4j.Log4j2;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.Reader;
+import java.io.Writer;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -24,9 +34,9 @@ import java.util.Set;
 
 @Log4j2
 public class RaftPersistentStateImpl implements RaftPersistentState {
-    private final Map<RoomId, ParticipantId> uncommittedRooms;
-    private final Set<ParticipantId> uncommittedParticipants;
-    private final Map<ParticipantId, RoomId> uncommittedOwners;
+    private Map<RoomId, ParticipantId> uncommittedRooms;
+    private Set<ParticipantId> uncommittedParticipants;
+    private Map<ParticipantId, RoomId> uncommittedOwners;
 
     /**
      * Log entries; each entry contains command
@@ -34,7 +44,7 @@ public class RaftPersistentStateImpl implements RaftPersistentState {
      * was received by leader (first index is 1).
      * This is exposed as 1-indexed.
      */
-    private final List<RaftLog> raftLogs;
+    private List<RaftLog> raftLogs;
     /**
      * Latest term server has seen (initialized to 0
      * on first boot, increases monotonically).
@@ -49,21 +59,49 @@ public class RaftPersistentStateImpl implements RaftPersistentState {
     private ServerId votedFor;
 
     /**
-     * See {@link RaftPersistentStateImpl}.
+     * ID of the current server.
      */
-    public RaftPersistentStateImpl() {
+    private ServerId currentServerId;
+
+    /**
+     * See {@link RaftPersistentStateImpl}.
+     *
+     * @param currentServerId Current server's ID.
+     */
+    public RaftPersistentStateImpl(ServerId currentServerId) {
         this.raftLogs = new ArrayList<>();
         this.currentTerm = 0;
         this.votedFor = null;
         this.uncommittedRooms = new HashMap<>();
         this.uncommittedParticipants = new HashSet<>();
         this.uncommittedOwners = new HashMap<>();
+        this.currentServerId = currentServerId;
     }
 
     @Synchronized
     @Override
     public void initialize() {
-        // TODO: Load previously saved state
+        // load state to json
+        Gson gson = new GsonBuilder()
+                .registerTypeAdapter(ServerId.class, new ServerIdDeserializer())
+                .registerTypeAdapter(RoomId.class, new RoomIdDeserializer())
+                .registerTypeAdapter(ParticipantId.class, new ParticipantIdDeserializer())
+                .create();
+        try (Reader reader = new FileReader(String.format("server-%s-state.json", currentServerId.getValue()))) {
+            long t = System.currentTimeMillis();
+            // read state to json file
+            RaftPersistentStateImpl state = gson.fromJson(reader, RaftPersistentStateImpl.class);
+            this.uncommittedOwners = state.uncommittedOwners;
+            this.uncommittedParticipants = state.uncommittedParticipants;
+            this.uncommittedRooms = state.uncommittedRooms;
+            this.raftLogs = state.raftLogs;
+            this.currentTerm = state.currentTerm;
+            this.votedFor = state.votedFor;
+            log.debug("loading raft persistent state took {}ms.", System.currentTimeMillis() - t);
+            log.info("loaded raft persistent state.");
+        } catch (Exception e) {
+            log.error("loading raft persistent state failed: ", e);
+        }
     }
 
     @Override
@@ -157,7 +195,17 @@ public class RaftPersistentStateImpl implements RaftPersistentState {
 
     @Synchronized
     private void saveState() {
-        // TODO: Save this state
+        // save state to json
+        Gson gson = new Gson();
+        try (Writer writer = new FileWriter(String.format("server-%s-state.json", currentServerId.getValue()))) {
+            long t = System.currentTimeMillis();
+            // save state to json file
+            gson.toJson(this, writer);
+            log.debug("saving raft persistent state took {}ms.", System.currentTimeMillis() - t);
+            log.info("saved raft persistent state.");
+        } catch (IOException e) {
+            log.error("saving raft persistent state failed: ", e);
+        }
     }
 
     /**
