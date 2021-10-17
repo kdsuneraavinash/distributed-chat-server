@@ -74,8 +74,9 @@ public interface RaftController extends AutoCloseable {
      * Implementation: Slide 34
      *
      * @param request Request.
+     * @return Whether command was accepted.
      */
-    void handleCommandRequest(CommandRequestMessage request);
+    boolean handleCommandRequest(CommandRequestMessage request);
 
     /**
      * Handles Append Entries REQ call.

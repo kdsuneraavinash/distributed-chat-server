@@ -65,7 +65,7 @@ public class RaftStateEventHandler extends AbstractEventHandler implements RaftS
     public void participantIdCreated(ParticipantId createdParticipantId) {
         log.traceEntry("createdParticipantId={}", createdParticipantId);
         // Get client from waiting list.
-        ClientId clientId = waitingList.getWaitingForParticipantCreation(createdParticipantId)
+        ClientId clientId = waitingList.removeWaitingForCreation(createdParticipantId)
                 .orElse(ClientId.unique());
 
         // Update chat room maps.
@@ -85,7 +85,8 @@ public class RaftStateEventHandler extends AbstractEventHandler implements RaftS
         // Get owners client id and former chat room (this must exist)
         ClientId ownerClientId = chatRoomState.getClientIdOf(ownerParticipantId).orElseThrow();
         RoomId formerRoomId = chatRoomState.getCurrentRoomIdOf(ownerParticipantId).orElseThrow();
-        waitingList.getWaitingForRoomCreation(createdRoomId);
+        Optional<ClientId> waitedClientId = waitingList.removeWaitingForCreation(createdRoomId);
+        assert waitedClientId.isPresent() && ownerClientId.equals(waitedClientId.get());
 
         // Update chat room maps.
         chatRoomState.roomCreate(ownerClientId, createdRoomId);
@@ -123,7 +124,8 @@ public class RaftStateEventHandler extends AbstractEventHandler implements RaftS
     public void roomIdDeleted(RoomId deletedRoomId, ParticipantId ownerId) {
         log.traceEntry("deletedRoomId={}", deletedRoomId);
         ClientId ownerClientId = chatRoomState.getClientIdOf(ownerId).orElseThrow();
-        waitingList.getWaitingForDeletion(deletedRoomId);
+        Optional<ClientId> waitedClientId = waitingList.removeWaitingForDeletion(deletedRoomId);
+        assert waitedClientId.isPresent() && ownerClientId.equals(waitedClientId.get());
 
         // Update chat room maps.
         Collection<ClientId> prevClientIds = chatRoomState.roomDelete(deletedRoomId);
@@ -149,7 +151,7 @@ public class RaftStateEventHandler extends AbstractEventHandler implements RaftS
     public void participantMoved(ParticipantId movedParticipant) {
         log.traceEntry("participantMoved={}", movedParticipant);
         ClientId clientId = chatRoomState.getClientIdOf(movedParticipant).orElseThrow();
-        waitingList.getWaitingForServerChange(movedParticipant, true);
+        waitingList.removeWaitingForServerChange(movedParticipant);
         chatRoomState.getCurrentRoomIdOf(movedParticipant)
                 .ifPresent(roomId -> chatRoomState.deleteMovedParticipant(clientId, roomId));
 
@@ -166,12 +168,12 @@ public class RaftStateEventHandler extends AbstractEventHandler implements RaftS
     public void participantJoined(ParticipantId joinedParticipant, ServerId serverId) {
         log.traceEntry("participantJoined={}", joinedParticipant);
         ClientId clientId = chatRoomState.getClientIdOf(joinedParticipant).orElseThrow();
-        waitingList.getWaitingForServerChange(joinedParticipant, false).ifPresentOrElse(
+        waitingList.getWaitingForServerChange(joinedParticipant).ifPresentOrElse(
                 roomId -> chatRoomState.roomJoinExternal(clientId, roomId),
                 () -> chatRoomState.roomJoinExternal(clientId, mainRoomId));
         // Unrecoverable if fails.
         RoomId former = waitingList.getServerChangeFormerRoom(joinedParticipant).orElseThrow();
-        RoomId newer = waitingList.getWaitingForServerChange(joinedParticipant, true).orElseThrow();
+        RoomId newer = waitingList.removeWaitingForServerChange(joinedParticipant).orElseThrow();
         // Send messages to client and new group.
         String broadcastMsg = createRoomChangeBroadcastMsg(joinedParticipant, former, newer);
         String message = createMoveJoinClientMsg(serverId, true);

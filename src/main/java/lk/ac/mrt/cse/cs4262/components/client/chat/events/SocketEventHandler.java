@@ -207,9 +207,9 @@ public class SocketEventHandler extends AbstractEventHandler implements ClientSo
         // If participant id is invalid locally, REJECT
         // Add client to waiting list. If someone is already waiting, REJECT
         boolean acceptedLocally = raftState.isAcceptable(baseLog)
-                && waitingList.waitForParticipantCreation(clientId, participantId);
-        if (acceptedLocally) {
-            sendCommandRequest(baseLog);
+                && waitingList.getWaitingForCreation(participantId).isEmpty();
+        if (acceptedLocally && sendCommandRequest(baseLog)) {
+            waitingList.waitForParticipantCreation(participantId, clientId);
             return;
         }
         // Send REJECT message
@@ -280,9 +280,9 @@ public class SocketEventHandler extends AbstractEventHandler implements ClientSo
         // If room id is invalid locally, REJECT
         // Add client to waiting list. If someone is already waiting, REJECT
         boolean acceptedLocally = raftState.isAcceptable(baseLog)
-                && waitingList.waitForRoomCreation(clientId, roomId);
-        if (acceptedLocally) {
-            sendCommandRequest(baseLog);
+                && waitingList.getWaitingForCreation(roomId).isEmpty();
+        if (acceptedLocally && sendCommandRequest(baseLog)) {
+            waitingList.waitForRoomCreation(roomId, clientId);
             return;
         }
         // Send REJECT message
@@ -307,11 +307,10 @@ public class SocketEventHandler extends AbstractEventHandler implements ClientSo
         // Add client to waiting list. If someone is already waiting, REJECT
         boolean isSameOwner = raftState.getOwnerOfRoom(roomId)
                 .map(authenticatedClient.getParticipantId()::equals).orElse(false);
-        boolean acceptedLocally = raftState.isAcceptable(baseLog)
-                && isSameOwner
-                && waitingList.waitForRoomDeletion(clientId, roomId);
-        if (acceptedLocally) {
-            sendCommandRequest(baseLog);
+        boolean acceptedLocally = raftState.isAcceptable(baseLog) && isSameOwner
+                && waitingList.getWaitingForDeletion(roomId).isEmpty();
+        if (acceptedLocally && sendCommandRequest(baseLog)) {
+            waitingList.waitForRoomDeletion(roomId, clientId);
             return;
         }
         // Send REJECT message
@@ -386,10 +385,10 @@ public class SocketEventHandler extends AbstractEventHandler implements ClientSo
         sendToClient(clientId, message);
         disconnectClient(clientId);
         // If the client disconnect is due to server change, participant is not deleted.
-        if (waitingList.isWaitingForServerChange(participantId)) {
+        if (waitingList.getWaitingForServerChange(participantId).isPresent()) {
             return;
         }
-        // For now put a log manually.
+        // Send the log, and ignore whether it is accepted or not
         BaseLog baseLog = DeleteIdentityLog.builder()
                 .identity(participantId).build();
         sendCommandRequest(baseLog);
@@ -433,9 +432,11 @@ public class SocketEventHandler extends AbstractEventHandler implements ClientSo
                     BaseLog baselog = ServerChangeLog.builder().formerServerId(serverId)
                             .newServerId(currentServerId).participantId(participantId).build();
                     log.debug("sending log: {}", baselog);
-                    sendCommandRequest(baselog);
-                    return;
+                    if (sendCommandRequest(baselog)) {
+                        return;
+                    }
                 }
+                // If log sending failed or invalid, send REJECT message
                 raftState.getServerOfRoom(newRoomId).ifPresent(newServerId -> {
                     String rejectedMsg = createMoveJoinRejectMsg(newServerId);
                     sendToClient(clientId, rejectedMsg);
@@ -458,7 +459,7 @@ public class SocketEventHandler extends AbstractEventHandler implements ClientSo
      */
     @Synchronized
     public boolean validateMoveJoinRequest(ParticipantId participantId, RoomId roomId) {
-        return waitingList.getWaitingForServerChange(participantId, false).map(roomIdSaved ->
+        return waitingList.getWaitingForServerChange(participantId).map(roomIdSaved ->
                 roomIdSaved.equals(roomId)).orElse(false);
     }
 
@@ -466,13 +467,26 @@ public class SocketEventHandler extends AbstractEventHandler implements ClientSo
      * Send a message to the leader.
      *
      * @param command Command to send.
+     * @return Whether leader accepted message.
      */
-    private void sendCommandRequest(BaseLog command) {
+    private boolean sendCommandRequest(BaseLog command) {
         CommandRequestMessage message = CommandRequestMessage.builder()
                 .senderId(currentServerId)
                 .command(command).build();
-        raftState.getLeaderId()
-                .ifPresent(leaderId -> sendToServer(leaderId, serializer.toJson(message)));
+        if (raftState.getLeaderId().isPresent()) {
+            ServerId leaderId = raftState.getLeaderId().get();
+            String serverAddress = serverConfiguration.getServerAddress(leaderId).orElseThrow();
+            int coordinationPort = serverConfiguration.getCoordinationPort(leaderId).orElseThrow();
+            try {
+                String response = TcpClient.request(serverAddress, coordinationPort,
+                        serializer.toJson(message), TCP_TIMEOUT);
+                if (response.strip().equals("ok")) {
+                    return true;
+                }
+            } catch (IOException ignored) {
+            }
+        }
+        return false;
     }
 
     /*

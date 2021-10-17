@@ -225,7 +225,7 @@ public class RaftControllerImpl implements RaftController {
 
     @Override
     @Synchronized
-    public void handleCommandRequest(CommandRequestMessage request) {
+    public boolean handleCommandRequest(CommandRequestMessage request) {
         log.traceEntry("request={}", request);
 
         // TODO: Check if request is valid depending on its type and current state.
@@ -244,8 +244,11 @@ public class RaftControllerImpl implements RaftController {
                         sendAppendEntries(serverId);
                     }
                 });
+
+                return true;
             }
         }
+        return false;
     }
 
     @Override

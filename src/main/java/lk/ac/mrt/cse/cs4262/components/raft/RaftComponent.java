@@ -76,7 +76,10 @@ public class RaftComponent implements ServerComponent, SharedTcpRequestHandler, 
         } else if (baseRaftMessage instanceof VoteReplyMessage) {
             raftController.handleVoteReply((VoteReplyMessage) baseRaftMessage);
         } else if (baseRaftMessage instanceof CommandRequestMessage) {
-            raftController.handleCommandRequest((CommandRequestMessage) baseRaftMessage);
+            boolean isAccepted = raftController.handleCommandRequest((CommandRequestMessage) baseRaftMessage);
+            if (!isAccepted) {
+                return Optional.of("error: rejected");
+            }
         } else if (baseRaftMessage instanceof AppendRequestMessage) {
             raftController.handleAppendRequest((AppendRequestMessage) baseRaftMessage);
         } else if (baseRaftMessage instanceof AppendReplyMessage) {

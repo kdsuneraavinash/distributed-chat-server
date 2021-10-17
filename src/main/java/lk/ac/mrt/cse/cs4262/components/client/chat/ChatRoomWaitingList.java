@@ -55,74 +55,48 @@ public class ChatRoomWaitingList {
     }
 
     /**
-     * Helper method to add to a waiting list.
-     * Only the first for a given value is added.
-     *
-     * @param waitingList Waiting List to add.
-     * @param clientId    Client ID.
-     * @param value       Value to add.
-     * @param <T>         Type of value (waiting list).
-     * @return Whether the client was added.
-     */
-    private <T> boolean addToMapIfNotExists(Map<T, ClientId> waitingList, ClientId clientId, T value) {
-        if (value == null || waitingList.containsKey(value)) {
-            return false;
-        }
-        waitingList.put(value, clientId);
-        return true;
-    }
-
-    /**
      * Add to a waiting list to wait until a participant id is created.
      *
-     * @param clientId      Client ID.
      * @param participantId Participant ID.
-     * @return Whether the client was added.
+     * @param clientId      Client ID.
      */
     @Synchronized
-    public boolean waitForParticipantCreation(ClientId clientId, ParticipantId participantId) {
-        return addToMapIfNotExists(waitingForParticipantIdCreation, clientId, participantId);
+    public void waitForParticipantCreation(ParticipantId participantId, ClientId clientId) {
+        waitingForParticipantIdCreation.put(participantId, clientId);
     }
 
     /**
      * Add to a waiting list to wait until a room id is created.
      *
-     * @param clientId Client ID.
      * @param roomId   Room ID.
-     * @return Whether the client was added.
+     * @param clientId Client ID.
      */
     @Synchronized
-    public boolean waitForRoomCreation(ClientId clientId, RoomId roomId) {
-        return addToMapIfNotExists(waitingForRoomIdCreation, clientId, roomId);
+    public void waitForRoomCreation(RoomId roomId, ClientId clientId) {
+        waitingForRoomIdCreation.put(roomId, clientId);
     }
 
     /**
      * Add to a waiting list to wait until a room id is deleted.
      *
-     * @param clientId Client ID.
      * @param roomId   Room ID.
-     * @return Whether the client was added.
+     * @param clientId Client ID.
      */
     @Synchronized
-    public boolean waitForRoomDeletion(ClientId clientId, RoomId roomId) {
-        return addToMapIfNotExists(waitingForRoomIdDeletion, clientId, roomId);
+    public void waitForRoomDeletion(RoomId roomId, ClientId clientId) {
+        waitingForRoomIdDeletion.put(roomId, clientId);
     }
 
     /**
      * Add to a watching list to wait until the destination server validation occurs.
+     * If previous value exist, provided value will overwrite previous value.
      *
      * @param participantId - Participant ID
      * @param roomId        - Room ID
-     * @return Whether the entry is correctly added or not.
      */
     @Synchronized
-    public boolean waitForServerChange(ParticipantId participantId, RoomId roomId) {
-        if (participantId == null || roomId == null) {
-            return false;
-        }
-        // If previous value exist, provided value will overwrite previous value.
+    public void waitForServerChange(ParticipantId participantId, RoomId roomId) {
         waitingForServerChange.put(participantId, roomId);
-        return true;
     }
 
     /**
@@ -132,8 +106,8 @@ public class ChatRoomWaitingList {
      * @return ID of waiting Client (if any)
      */
     @Synchronized
-    public Optional<ClientId> getWaitingForParticipantCreation(ParticipantId participantId) {
-        return Optional.ofNullable(waitingForParticipantIdCreation.remove(participantId));
+    public Optional<ClientId> getWaitingForCreation(ParticipantId participantId) {
+        return Optional.ofNullable(waitingForParticipantIdCreation.get(participantId));
     }
 
     /**
@@ -143,8 +117,8 @@ public class ChatRoomWaitingList {
      * @return ID of waiting Client (if any)
      */
     @Synchronized
-    public Optional<ClientId> getWaitingForRoomCreation(RoomId roomId) {
-        return Optional.ofNullable(waitingForRoomIdCreation.remove(roomId));
+    public Optional<ClientId> getWaitingForCreation(RoomId roomId) {
+        return Optional.ofNullable(waitingForRoomIdCreation.get(roomId));
     }
 
     /**
@@ -155,7 +129,7 @@ public class ChatRoomWaitingList {
      */
     @Synchronized
     public Optional<ClientId> getWaitingForDeletion(RoomId roomId) {
-        return Optional.ofNullable(waitingForRoomIdDeletion.remove(roomId));
+        return Optional.ofNullable(waitingForRoomIdDeletion.get(roomId));
     }
 
     /**
@@ -163,26 +137,60 @@ public class ChatRoomWaitingList {
      * Used by the destination server to validate the server change source server.
      *
      * @param participantId Participant ID.
-     * @param remove        Remove the entry or not. If true remove.
      * @return Related room id involved in the server change if any.
      */
     @Synchronized
-    public Optional<RoomId> getWaitingForServerChange(ParticipantId participantId, boolean remove) {
-        if (remove) {
-            return Optional.ofNullable(waitingForServerChange.remove(participantId));
-        }
+    public Optional<RoomId> getWaitingForServerChange(ParticipantId participantId) {
         return Optional.ofNullable(waitingForServerChange.get(participantId));
     }
 
     /**
-     * Helper method to check for participants waiting for server change.
+     * Get the client that is waiting for this participant id creation.
+     * Removes the entity.
      *
-     * @param participantId - Participant ID
-     * @return waiting for server change or not
+     * @param participantId Participant ID.
+     * @return ID of waiting Client (if any)
      */
     @Synchronized
-    public boolean isWaitingForServerChange(ParticipantId participantId) {
-        return waitingForServerChange.containsKey(participantId);
+    public Optional<ClientId> removeWaitingForCreation(ParticipantId participantId) {
+        return Optional.ofNullable(waitingForParticipantIdCreation.remove(participantId));
+    }
+
+    /**
+     * Get the client that is waiting for this room id creation.
+     * Removes the entity.
+     *
+     * @param roomId Room ID.
+     * @return ID of waiting Client (if any)
+     */
+    @Synchronized
+    public Optional<ClientId> removeWaitingForCreation(RoomId roomId) {
+        return Optional.ofNullable(waitingForRoomIdCreation.remove(roomId));
+    }
+
+    /**
+     * Get the client that is waiting for this room id deletion.
+     * Removes the entity.
+     *
+     * @param roomId Room ID.
+     * @return ID of waiting Client (if any)
+     */
+    @Synchronized
+    public Optional<ClientId> removeWaitingForDeletion(RoomId roomId) {
+        return Optional.ofNullable(waitingForRoomIdDeletion.remove(roomId));
+    }
+
+    /**
+     * Get the room id for a specific participant id in a server change process.
+     * Used by the destination server to validate the server change source server.
+     * Removes the entity.
+     *
+     * @param participantId Participant ID.
+     * @return Related room id involved in the server change if any.
+     */
+    @Synchronized
+    public Optional<RoomId> removeWaitingForServerChange(ParticipantId participantId) {
+        return Optional.ofNullable(waitingForServerChange.remove(participantId));
     }
 
     /**
