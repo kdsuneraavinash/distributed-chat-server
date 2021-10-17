@@ -157,7 +157,10 @@ public class SocketEventHandler extends AbstractEventHandler implements ClientSo
             return true;
         } else {
             return authenticate(clientId).map(authenticatedClient -> {
-                if (baseRequest instanceof ListClientRequest) {
+                if (movedParticipants.containsKey(authenticatedClient.getParticipantId())) {
+                    // Moved participant, IGNORE any other requests.
+                    return true;
+                } else if (baseRequest instanceof ListClientRequest) {
                     // List
                     processChatRoomListRequest(authenticatedClient);
                 } else if (baseRequest instanceof MessageClientRequest) {

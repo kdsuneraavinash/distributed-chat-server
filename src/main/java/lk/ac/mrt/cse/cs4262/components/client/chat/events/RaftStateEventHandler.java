@@ -164,7 +164,7 @@ public class RaftStateEventHandler extends AbstractEventHandler implements RaftS
     @Synchronized
     @Override
     public void participantJoined(ParticipantId joinedParticipant, ServerId serverId) {
-        log.info("XXX participantJoined={}", joinedParticipant);
+        log.traceEntry("participantJoined={}", joinedParticipant);
         // Unrecoverable if fails.
         ChatRoomWaitingList.ServerChangeRecord record = waitingList
                 .removeWaitingForServerChange(joinedParticipant).orElseThrow();
