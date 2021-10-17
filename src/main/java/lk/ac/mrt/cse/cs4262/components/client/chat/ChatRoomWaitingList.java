@@ -10,6 +10,7 @@ import lombok.extern.log4j.Log4j2;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 
 /**
@@ -143,6 +144,7 @@ public class ChatRoomWaitingList {
 
     /**
      * Get the client that is waiting for this participant id creation.
+     * If there is no client, this will create a fake client.
      * Removes the entity.
      *
      * @param participantId Participant ID.
@@ -151,14 +153,13 @@ public class ChatRoomWaitingList {
     @Synchronized
     public ClientId removeWaitingForCreation(ParticipantId participantId) {
         ClientId waitedClientId = waitingForParticipantIdCreation.remove(participantId);
-        if (waitedClientId != null) {
-            return waitedClientId;
-        }
-        throw new IllegalStateException("no client is waiting for participant creation");
+        // Make a mock client if client does not exist.
+        return Objects.requireNonNullElseGet(waitedClientId, ClientId::fake);
     }
 
     /**
      * Get the client that is waiting for this room id creation.
+     * There must be a client waiting for room creation.
      * Removes the entity.
      *
      * @param roomId Room ID.
@@ -175,6 +176,7 @@ public class ChatRoomWaitingList {
 
     /**
      * Get the client that is waiting for this room id deletion.
+     * There must be a client waiting for room deletion.
      * Removes the entity.
      *
      * @param roomId Room ID.
@@ -198,12 +200,8 @@ public class ChatRoomWaitingList {
      * @return Related data involved in the server change if any.
      */
     @Synchronized
-    public ServerChangeRecord removeWaitingForServerChange(ParticipantId participantId) {
-        ServerChangeRecord changeRecord = waitingForServerChange.remove(participantId);
-        if (changeRecord != null) {
-            return changeRecord;
-        }
-        throw new IllegalStateException("no record found for server change");
+    public Optional<ServerChangeRecord> removeWaitingForServerChange(ParticipantId participantId) {
+        return Optional.ofNullable(waitingForServerChange.remove(participantId));
     }
 
     /**

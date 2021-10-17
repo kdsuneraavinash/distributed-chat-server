@@ -11,6 +11,7 @@ import lk.ac.mrt.cse.cs4262.components.raft.messages.VoteRequestMessage;
 import lk.ac.mrt.cse.cs4262.components.raft.state.RaftLog;
 import lk.ac.mrt.cse.cs4262.components.raft.state.RaftState;
 import lk.ac.mrt.cse.cs4262.components.raft.state.logs.BaseLog;
+import lk.ac.mrt.cse.cs4262.components.raft.state.logs.NoOpLog;
 import lk.ac.mrt.cse.cs4262.components.raft.state.protocol.NodeState;
 import lk.ac.mrt.cse.cs4262.components.raft.timeouts.ElectionTimeoutInvoker;
 import lk.ac.mrt.cse.cs4262.components.raft.timeouts.RpcTimeoutInvoker;
@@ -29,6 +30,8 @@ import java.util.Set;
  */
 @Log4j2
 public class RaftControllerImpl implements RaftController {
+    private static final int INITIAL_ELECTION_DELAY_MS = 1000;
+
     private final ServerId currentServerId;
     private final RaftState raftState;
     private final ServerConfiguration serverConfiguration;
@@ -71,7 +74,7 @@ public class RaftControllerImpl implements RaftController {
         this.electionTimeoutInvoker.attachController(this);
         this.rpcTimeoutInvoker.attachController(this);
         // Start election timeout
-        this.electionTimeoutInvoker.setTimeout(0);
+        this.electionTimeoutInvoker.setTimeout(INITIAL_ELECTION_DELAY_MS);
     }
 
     /*
@@ -219,6 +222,11 @@ public class RaftControllerImpl implements RaftController {
                             sendAppendEntries(serverId);
                         }
                     });
+
+                    // Add no-op log
+                    // See: https://groups.google.com/g/raft-dev/c/KIozjYuq5m0?pli=1
+                    handleCommandRequest(CommandRequestMessage.builder()
+                            .command(new NoOpLog()).senderId(currentServerId).build());
                 }
             }
         }

@@ -110,7 +110,7 @@ public class ClientComponent implements ServerComponent, Runnable, AutoCloseable
             while (!Thread.currentThread().isInterrupted()) {
                 // Create a new client from each socket connection.
                 Socket socket = serverSocket.accept();
-                ClientId clientId = ClientId.unique();
+                ClientId clientId = ClientId.real();
                 ChatClient client = new ChatClientImpl(clientId, socket);
                 allClients.put(clientId, client);
                 this.executorService.submit(new ClientSocketListener(clientId, socket, socketEventHandler));

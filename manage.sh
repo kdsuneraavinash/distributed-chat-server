@@ -17,6 +17,7 @@ Help() {
   echo
   echo "Syntax: ./manage.sh (run|trace|build|buildrun|check) [arguments]"
   echo "  run         Run the chat server current build."
+  echo "  rundefault  Run the chat server current build using default.tsv configuration."
   echo "  trace       Run the chat server current build in trace mode."
   echo "  build       Build the chat server."
   echo "  buildrun    Build and run the chat server."

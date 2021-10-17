@@ -9,6 +9,7 @@ import lk.ac.mrt.cse.cs4262.components.raft.state.logs.CreateIdentityLog;
 import lk.ac.mrt.cse.cs4262.components.raft.state.logs.CreateRoomLog;
 import lk.ac.mrt.cse.cs4262.components.raft.state.logs.DeleteIdentityLog;
 import lk.ac.mrt.cse.cs4262.components.raft.state.logs.DeleteRoomLog;
+import lk.ac.mrt.cse.cs4262.components.raft.state.logs.NoOpLog;
 import lk.ac.mrt.cse.cs4262.components.raft.state.logs.ServerChangeLog;
 import lk.ac.mrt.cse.cs4262.components.raft.state.protocol.NodeState;
 import lk.ac.mrt.cse.cs4262.components.raft.state.protocol.RaftCommonState;
@@ -95,7 +96,7 @@ public class RaftStateImpl implements RaftState {
         this.state = new HashMap<>();
         this.participantServerMap = new HashMap<>();
         this.roomOwnerMap = new HashMap<>();
-        this.persistentState = new RaftPersistentStateImpl();
+        this.persistentState = new RaftPersistentStateImpl(currentServerId);
         this.commonState = new RaftCommonStateImpl();
         this.leaderState = new RaftLeaderStateImpl(serverConfiguration);
     }
@@ -171,6 +172,9 @@ public class RaftStateImpl implements RaftState {
             applyDeleteRoomLog((DeleteRoomLog) logEntry);
         } else if (logEntry instanceof ServerChangeLog) {
             applyServerChangeLog((ServerChangeLog) logEntry);
+        } else if (logEntry instanceof NoOpLog) {
+            // No-op does nothing
+            log.debug("no-op log");
         } else {
             throw new UnsupportedOperationException();
         }

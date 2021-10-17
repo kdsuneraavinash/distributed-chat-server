@@ -1,5 +1,7 @@
 package lk.ac.mrt.cse.cs4262.common.symbols;
 
+import lombok.Getter;
+
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -10,22 +12,37 @@ import java.util.concurrent.atomic.AtomicInteger;
 public final class ClientId extends BaseId {
     private static final AtomicInteger NUMBER_OF_CLIENTS = new AtomicInteger(0);
 
+    @Getter
+    private final boolean isFakeClient;
+
     /**
      * Create a Client ID. See {@link ClientId}.
      *
-     * @param value ID value.
+     * @param value        ID value.
+     * @param isFakeClient Whether the client is fake. (Mock)
      */
-    private ClientId(String value) {
+    private ClientId(String value, boolean isFakeClient) {
         super(value);
+        this.isFakeClient = isFakeClient;
     }
 
     /**
-     * Create a unique Client ID. See {@link ClientId}.
+     * Create a unique real Client ID. See {@link ClientId}.
      *
      * @return Created client id.
      */
-    public static ClientId unique() {
+    public static ClientId real() {
         String clientIdValue = Integer.toString(NUMBER_OF_CLIENTS.getAndIncrement());
-        return new ClientId(clientIdValue);
+        return new ClientId(clientIdValue, false);
+    }
+
+    /**
+     * Create a unique fake Client ID. See {@link ClientId}.
+     *
+     * @return Created client id.
+     */
+    public static ClientId fake() {
+        String clientIdValue = Integer.toString(NUMBER_OF_CLIENTS.getAndIncrement());
+        return new ClientId(clientIdValue, true);
     }
 }

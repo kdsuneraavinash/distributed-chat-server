@@ -144,11 +144,6 @@ public class RaftStateEventHandler extends AbstractEventHandler implements RaftS
         }
     }
 
-    /**
-     * Deleting Participant from the former server after a successful server change.
-     *
-     * @param movedParticipant Participant ID
-     */
     @Synchronized
     @Override
     public void participantMoved(ParticipantId movedParticipant) {
@@ -158,18 +153,14 @@ public class RaftStateEventHandler extends AbstractEventHandler implements RaftS
         chatRoomState.deleteMovedParticipant(clientId, roomId);
     }
 
-    /**
-     * Adding participant to the destination server chatroom after a successful server change.
-     *
-     * @param joinedParticipant Participant ID
-     * @param serverId          Server ID
-     */
     @Synchronized
     @Override
     public void participantJoined(ParticipantId joinedParticipant, ServerId serverId) {
         log.traceEntry("participantJoined={}", joinedParticipant);
         // If not stored, assume moving from main room
-        ChatRoomWaitingList.ServerChangeRecord record = waitingList.removeWaitingForServerChange(joinedParticipant);
+        ChatRoomWaitingList.ServerChangeRecord record = waitingList
+                .removeWaitingForServerChange(joinedParticipant)
+                .orElseGet(() -> new ChatRoomWaitingList.ServerChangeRecord(ClientId.fake(), mainRoomId, mainRoomId));
         ClientId clientId = record.getClientId();
         RoomId formerRoomId = record.getFormerRoomId();
         RoomId newRoomId = record.getNewRoomId();
