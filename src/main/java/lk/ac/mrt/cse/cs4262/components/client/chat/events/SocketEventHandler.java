@@ -50,6 +50,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 
 @Log4j2
@@ -62,6 +64,12 @@ public class SocketEventHandler extends AbstractEventHandler implements ClientSo
     private final ChatRoomWaitingList waitingList;
     private final Gson serializer;
     private final ServerConfiguration serverConfiguration;
+
+    /**
+     * Participants that are moved from this server.
+     * These are participants that sent a joinroom request.
+     */
+    private final Map<ParticipantId, RoomId> movedParticipants;
 
     /**
      * Create a Event Handler for client socket. See {@link SocketEventHandler}.
@@ -89,6 +97,7 @@ public class SocketEventHandler extends AbstractEventHandler implements ClientSo
         this.waitingList = waitingList;
         this.serializer = serializer;
         this.serverConfiguration = serverConfiguration;
+        this.movedParticipants = new HashMap<>();
     }
 
     /*
@@ -320,7 +329,6 @@ public class SocketEventHandler extends AbstractEventHandler implements ClientSo
 
     /**
      * Join room.
-     * TODO: Remove condition to move only in the same server
      *
      * @param authenticatedClient Authenticated client.
      * @param roomId              Room to join.
@@ -332,9 +340,12 @@ public class SocketEventHandler extends AbstractEventHandler implements ClientSo
         RoomId formerRoomId = authenticatedClient.getCurrentRoomId();
         ParticipantId participantId = authenticatedClient.getParticipantId();
         ClientId clientId = authenticatedClient.getClientId();
+
         // If the room does not exist, REJECT
+        // If moving to same room, REJECT
         // If client owns a room, REJECT
-        boolean accepted = raftState.hasRoom(roomId) && raftState.getRoomOwnedByParticipant(participantId).isEmpty();
+        boolean accepted = raftState.hasRoom(roomId) && !formerRoomId.equals(roomId)
+                && raftState.getRoomOwnedByParticipant(participantId).isEmpty();
         if (!accepted) {
             String message = createRoomChangeBroadcastMsg(participantId, formerRoomId, formerRoomId);
             sendToClient(clientId, message);
@@ -350,7 +361,6 @@ public class SocketEventHandler extends AbstractEventHandler implements ClientSo
             sendToRoom(formerRoomId, message);
             sendToRoom(roomId, message);
         } else {
-            waitingList.waitForServerChange(participantId, roomId);
             // Safe to directly unwrap optional due to previous check and synchronized methods
             ServerId serverId = raftState.getServerOfRoom(roomId).orElseThrow();
             String serverAddress = serverConfiguration.getServerAddress(serverId).orElse(null);
@@ -360,6 +370,8 @@ public class SocketEventHandler extends AbstractEventHandler implements ClientSo
                 sendToClient(clientId, message);
                 return;
             }
+            // Remember as a moved participant
+            movedParticipants.put(participantId, formerRoomId);
             String broadcastMsg = createRoomChangeBroadcastMsg(participantId, formerRoomId, roomId);
             String message = createRouteMsg(roomId, serverAddress, serverPort);
             sendToRoom(formerRoomId, broadcastMsg, clientId);
@@ -381,7 +393,7 @@ public class SocketEventHandler extends AbstractEventHandler implements ClientSo
         ParticipantId participantId = authenticatedClient.getParticipantId();
 
         // If the client disconnect is due to server change, simply disconnect the client.
-        if (waitingList.getWaitingForServerChange(participantId).isPresent()) {
+        if (movedParticipants.remove(participantId) != null) {
             disconnectClient(clientId);
             return;
         }
@@ -401,52 +413,57 @@ public class SocketEventHandler extends AbstractEventHandler implements ClientSo
      * by checking for required fields and then validated against the source server of the
      * movejoin process and if validated command request is sent to the leader for log replication.
      *
-     * @param request  - MoveJoinClientRequest
-     * @param clientId - Client ID
+     * @param request  MoveJoinClientRequest
+     * @param clientId Client ID
      */
     @Synchronized
     private void processMoveJoinRequest(MoveJoinClientRequest request, ClientId clientId) {
-        log.debug("move join request by={}", request);
+        log.info("move join request by={}", request);
         ParticipantId participantId = new ParticipantId(Optional.ofNullable(request.getIdentity()).orElseThrow());
         RoomId formerRoomId = new RoomId(Optional.ofNullable(request.getFormer()).orElseThrow());
         RoomId newRoomId = new RoomId(Optional.ofNullable(request.getRoomId()).orElseThrow());
-        MoveJoinValidateRequest validateRequest = new MoveJoinValidateRequest(participantId.getValue(),
-                newRoomId.getValue());
+
         // TODO: Handle the invalid cases properly. Protocol doesn't specify.
-        chatRoomState.participantCreate(clientId, participantId);
-        raftState.getServerOfRoom(formerRoomId).ifPresent(serverId -> {
-            String formerServerAddress = serverConfiguration.getServerAddress(serverId).orElse(null);
-            Integer formerServerPort = serverConfiguration.getCoordinationPort(serverId).orElse(null);
-            if (formerServerAddress == null || formerServerPort == null) {
-                return;
-            }
-            try {
-                String response = TcpClient.request(formerServerAddress, formerServerPort,
-                        serializer.toJson(validateRequest),
-                        TCP_TIMEOUT);
-                log.debug("move join validation response: {} ", response);
-                MoveJoinValidateResponse validateResponse = serializer.fromJson(response,
-                        MoveJoinValidateResponse.class);
-                if (validateResponse.isValidated()) {
-                    // Add to waitinglist and send command to leader
-                    waitingList.waitForServerChange(participantId, newRoomId);
-                    waitingList.addServerChangeFormerRoom(participantId, formerRoomId);
-                    BaseLog baselog = ServerChangeLog.builder().formerServerId(serverId)
-                            .newServerId(currentServerId).participantId(participantId).build();
-                    log.debug("sending log: {}", baselog);
-                    if (sendCommandRequest(baselog)) {
-                        return;
+
+        if (raftState.getServerOfRoom(formerRoomId).isPresent()) {
+            ServerId formerServerId = raftState.getServerOfRoom(formerRoomId).get();
+            String formerServerAddress = serverConfiguration.getServerAddress(formerServerId).orElseThrow();
+            Integer formerServerPort = serverConfiguration.getCoordinationPort(formerServerId).orElseThrow();
+
+            // If someone already waiting for the same server change, REJECT
+            if (waitingList.getWaitingForServerChange(participantId).isEmpty()) {
+                try {
+                    // Send validation request to former server and check if the client
+                    // really disconnected from the said room.
+                    MoveJoinValidateRequest validateRequest = MoveJoinValidateRequest.builder()
+                            .formerRoomId(formerRoomId.getValue()).participantId(participantId.getValue()).build();
+                    String response = TcpClient.request(formerServerAddress, formerServerPort,
+                            serializer.toJson(validateRequest), TCP_TIMEOUT);
+                    MoveJoinValidateResponse validateResponse = serializer.fromJson(response,
+                            MoveJoinValidateResponse.class);
+
+                    // If valid, remember client and send a log command to leader of this change.
+                    if (validateResponse.isValidated()) {
+                        // Add to waitinglist and send command to leader
+                        BaseLog baselog = ServerChangeLog.builder().formerServerId(formerServerId)
+                                .newServerId(currentServerId).participantId(participantId).build();
+                        if (sendCommandRequest(baselog)) {
+                            waitingList.waitForServerChange(participantId, clientId, formerRoomId, newRoomId);
+                            return;
+                        }
                     }
+
+                } catch (IOException e) {
+                    log.error("error: {}", e.toString());
+                    log.throwing(e);
                 }
-                // If log sending failed or invalid, send REJECT message
-                raftState.getServerOfRoom(newRoomId).ifPresent(newServerId -> {
-                    String rejectedMsg = createMoveJoinRejectMsg(newServerId);
-                    sendToClient(clientId, rejectedMsg);
-                });
-            } catch (IOException e) {
-                log.error("error: {}", e.toString());
-                log.throwing(e);
             }
+        }
+
+        // If log sending failed or invalid, send REJECT message
+        raftState.getServerOfRoom(newRoomId).ifPresent(newServerId -> {
+            String rejectedMsg = createMoveJoinRejectMsg(newServerId);
+            sendToClient(clientId, rejectedMsg);
         });
     }
 
@@ -455,14 +472,16 @@ public class SocketEventHandler extends AbstractEventHandler implements ClientSo
      * on the source server. Destination server sends a MoveJoinValidateRequest to the
      * source server and the source server uses this method to validate against room id.
      *
-     * @param participantId - Participant ID
-     * @param roomId        - Room ID
-     * @return - Validated or not
+     * @param participantId Participant ID
+     * @param roomId        Room ID
+     * @return Validated or not
      */
     @Synchronized
     public boolean validateMoveJoinRequest(ParticipantId participantId, RoomId roomId) {
-        return waitingList.getWaitingForServerChange(participantId).map(roomIdSaved ->
-                roomIdSaved.equals(roomId)).orElse(false);
+        if (movedParticipants.containsKey(participantId)) {
+            return roomId.equals(movedParticipants.get(participantId));
+        }
+        return false;
     }
 
     /**
@@ -482,6 +501,7 @@ public class SocketEventHandler extends AbstractEventHandler implements ClientSo
             try {
                 String response = TcpClient.request(serverAddress, coordinationPort,
                         serializer.toJson(message), TCP_TIMEOUT);
+                // TODO: Use Json
                 if (response.strip().equals("ok")) {
                     return true;
                 }

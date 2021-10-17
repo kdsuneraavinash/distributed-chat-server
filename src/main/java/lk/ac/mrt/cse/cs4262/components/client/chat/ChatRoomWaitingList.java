@@ -3,6 +3,7 @@ package lk.ac.mrt.cse.cs4262.components.client.chat;
 import lk.ac.mrt.cse.cs4262.common.symbols.ClientId;
 import lk.ac.mrt.cse.cs4262.common.symbols.ParticipantId;
 import lk.ac.mrt.cse.cs4262.common.symbols.RoomId;
+import lombok.Data;
 import lombok.Synchronized;
 import lombok.ToString;
 import lombok.extern.log4j.Log4j2;
@@ -35,13 +36,7 @@ public class ChatRoomWaitingList {
     /**
      * Clients that are waiting for a server change to connect to a chat room in another server.
      */
-    private final Map<ParticipantId, RoomId> waitingForServerChange;
-
-    /**
-     * Additional Map to track the former Room IDs of participants involved in a server change.
-     * Required because raftstate does not track any detail about rooms.
-     */
-    private final Map<ParticipantId, RoomId> serverChangeFormerRoom;
+    private final Map<ParticipantId, ServerChangeRecord> waitingForServerChange;
 
     /**
      * See {@link ChatRoomWaitingList}.
@@ -51,7 +46,6 @@ public class ChatRoomWaitingList {
         this.waitingForRoomIdCreation = new HashMap<>();
         this.waitingForRoomIdDeletion = new HashMap<>();
         this.waitingForServerChange = new HashMap<>();
-        this.serverChangeFormerRoom = new HashMap<>();
     }
 
     /**
@@ -91,12 +85,15 @@ public class ChatRoomWaitingList {
      * Add to a watching list to wait until the destination server validation occurs.
      * If previous value exist, provided value will overwrite previous value.
      *
-     * @param participantId - Participant ID
-     * @param roomId        - Room ID
+     * @param participantId Participant ID
+     * @param clientId      Client ID.
+     * @param formerRoomId  Former Room ID.
+     * @param newRoomId     New Room ID.
      */
     @Synchronized
-    public void waitForServerChange(ParticipantId participantId, RoomId roomId) {
-        waitingForServerChange.put(participantId, roomId);
+    public void waitForServerChange(ParticipantId participantId,
+                                    ClientId clientId, RoomId formerRoomId, RoomId newRoomId) {
+        waitingForServerChange.put(participantId, new ServerChangeRecord(clientId, formerRoomId, newRoomId));
     }
 
     /**
@@ -133,14 +130,14 @@ public class ChatRoomWaitingList {
     }
 
     /**
-     * Get the room id for a specific participant id in a server change process.
+     * Get the data for a specific participant id in a server change process.
      * Used by the destination server to validate the server change source server.
      *
      * @param participantId Participant ID.
-     * @return Related room id involved in the server change if any.
+     * @return Related data involved in the server change if any.
      */
     @Synchronized
-    public Optional<RoomId> getWaitingForServerChange(ParticipantId participantId) {
+    public Optional<ServerChangeRecord> getWaitingForServerChange(ParticipantId participantId) {
         return Optional.ofNullable(waitingForServerChange.get(participantId));
     }
 
@@ -181,36 +178,25 @@ public class ChatRoomWaitingList {
     }
 
     /**
-     * Get the room id for a specific participant id in a server change process.
+     * Get the data for a specific participant id in a server change process.
      * Used by the destination server to validate the server change source server.
      * Removes the entity.
      *
      * @param participantId Participant ID.
-     * @return Related room id involved in the server change if any.
+     * @return Related data involved in the server change if any.
      */
     @Synchronized
-    public Optional<RoomId> removeWaitingForServerChange(ParticipantId participantId) {
+    public Optional<ServerChangeRecord> removeWaitingForServerChange(ParticipantId participantId) {
         return Optional.ofNullable(waitingForServerChange.remove(participantId));
     }
 
     /**
-     * Adding former room involved in Server change.
-     *
-     * @param participantId - Participant ID
-     * @param roomId        - Room ID
+     * Record of a server change with former, newer room id and client id.
      */
-    public void addServerChangeFormerRoom(ParticipantId participantId, RoomId roomId) {
-        serverChangeFormerRoom.put(participantId, roomId);
-    }
-
-    /**
-     * Getter for former room involved in server change.
-     *
-     * @param participantId - Participant ID
-     * @return - Room ID
-     */
-    @Synchronized
-    public Optional<RoomId> getServerChangeFormerRoom(ParticipantId participantId) {
-        return Optional.ofNullable(serverChangeFormerRoom.remove(participantId));
+    @Data
+    public static final class ServerChangeRecord {
+        private final ClientId clientId;
+        private final RoomId formerRoomId;
+        private final RoomId newRoomId;
     }
 }

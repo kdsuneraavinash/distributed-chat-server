@@ -155,7 +155,7 @@ public class ClientComponent implements ServerComponent, Runnable, AutoCloseable
     @Override
     public void sendToRoom(RoomId roomId, String message, ClientId excludeClientId) {
         for (ClientId clientId : chatRoomState.getClientIdsOf(roomId)) {
-            if (clientId != excludeClientId && allClients.containsKey(clientId)) {
+            if (!clientId.equals(excludeClientId) && allClients.containsKey(clientId)) {
                 allClients.get(clientId).sendMessage(message);
             }
         }
@@ -191,8 +191,9 @@ public class ClientComponent implements ServerComponent, Runnable, AutoCloseable
         log.debug("client component movejoin handler: {}", request);
         try {
             MoveJoinValidateRequest validateRequest = serializer.fromJson(request, MoveJoinValidateRequest.class);
-            boolean isValid = socketEventHandler.validateMoveJoinRequest(
-                    new ParticipantId(validateRequest.getParticipantId()), new RoomId(validateRequest.getRoomId()));
+            ParticipantId participantId = new ParticipantId(validateRequest.getParticipantId());
+            RoomId formerRoomId = new RoomId(validateRequest.getFormerRoomId());
+            boolean isValid = socketEventHandler.validateMoveJoinRequest(participantId, formerRoomId);
             MoveJoinValidateResponse response = MoveJoinValidateResponse.builder()
                     .validated(isValid).build();
             return Optional.of(serializer.toJson(response));

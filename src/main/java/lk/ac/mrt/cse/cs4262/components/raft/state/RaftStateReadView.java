@@ -123,15 +123,15 @@ public interface RaftStateReadView {
         /**
          * Method to notify when a participant moves to another server.
          *
-         * @param movedParticipant - Participant ID
+         * @param movedParticipant Participant ID
          */
         void participantMoved(ParticipantId movedParticipant);
 
         /**
          * Method to notify when a participant from another server joins.
          *
-         * @param joinedParticipant - Participant ID
-         * @param serverId          - Server ID
+         * @param joinedParticipant Participant ID
+         * @param serverId          Server ID
          */
         void participantJoined(ParticipantId joinedParticipant, ServerId serverId);
     }

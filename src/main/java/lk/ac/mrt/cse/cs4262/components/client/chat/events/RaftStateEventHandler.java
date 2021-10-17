@@ -144,41 +144,41 @@ public class RaftStateEventHandler extends AbstractEventHandler implements RaftS
     /**
      * Deleting Participant from the former server after a successful server change.
      *
-     * @param movedParticipant - Participant ID
+     * @param movedParticipant Participant ID
      */
     @Synchronized
     @Override
     public void participantMoved(ParticipantId movedParticipant) {
         log.traceEntry("participantMoved={}", movedParticipant);
         ClientId clientId = chatRoomState.getClientIdOf(movedParticipant).orElseThrow();
-        waitingList.removeWaitingForServerChange(movedParticipant);
         chatRoomState.getCurrentRoomIdOf(movedParticipant)
                 .ifPresent(roomId -> chatRoomState.deleteMovedParticipant(clientId, roomId));
-
     }
 
     /**
      * Adding participant to the destination server chatroom after a successful server change.
      *
-     * @param joinedParticipant - Participant ID
-     * @param serverId          - Server ID
+     * @param joinedParticipant Participant ID
+     * @param serverId          Server ID
      */
     @Synchronized
     @Override
     public void participantJoined(ParticipantId joinedParticipant, ServerId serverId) {
-        log.traceEntry("participantJoined={}", joinedParticipant);
-        ClientId clientId = chatRoomState.getClientIdOf(joinedParticipant).orElseThrow();
-        waitingList.getWaitingForServerChange(joinedParticipant).ifPresentOrElse(
-                roomId -> chatRoomState.roomJoinExternal(clientId, roomId),
-                () -> chatRoomState.roomJoinExternal(clientId, mainRoomId));
+        log.info("XXX participantJoined={}", joinedParticipant);
         // Unrecoverable if fails.
-        RoomId former = waitingList.getServerChangeFormerRoom(joinedParticipant).orElseThrow();
-        RoomId newer = waitingList.removeWaitingForServerChange(joinedParticipant).orElseThrow();
+        ChatRoomWaitingList.ServerChangeRecord record = waitingList
+                .removeWaitingForServerChange(joinedParticipant).orElseThrow();
+        ClientId clientId = record.getClientId();
+        RoomId formerRoomId = record.getFormerRoomId();
+        RoomId newRoomId = record.getNewRoomId();
+
+        chatRoomState.roomJoinExternal(clientId, joinedParticipant, newRoomId);
+
         // Send messages to client and new group.
-        String broadcastMsg = createRoomChangeBroadcastMsg(joinedParticipant, former, newer);
+        String broadcastMsg = createRoomChangeBroadcastMsg(joinedParticipant, formerRoomId, newRoomId);
         String message = createMoveJoinClientMsg(serverId, true);
         sendToClient(clientId, message);
-        sendToRoom(newer, broadcastMsg);
+        sendToRoom(newRoomId, broadcastMsg);
     }
 
     /*

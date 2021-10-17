@@ -132,27 +132,28 @@ public class ChatRoomState {
     /**
      * Participants join from an external server.
      *
-     * @param clientId - Client ID
-     * @param roomId   - Room ID
+     * @param clientId      Client ID
+     * @param participantId Participant ID
+     * @param roomId        Room ID
      */
     @Synchronized
-    public void roomJoinExternal(ClientId clientId, RoomId roomId) {
-        log.traceEntry("clientId={} roomId={}", clientId, roomId);
+    public void roomJoinExternal(ClientId clientId, ParticipantId participantId, RoomId roomId) {
+        log.traceEntry("clientId={} participantId={} roomId={}", clientId, participantId, roomId);
         if (!roomClientListMap.containsKey(roomId)) {
             throw new IllegalArgumentException("next room does not exist");
         }
-        getParticipantIdOf(clientId).ifPresent(participantId -> {
-            participantRoomMap.put(participantId, roomId);
-            roomClientListMap.get(roomId).add(clientId);
-        });
+        clientParticipantMap.put(clientId, participantId);
+        participantClientMap.put(participantId, clientId);
+        roomClientListMap.get(roomId).add(clientId);
+        participantRoomMap.put(participantId, roomId);
     }
 
     /**
      * Delete participants who have moved to another server. Participants
      * get deleted after moving the destination server successfully.
      *
-     * @param clientId - Client ID
-     * @param roomId   - Room ID
+     * @param clientId Client ID
+     * @param roomId   Room ID
      */
     @Synchronized
     public void deleteMovedParticipant(ClientId clientId, RoomId roomId) {
