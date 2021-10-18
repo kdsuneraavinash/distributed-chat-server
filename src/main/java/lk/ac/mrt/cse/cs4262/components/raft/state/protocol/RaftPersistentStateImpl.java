@@ -1,5 +1,6 @@
 package lk.ac.mrt.cse.cs4262.components.raft.state.protocol;
 
+import com.google.gson.Gson;
 import lk.ac.mrt.cse.cs4262.common.symbols.ParticipantId;
 import lk.ac.mrt.cse.cs4262.common.symbols.RoomId;
 import lk.ac.mrt.cse.cs4262.common.symbols.ServerId;
@@ -9,11 +10,17 @@ import lk.ac.mrt.cse.cs4262.components.raft.state.logs.CreateIdentityLog;
 import lk.ac.mrt.cse.cs4262.components.raft.state.logs.CreateRoomLog;
 import lk.ac.mrt.cse.cs4262.components.raft.state.logs.DeleteIdentityLog;
 import lk.ac.mrt.cse.cs4262.components.raft.state.logs.DeleteRoomLog;
+import lk.ac.mrt.cse.cs4262.components.raft.state.logs.NoOpLog;
+import lombok.Data;
 import lombok.Getter;
 import lombok.Synchronized;
 import lombok.extern.log4j.Log4j2;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
+import java.io.File;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -24,9 +31,15 @@ import java.util.Set;
 
 @Log4j2
 public class RaftPersistentStateImpl implements RaftPersistentState {
+    private static final String SAVE_FILE_PREFIX = "save.";
+    private static final String SAVE_FILE_SUFFIX = ".state.json";
+
     private final Map<RoomId, ParticipantId> uncommittedRooms;
     private final Set<ParticipantId> uncommittedParticipants;
     private final Map<ParticipantId, RoomId> uncommittedOwners;
+
+    private final File saveFile;
+    private final Gson serializer;
 
     /**
      * Log entries; each entry contains command
@@ -50,20 +63,26 @@ public class RaftPersistentStateImpl implements RaftPersistentState {
 
     /**
      * See {@link RaftPersistentStateImpl}.
+     *
+     * @param currentServerId Current Server ID.
      */
-    public RaftPersistentStateImpl() {
+    public RaftPersistentStateImpl(ServerId currentServerId) {
         this.raftLogs = new ArrayList<>();
         this.currentTerm = 0;
         this.votedFor = null;
         this.uncommittedRooms = new HashMap<>();
         this.uncommittedParticipants = new HashSet<>();
         this.uncommittedOwners = new HashMap<>();
+
+        String fileName = SAVE_FILE_PREFIX + currentServerId.getValue() + SAVE_FILE_SUFFIX;
+        this.saveFile = new File(fileName);
+        this.serializer = new Gson();
     }
 
-    @Synchronized
     @Override
     public void initialize() {
-        // TODO: Load previously saved state
+        // TODO: Fix bug with state not forwarding correctly
+         loadState();
     }
 
     @Override
@@ -135,7 +154,10 @@ public class RaftPersistentStateImpl implements RaftPersistentState {
 
     @Override
     public boolean isAcceptable(BaseLog baseLog) {
-        if (baseLog instanceof CreateIdentityLog) {
+        if (baseLog instanceof NoOpLog) {
+            // No-op always accepted.
+            return true;
+        } else if (baseLog instanceof CreateIdentityLog) {
             // Identity must not exist.
             CreateIdentityLog createIdentityLog = (CreateIdentityLog) baseLog;
             return !uncommittedParticipants.contains(createIdentityLog.getIdentity());
@@ -156,8 +178,33 @@ public class RaftPersistentStateImpl implements RaftPersistentState {
     }
 
     @Synchronized
+    private void loadState() {
+        if (saveFile.exists() && saveFile.isFile()) {
+            try (FileReader fileReader = new FileReader(saveFile)) {
+                SerializedState previousState = serializer.fromJson(fileReader, SerializedState.class);
+                this.currentTerm = previousState.getCurrentTerm();
+                this.votedFor = new ServerId(previousState.getVotedFor());
+                for (RaftLog raftLog : previousState.getRaftLogs()) {
+                    appendLogEntry(raftLog);
+                }
+            } catch (IOException e) {
+                // Grave Error XP
+                log.error("state loading failed!!!");
+                log.throwing(e);
+            }
+        }
+    }
+
+    @Synchronized
     private void saveState() {
-        // TODO: Save this state
+        try (FileWriter fileWriter = new FileWriter(saveFile)) {
+            String votedForStr = votedFor != null ? votedFor.getValue() : "";
+            serializer.toJson(new SerializedState(raftLogs, currentTerm, votedForStr), fileWriter);
+        } catch (IOException e) {
+            // Grave Error XP
+            log.error("state saving failed!!!");
+            log.throwing(e);
+        }
     }
 
     /**
@@ -185,5 +232,15 @@ public class RaftPersistentStateImpl implements RaftPersistentState {
             Optional.ofNullable(uncommittedRooms.remove(deleteRoomLog.getRoomId()))
                     .ifPresent(uncommittedOwners::remove);
         }
+    }
+
+    /**
+     * Helper class for serialization.
+     */
+    @Data
+    private static final class SerializedState {
+        private final List<RaftLog> raftLogs;
+        private final int currentTerm;
+        private final String votedFor;
     }
 }

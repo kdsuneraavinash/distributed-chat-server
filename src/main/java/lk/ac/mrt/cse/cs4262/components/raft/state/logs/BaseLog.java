@@ -36,5 +36,10 @@ public abstract class BaseLog {
      */
     public static final String SERVER_CHANGE_LOG = "SERVER_CHANGE_LOG";
 
+    /**
+     * Log type for no-op log.
+     */
+    public static final String NO_OP_LOG = "NO_OP_LOG";
+
     private final String type;
 }

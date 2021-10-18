@@ -13,6 +13,7 @@ import lk.ac.mrt.cse.cs4262.components.raft.messages.AppendReplyMessage;
 import lk.ac.mrt.cse.cs4262.components.raft.messages.AppendRequestMessage;
 import lk.ac.mrt.cse.cs4262.components.raft.messages.BaseRaftMessage;
 import lk.ac.mrt.cse.cs4262.components.raft.messages.CommandRequestMessage;
+import lk.ac.mrt.cse.cs4262.components.raft.messages.RaftAckMessage;
 import lk.ac.mrt.cse.cs4262.components.raft.messages.VoteReplyMessage;
 import lk.ac.mrt.cse.cs4262.components.raft.messages.VoteRequestMessage;
 import lk.ac.mrt.cse.cs4262.components.raft.state.RaftState;
@@ -71,12 +72,13 @@ public class RaftComponent implements ServerComponent, SharedTcpRequestHandler, 
         }
 
         // Process parsed message
+        boolean isAccepted = true;
         if (baseRaftMessage instanceof VoteRequestMessage) {
             raftController.handleVoteRequest((VoteRequestMessage) baseRaftMessage);
         } else if (baseRaftMessage instanceof VoteReplyMessage) {
             raftController.handleVoteReply((VoteReplyMessage) baseRaftMessage);
         } else if (baseRaftMessage instanceof CommandRequestMessage) {
-            raftController.handleCommandRequest((CommandRequestMessage) baseRaftMessage);
+            isAccepted = raftController.handleCommandRequest((CommandRequestMessage) baseRaftMessage);
         } else if (baseRaftMessage instanceof AppendRequestMessage) {
             raftController.handleAppendRequest((AppendRequestMessage) baseRaftMessage);
         } else if (baseRaftMessage instanceof AppendReplyMessage) {
@@ -85,14 +87,15 @@ public class RaftComponent implements ServerComponent, SharedTcpRequestHandler, 
             // Unknown type of raft message
             return Optional.empty();
         }
-        return Optional.of("ok");
+        RaftAckMessage raftAckMessage = new RaftAckMessage(isAccepted);
+        return Optional.of(serializer.toJson(raftAckMessage));
     }
 
     @Override
     public void sendToServer(ServerId serverId, BaseRaftMessage message) {
         log.debug("{} <- {}", serverId, serializer.toJson(message));
-        String serverAddress = serverConfiguration.getServerAddress(serverId).orElseThrow();
-        int coordinationPort = serverConfiguration.getCoordinationPort(serverId).orElseThrow();
+        String serverAddress = serverConfiguration.getServerAddress(serverId);
+        int coordinationPort = serverConfiguration.getCoordinationPort(serverId);
         TcpClient.requestIgnoreErrors(serverAddress, coordinationPort, serializer.toJson(message));
     }
 }

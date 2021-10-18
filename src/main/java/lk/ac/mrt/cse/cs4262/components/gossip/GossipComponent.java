@@ -96,8 +96,8 @@ public class GossipComponent implements ServerComponent, SharedTcpRequestHandler
         if (serverIdOp.isPresent()) {
             ServerId serverId = serverIdOp.get();
             try {
-                String ipAddress = serverConfiguration.getServerAddress(serverId).orElseThrow();
-                int coordPort = serverConfiguration.getCoordinationPort(serverId).orElseThrow();
+                String ipAddress = serverConfiguration.getServerAddress(serverId);
+                int coordPort = serverConfiguration.getCoordinationPort(serverId);
                 String response = TcpClient.request(ipAddress, coordPort,
                         gossipState.toJson(serializer), GOSSIP_WAIT_TIMEOUT_MS);
                 Map<String, Integer> gossip = serializer.fromJson(response, GossipFormat.class);

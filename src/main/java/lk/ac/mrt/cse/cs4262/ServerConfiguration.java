@@ -12,7 +12,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 /**
  * A configuration file containing all other servers and connection info.
@@ -65,26 +64,33 @@ public final class ServerConfiguration {
 
     /**
      * @param serverId ID of server.
-     * @return Server address. Empty if server not known.
+     * @return Server address.
      */
-    public Optional<String> getServerAddress(ServerId serverId) {
-        return Optional.ofNullable(configuration.get(serverId)).map(Info::getServerAddress);
+    public String getServerAddress(ServerId serverId) {
+        return getServerInfo(serverId).getServerAddress();
     }
 
     /**
      * @param serverId ID of server.
-     * @return Client port. Empty if server not known.
+     * @return Client port.
      */
-    public Optional<Integer> getClientPort(ServerId serverId) {
-        return Optional.ofNullable(configuration.get(serverId)).map(Info::getClientPort);
+    public Integer getClientPort(ServerId serverId) {
+        return getServerInfo(serverId).getClientPort();
     }
 
     /**
      * @param serverId ID of server.
-     * @return Coordination port. Empty if server not known.
+     * @return Coordination port.
      */
-    public Optional<Integer> getCoordinationPort(ServerId serverId) {
-        return Optional.ofNullable(configuration.get(serverId)).map(Info::getCoordinationPort);
+    public Integer getCoordinationPort(ServerId serverId) {
+        return getServerInfo(serverId).getCoordinationPort();
+    }
+
+    private Info getServerInfo(ServerId serverId) {
+        if (configuration.containsKey(serverId)) {
+            return configuration.get(serverId);
+        }
+        throw new IllegalStateException("unknown server id");
     }
 
     @Data

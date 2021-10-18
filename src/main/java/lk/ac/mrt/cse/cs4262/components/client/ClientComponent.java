@@ -123,7 +123,7 @@ public class ClientComponent implements ServerComponent, Runnable, AutoCloseable
             while (!Thread.currentThread().isInterrupted()) {
                 // Create a new client from each socket connection.
                 Socket socket = serverSocket.accept();
-                ClientId clientId = ClientId.unique();
+                ClientId clientId = ClientId.real();
                 ChatClient client = new ChatClientImpl(clientId, socket);
                 allClients.put(clientId, client);
                 this.executorService.submit(new ClientSocketListener(clientId, socket, socketEventHandler));
@@ -168,7 +168,7 @@ public class ClientComponent implements ServerComponent, Runnable, AutoCloseable
     @Override
     public void sendToRoom(RoomId roomId, String message, ClientId excludeClientId) {
         for (ClientId clientId : chatRoomState.getClientIdsOf(roomId)) {
-            if (clientId != excludeClientId && allClients.containsKey(clientId)) {
+            if (!clientId.equals(excludeClientId) && allClients.containsKey(clientId)) {
                 allClients.get(clientId).sendMessage(message);
             }
         }
@@ -190,8 +190,8 @@ public class ClientComponent implements ServerComponent, Runnable, AutoCloseable
 
     @Override
     public void sendToServer(ServerId serverId, String message) {
-        String serverAddress = serverConfiguration.getServerAddress(serverId).orElseThrow();
-        int serverPort = serverConfiguration.getCoordinationPort(serverId).orElseThrow();
+        String serverAddress = serverConfiguration.getServerAddress(serverId);
+        int serverPort = serverConfiguration.getCoordinationPort(serverId);
         try {
             TcpClient.request(serverAddress, serverPort, message, PROXY_TIMEOUT);
         } catch (Exception e) {
@@ -223,8 +223,9 @@ public class ClientComponent implements ServerComponent, Runnable, AutoCloseable
         log.debug("client component movejoin handler: {}", request);
         try {
             MoveJoinValidateRequest validateRequest = serializer.fromJson(request, MoveJoinValidateRequest.class);
-            boolean isValid = socketEventHandler.validateMoveJoinRequest(
-                    new ParticipantId(validateRequest.getParticipantId()), new RoomId(validateRequest.getRoomId()));
+            ParticipantId participantId = new ParticipantId(validateRequest.getParticipantId());
+            RoomId formerRoomId = new RoomId(validateRequest.getFormerRoomId());
+            boolean isValid = socketEventHandler.validateMoveJoinRequest(participantId, formerRoomId);
             MoveJoinValidateResponse response = MoveJoinValidateResponse.builder()
                     .validated(isValid).build();
             return Optional.of(serializer.toJson(response));

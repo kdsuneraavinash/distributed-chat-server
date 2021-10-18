@@ -17,6 +17,7 @@ Help() {
   echo
   echo "Syntax: ./manage.sh (run|trace|build|buildrun|check) [arguments]"
   echo "  run         Run the chat server current build."
+  echo "  rundefault  Run the chat server current build using default.tsv configuration."
   echo "  trace       Run the chat server current build in trace mode."
   echo "  build       Build the chat server."
   echo "  buildrun    Build and run the chat server."
@@ -41,7 +42,7 @@ elif [ "$1" == "buildrun" ]; then
   Build && Run INFO ${@:2}
 
 elif [ "$1" == "check" ]; then
-  ./gradlew checkStyleMain
+  ./gradlew build checkStyleMain
 
 elif [ "$1" == "client" ]; then
   Client ${@:2}
