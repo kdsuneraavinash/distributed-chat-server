@@ -189,7 +189,7 @@ public class RaftPersistentStateImpl implements RaftPersistentState {
                 }
             } catch (IOException e) {
                 // Grave Error XP
-                log.error("state saving failed!!!");
+                log.error("state loading failed!!!");
                 log.throwing(e);
             }
         }

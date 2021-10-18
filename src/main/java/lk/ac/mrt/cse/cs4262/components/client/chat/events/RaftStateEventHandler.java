@@ -64,8 +64,9 @@ public class RaftStateEventHandler extends AbstractEventHandler implements RaftS
     @Override
     public void participantIdCreated(ParticipantId createdParticipantId) {
         log.traceEntry("createdParticipantId={}", createdParticipantId);
-        // Get client from waiting list.
-        ClientId clientId = waitingList.removeWaitingForCreation(createdParticipantId);
+        // Get client from waiting list. If no one waiting, fake the client.
+        ClientId clientId = waitingList.removeWaitingForCreation(createdParticipantId)
+                .orElseGet(ClientId::fake);
 
         // Update chat room maps.
         chatRoomState.participantCreate(clientId, createdParticipantId);
@@ -85,10 +86,7 @@ public class RaftStateEventHandler extends AbstractEventHandler implements RaftS
         ClientId ownerClientId = chatRoomState.getClientIdOf(ownerParticipantId);
         RoomId formerRoomId = chatRoomState.getCurrentRoomIdOf(ownerParticipantId);
         // Remove and get the client that is waiting for the room creation
-        ClientId waitedClientId = waitingList.removeWaitingForCreation(createdRoomId);
-        if (!ownerClientId.equals(waitedClientId)) {
-            throw new IllegalStateException("waited client is now the owner");
-        }
+        waitingList.removeWaitingForCreation(createdRoomId);
 
         // Update chat room maps.
         chatRoomState.roomCreate(ownerClientId, createdRoomId);
@@ -126,10 +124,7 @@ public class RaftStateEventHandler extends AbstractEventHandler implements RaftS
     public void roomIdDeleted(RoomId deletedRoomId, ParticipantId ownerId) {
         log.traceEntry("deletedRoomId={}", deletedRoomId);
         ClientId ownerClientId = chatRoomState.getClientIdOf(ownerId);
-        ClientId waitedClientId = waitingList.removeWaitingForDeletion(deletedRoomId);
-        if (!ownerClientId.equals(waitedClientId)) {
-            throw new IllegalStateException("waited client is now the owner");
-        }
+        waitingList.removeWaitingForDeletion(deletedRoomId);
 
         // Update chat room maps.
         Collection<ClientId> prevClientIds = chatRoomState.roomDelete(deletedRoomId);

@@ -10,7 +10,6 @@ import lombok.extern.log4j.Log4j2;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 
 /**
@@ -151,44 +150,30 @@ public class ChatRoomWaitingList {
      * @return ID of waiting Client (if any)
      */
     @Synchronized
-    public ClientId removeWaitingForCreation(ParticipantId participantId) {
-        ClientId waitedClientId = waitingForParticipantIdCreation.remove(participantId);
-        // Make a mock client if client does not exist.
-        return Objects.requireNonNullElseGet(waitedClientId, ClientId::fake);
+    public Optional<ClientId> removeWaitingForCreation(ParticipantId participantId) {
+        return Optional.ofNullable(waitingForParticipantIdCreation.remove(participantId));
     }
 
     /**
-     * Get the client that is waiting for this room id creation.
-     * There must be a client waiting for room creation.
-     * Removes the entity.
+     * Remove the client that is waiting for this room id creation.
+     * Ignore if there isn't a client waiting.
      *
      * @param roomId Room ID.
-     * @return ID of waiting Client (if any)
      */
     @Synchronized
-    public ClientId removeWaitingForCreation(RoomId roomId) {
-        ClientId waitedClientId = waitingForRoomIdCreation.remove(roomId);
-        if (waitedClientId != null) {
-            return waitedClientId;
-        }
-        throw new IllegalStateException("no client is waiting for room creation");
+    public void removeWaitingForCreation(RoomId roomId) {
+        waitingForRoomIdCreation.remove(roomId);
     }
 
     /**
-     * Get the client that is waiting for this room id deletion.
-     * There must be a client waiting for room deletion.
-     * Removes the entity.
+     * Remove the client that is waiting for this room id deletion.
+     * Ignore if there isn't a client waiting.
      *
      * @param roomId Room ID.
-     * @return ID of waiting Client (if any)
      */
     @Synchronized
-    public ClientId removeWaitingForDeletion(RoomId roomId) {
-        ClientId waitedClientId = waitingForRoomIdDeletion.remove(roomId);
-        if (waitedClientId != null) {
-            return waitedClientId;
-        }
-        throw new IllegalStateException("no client is waiting for room deletion");
+    public void removeWaitingForDeletion(RoomId roomId) {
+        waitingForRoomIdDeletion.remove(roomId);
     }
 
     /**
