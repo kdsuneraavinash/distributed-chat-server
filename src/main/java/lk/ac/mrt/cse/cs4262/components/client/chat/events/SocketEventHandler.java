@@ -491,7 +491,7 @@ public class SocketEventHandler extends AbstractEventHandler implements ClientSo
      * @param command Command to send.
      * @return Whether leader accepted message.
      */
-    private boolean sendCommandRequest(BaseLog command) {
+    public boolean sendCommandRequest(BaseLog command) {
         CommandRequestMessage message = CommandRequestMessage.builder()
                 .senderId(currentServerId)
                 .command(command).build();

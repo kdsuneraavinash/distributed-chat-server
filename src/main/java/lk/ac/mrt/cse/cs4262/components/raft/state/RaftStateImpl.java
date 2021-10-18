@@ -22,13 +22,11 @@ import lombok.ToString;
 import lombok.extern.log4j.Log4j2;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -219,17 +217,9 @@ public class RaftStateImpl implements RaftState {
     @Override
     public Collection<ParticipantId> getParticipantsInServer(ServerId serverId) {
         if (state.containsKey(serverId)) {
-            return new ArrayList<>(state.get(serverId).keySet());
-        }
-        return List.of();
-    }
-
-    @Override
-    public Collection<RoomId> getRoomsInServer(ServerId serverId) {
-        if (state.containsKey(serverId)) {
-            return state.get(serverId).values().stream()
-                    .filter(Objects::nonNull)
-                    .collect(Collectors.toList());
+            return state.get(serverId).keySet().stream().filter(
+                    participantId -> !getSystemUserId(currentServerId).equals(participantId)
+            ).collect(Collectors.toList());
         }
         return List.of();
     }

@@ -40,12 +40,6 @@ public interface RaftStateReadView {
     Collection<ParticipantId> getParticipantsInServer(ServerId serverId);
 
     /**
-     * @param serverId ID of the server.
-     * @return A list of all the active room IDs in the specified server.
-     */
-    Collection<RoomId> getRoomsInServer(ServerId serverId);
-
-    /**
      * @return A list of all the active room IDs in the system.
      */
     Collection<RoomId> getRoomsInSystem();

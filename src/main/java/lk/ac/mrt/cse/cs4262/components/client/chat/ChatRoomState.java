@@ -283,16 +283,13 @@ public class ChatRoomState {
      *
      * @return All current participant ids.
      */
-    public Collection<ParticipantId> getAllParticipantIds() {
-        return new ArrayList<>(participantRoomMap.keySet());
-    }
-
-    /**
-     * Get all room Ids.
-     *
-     * @return All current room ids.
-     */
-    public Collection<RoomId> getAllRoomIds() {
-        return new ArrayList<>(roomClientListMap.keySet());
+    public Collection<ParticipantId> getAllActiveParticipantIds() {
+        ArrayList<ParticipantId> participantIds = new ArrayList<>();
+        clientParticipantMap.forEach((clientId, participantId) -> {
+            if (!clientId.isFakeClient()) {
+                participantIds.add(participantId);
+            }
+        });
+        return participantIds;
     }
 }

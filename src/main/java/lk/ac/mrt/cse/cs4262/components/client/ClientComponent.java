@@ -23,6 +23,8 @@ import lk.ac.mrt.cse.cs4262.components.client.messages.requests.MoveJoinValidate
 import lk.ac.mrt.cse.cs4262.components.client.messages.responses.MoveJoinValidateResponse;
 import lk.ac.mrt.cse.cs4262.components.gossip.state.GossipStateReadView;
 import lk.ac.mrt.cse.cs4262.components.raft.state.RaftState;
+import lk.ac.mrt.cse.cs4262.components.raft.state.logs.BaseLog;
+import lk.ac.mrt.cse.cs4262.components.raft.state.logs.DeleteIdentityLog;
 import lombok.Cleanup;
 import lombok.extern.log4j.Log4j2;
 
@@ -42,9 +44,11 @@ import java.util.concurrent.Executors;
  * Command messages will be proxied to other servers.
  */
 @Log4j2
-public class ClientComponent implements ServerComponent, Runnable, AutoCloseable, MessageSender, PeriodicInvoker.EventHandler, SharedTcpRequestHandler {
+public class ClientComponent implements ServerComponent, Runnable, AutoCloseable, MessageSender,
+        PeriodicInvoker.EventHandler, SharedTcpRequestHandler {
     private static final int PROXY_TIMEOUT = 1000;
     private static final int CHECK_DELETED_ID_ROOMID_TIMEOUT = 5000;
+    private static final int CHECK_DELETED_ID_ROOMID_INITIAL_DELAY = 1000;
 
     private final RaftStateEventHandler raftStateEventHandler;
     private final RaftState raftState;
@@ -73,7 +77,6 @@ public class ClientComponent implements ServerComponent, Runnable, AutoCloseable
                            GossipStateReadView gossipState, RaftState raftState,
                            ServerConfiguration serverConfiguration) {
         RoomId mainRoomId = raftState.getMainRoomId(currentServerId);
-        Gson serializer = new Gson();
         ChatRoomWaitingList waitingList = new ChatRoomWaitingList();
 
         this.port = port;
@@ -111,7 +114,8 @@ public class ClientComponent implements ServerComponent, Runnable, AutoCloseable
         raftState.attachListener(raftStateEventHandler);
         log.info("client component connected");
 
-        periodicInvoker.startExecution(this, 0, CHECK_DELETED_ID_ROOMID_TIMEOUT);
+        periodicInvoker.startExecution(this,
+                CHECK_DELETED_ID_ROOMID_INITIAL_DELAY, CHECK_DELETED_ID_ROOMID_TIMEOUT);
     }
 
     @Override
@@ -199,24 +203,26 @@ public class ClientComponent implements ServerComponent, Runnable, AutoCloseable
         }
     }
 
+    /**
+     * Check for participants with disconnected client and request to delete.
+     **/
     @Override
     public void handleTimedEvent() {
         Collection<ParticipantId> raftStateParticipantIds = raftState.getParticipantsInServer(currentServerId);
-        Collection<ParticipantId> chatStateParticipantIds = chatRoomState.getAllParticipantIds();
-        raftStateParticipantIds.forEach(participantId -> {
-            if (!chatStateParticipantIds.contains(participantId)) {
-                chatRoomState.participantDelete(participantId);
-            }
-        });
+        Collection<ParticipantId> chatStateParticipantIds = chatRoomState.getAllActiveParticipantIds();
 
-        Collection<RoomId> raftStateroomIds = raftState.getRoomsInServer(currentServerId);
-        Collection<RoomId> chatStateRoomIds = chatRoomState.getAllRoomIds();
-        raftStateroomIds.forEach(roomId -> {
-            if (!chatStateRoomIds.contains(roomId)) {
-                chatRoomState.roomDelete(roomId);
+        raftStateParticipantIds.forEach(participantId -> {
+            try {
+                if (!chatStateParticipantIds.contains(participantId)) {
+                    log.info("Delete participant \"{}\" without active client.", participantId);
+                    BaseLog log = DeleteIdentityLog.builder().identity(participantId).build();
+                    socketEventHandler.sendCommandRequest(log);
+                }
+            } catch (Exception ignored) {
             }
         });
     }
+
 
     @Override
     public Optional<String> handleRequest(String request) {
