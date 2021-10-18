@@ -214,7 +214,7 @@ public class ClientComponent implements ServerComponent, Runnable, AutoCloseable
         raftStateParticipantIds.forEach(participantId -> {
             try {
                 if (!chatStateParticipantIds.contains(participantId)) {
-                    log.info("Delete participant \"{}\" without active client.", participantId);
+                    log.info("delete participant \"{}\" without active client.", participantId);
                     BaseLog log = DeleteIdentityLog.builder().identity(participantId).build();
                     socketEventHandler.sendCommandRequest(log);
                 }
