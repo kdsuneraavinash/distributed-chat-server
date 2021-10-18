@@ -69,6 +69,9 @@ public class SocketEventHandler extends AbstractEventHandler implements ClientSo
     /**
      * Participants that are moved from this server.
      * These are participants that sent a joinroom request.
+     * Note that a participant being in this map does not mean
+     * that the participant is not in the current server.
+     * This is just a record of the client that has moved away.
      */
     private final Map<ParticipantId, RoomId> movedParticipants;
 
@@ -166,10 +169,12 @@ public class SocketEventHandler extends AbstractEventHandler implements ClientSo
                 return false;
             }
             AuthenticatedClient authenticatedClient = authenticatedClientOp.get();
-            if (movedParticipants.containsKey(authenticatedClient.getParticipantId())) {
-                // Moved participant, IGNORE any other requests.
+            if (!currentServerId.equals(authenticatedClient.getServerId())) {
+                // Client not in current server
+                log.warn("disconnecting {}: not in current server", authenticatedClient);
                 return true;
-            } else if (baseRequest instanceof ListClientRequest) {
+            }
+            if (baseRequest instanceof ListClientRequest) {
                 // List
                 processChatRoomListRequest(authenticatedClient);
             } else if (baseRequest instanceof MessageClientRequest) {
@@ -215,7 +220,11 @@ public class SocketEventHandler extends AbstractEventHandler implements ClientSo
     public void clientSideDisconnect(ClientId clientId) {
         Optional<AuthenticatedClient> authenticatedClientOp = authenticate(clientId);
         // Send quit message only if authenticated. (has a participant id)
-        authenticatedClientOp.ifPresent(this::processQuitRequest);
+        if (authenticatedClientOp.isPresent()) {
+            AuthenticatedClient authenticatedClient = authenticatedClientOp.get();
+            processQuitRequest(authenticatedClient);
+            movedParticipants.remove(authenticatedClient.getParticipantId());
+        }
         waitingList.removeClientFromAllWaitingLists(clientId);
     }
 
@@ -513,6 +522,7 @@ public class SocketEventHandler extends AbstractEventHandler implements ClientSo
             String serverAddress = serverConfiguration.getServerAddress(leaderId);
             int coordinationPort = serverConfiguration.getCoordinationPort(leaderId);
             try {
+                log.info("sending command request to {}: {}", leaderId, message);
                 String rawResponse = TcpClient.request(serverAddress, coordinationPort,
                         serializer.toJson(message), TCP_TIMEOUT);
                 CommandAckResponse response = serializer.fromJson(rawResponse, CommandAckResponse.class);

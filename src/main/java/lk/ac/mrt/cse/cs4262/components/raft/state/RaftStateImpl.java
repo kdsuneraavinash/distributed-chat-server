@@ -396,7 +396,7 @@ public class RaftStateImpl implements RaftState {
         synchronized (commonState) {
             int currentCommitIndex = commonState.getCommitIndex();
             if (commitIndex != currentCommitIndex) {
-                log.info("setting commit index, from={}, to={}", currentCommitIndex, commitIndex);
+                log.debug("setting commit index, from={}, to={}", currentCommitIndex, commitIndex);
                 for (int i = currentCommitIndex + 1; i <= commitIndex; i++) {
                     commit(getLogEntry(i).getCommand());
                 }
