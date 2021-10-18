@@ -393,12 +393,15 @@ public class RaftStateImpl implements RaftState {
 
     @Override
     public void setCommitIndex(int commitIndex) {
-        int currentCommitIndex = getCommitIndex();
-        if (commitIndex != currentCommitIndex) {
-            for (int i = currentCommitIndex + 1; i <= commitIndex; i++) {
-                commit(getLogEntry(commitIndex).getCommand());
+        synchronized (commonState) {
+            int currentCommitIndex = commonState.getCommitIndex();
+            if (commitIndex != currentCommitIndex) {
+                log.info("setting commit index, from={}, to={}", currentCommitIndex, commitIndex);
+                for (int i = currentCommitIndex + 1; i <= commitIndex; i++) {
+                    commit(getLogEntry(i).getCommand());
+                }
+                commonState.setCommitIndex(commitIndex);
             }
-            commonState.setCommitIndex(commitIndex);
         }
     }
 
