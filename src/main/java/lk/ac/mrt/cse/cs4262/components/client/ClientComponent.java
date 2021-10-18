@@ -9,6 +9,7 @@ import lk.ac.mrt.cse.cs4262.common.symbols.ServerId;
 import lk.ac.mrt.cse.cs4262.common.tcp.TcpClient;
 import lk.ac.mrt.cse.cs4262.common.tcp.server.shared.SharedTcpRequestHandler;
 import lk.ac.mrt.cse.cs4262.common.utils.NamedThreadFactory;
+import lk.ac.mrt.cse.cs4262.common.utils.PeriodicInvoker;
 import lk.ac.mrt.cse.cs4262.components.ServerComponent;
 import lk.ac.mrt.cse.cs4262.components.client.chat.ChatRoomState;
 import lk.ac.mrt.cse.cs4262.components.client.chat.ChatRoomWaitingList;
@@ -22,12 +23,15 @@ import lk.ac.mrt.cse.cs4262.components.client.messages.requests.MoveJoinValidate
 import lk.ac.mrt.cse.cs4262.components.client.messages.responses.MoveJoinValidateResponse;
 import lk.ac.mrt.cse.cs4262.components.gossip.state.GossipStateReadView;
 import lk.ac.mrt.cse.cs4262.components.raft.state.RaftState;
+import lk.ac.mrt.cse.cs4262.components.raft.state.logs.BaseLog;
+import lk.ac.mrt.cse.cs4262.components.raft.state.logs.DeleteIdentityLog;
 import lombok.Cleanup;
 import lombok.extern.log4j.Log4j2;
 
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -41,8 +45,10 @@ import java.util.concurrent.Executors;
  */
 @Log4j2
 public class ClientComponent implements ServerComponent, Runnable, AutoCloseable, MessageSender,
-        SharedTcpRequestHandler {
+        PeriodicInvoker.EventHandler, SharedTcpRequestHandler {
     private static final int PROXY_TIMEOUT = 1000;
+    private static final int CHECK_DELETED_ID_ROOMID_TIMEOUT = 5000;
+    private static final int CHECK_DELETED_ID_ROOMID_INITIAL_DELAY = 1000;
 
     private final RaftStateEventHandler raftStateEventHandler;
     private final RaftState raftState;
@@ -53,6 +59,10 @@ public class ClientComponent implements ServerComponent, Runnable, AutoCloseable
     private final ExecutorService executorService;
     private final int port;
     private final Gson serializer;
+
+    private final ServerId currentServerId;
+    private final PeriodicInvoker periodicInvoker;
+
 
     /**
      * Create a client connector. See {@link ClientComponent}.
@@ -91,6 +101,10 @@ public class ClientComponent implements ServerComponent, Runnable, AutoCloseable
         this.executorService = Executors.newCachedThreadPool(
                 new NamedThreadFactory("client"));
         this.serverConfiguration = serverConfiguration;
+
+        this.currentServerId = currentServerId;
+        this.periodicInvoker = new PeriodicInvoker("check-deleted-id-roomId");
+
     }
 
     @Override
@@ -99,6 +113,9 @@ public class ClientComponent implements ServerComponent, Runnable, AutoCloseable
         raftStateEventHandler.attachMessageSender(this);
         raftState.attachListener(raftStateEventHandler);
         log.info("client component connected");
+
+        periodicInvoker.startExecution(this,
+                CHECK_DELETED_ID_ROOMID_INITIAL_DELAY, CHECK_DELETED_ID_ROOMID_TIMEOUT);
     }
 
     @Override
@@ -116,7 +133,7 @@ public class ClientComponent implements ServerComponent, Runnable, AutoCloseable
                 this.executorService.submit(new ClientSocketListener(clientId, socket, socketEventHandler));
             }
         } catch (IOException e) {
-            log.error("Server socket opening failed on port {}.", port);
+            log.fatal("Server socket opening failed on port {}.", port);
             log.throwing(e);
         } finally {
             this.executorService.shutdownNow();
@@ -185,6 +202,27 @@ public class ClientComponent implements ServerComponent, Runnable, AutoCloseable
             log.trace("sending to server failed: {}", e.toString());
         }
     }
+
+    /**
+     * Check for participants with disconnected client and request to delete.
+     **/
+    @Override
+    public void handleTimedEvent() {
+        Collection<ParticipantId> raftStateParticipantIds = raftState.getParticipantsInServer(currentServerId);
+        Collection<ParticipantId> chatStateParticipantIds = chatRoomState.getAllActiveParticipantIds();
+
+        raftStateParticipantIds.forEach(participantId -> {
+            try {
+                if (!chatStateParticipantIds.contains(participantId)) {
+                    log.info("delete participant \"{}\" without active client.", participantId);
+                    BaseLog log = DeleteIdentityLog.builder().identity(participantId).build();
+                    socketEventHandler.sendCommandRequest(log);
+                }
+            } catch (Exception ignored) {
+            }
+        });
+    }
+
 
     @Override
     public Optional<String> handleRequest(String request) {

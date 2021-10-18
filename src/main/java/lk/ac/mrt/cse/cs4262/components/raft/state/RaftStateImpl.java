@@ -27,7 +27,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -214,12 +213,13 @@ public class RaftStateImpl implements RaftState {
         return Optional.empty();
     }
 
+
     @Override
-    public Collection<RoomId> getRoomsInServer(ServerId serverId) {
+    public Collection<ParticipantId> getParticipantsInServer(ServerId serverId) {
         if (state.containsKey(serverId)) {
-            return state.get(serverId).values().stream()
-                    .filter(Objects::nonNull)
-                    .collect(Collectors.toList());
+            return state.get(serverId).keySet().stream().filter(
+                    participantId -> !getSystemUserId(currentServerId).equals(participantId)
+            ).collect(Collectors.toList());
         }
         return List.of();
     }

@@ -226,6 +226,16 @@ public class ChatRoomState {
      */
 
     /**
+     * Whether the client is a participant in the system.
+     *
+     * @param clientId ID of the client.
+     * @return Whether client has a registered participant.
+     */
+    public boolean isParticipant(ClientId clientId) {
+        return clientParticipantMap.containsKey(clientId);
+    }
+
+    /**
      * Get the participant id of a client.
      *
      * @param clientId ID of the client.
@@ -276,5 +286,20 @@ public class ChatRoomState {
             return participantRoomMap.get(participantId);
         }
         throw new IllegalStateException("participant does not exist");
+    }
+
+    /**
+     * Get all participant Ids.
+     *
+     * @return All current participant ids.
+     */
+    public Collection<ParticipantId> getAllActiveParticipantIds() {
+        ArrayList<ParticipantId> participantIds = new ArrayList<>();
+        clientParticipantMap.forEach((clientId, participantId) -> {
+            if (!clientId.isFakeClient()) {
+                participantIds.add(participantId);
+            }
+        });
+        return participantIds;
     }
 }

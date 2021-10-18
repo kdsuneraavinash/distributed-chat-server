@@ -190,6 +190,20 @@ public class ChatRoomWaitingList {
     }
 
     /**
+     * Removes a client from all the waiting lists in the system.
+     * Called after a client is disconnected.
+     *
+     * @param clientId ID of client.
+     */
+    @Synchronized
+    public void removeClientFromAllWaitingLists(ClientId clientId) {
+        waitingForParticipantIdCreation.values().remove(clientId);
+        waitingForRoomIdCreation.values().remove(clientId);
+        waitingForRoomIdDeletion.values().remove(clientId);
+        waitingForServerChange.values().removeIf(record -> clientId.equals(record.getClientId()));
+    }
+
+    /**
      * Record of a server change with former, newer room id and client id.
      */
     @Data

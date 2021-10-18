@@ -66,6 +66,7 @@ public class SharedTcpServer implements Runnable {
                 } catch (Exception e) {
                     // On any kind of exception that is not handled,
                     // Log it and respond with error message
+                    log.fatal("unhandled error: {}", e.toString());
                     log.throwing(e);
                     return "error: unhandled exception";
                 }

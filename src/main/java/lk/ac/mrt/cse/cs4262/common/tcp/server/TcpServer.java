@@ -48,7 +48,7 @@ public class TcpServer implements Runnable {
                 this.executorService.submit(new TcpSocketListener(socket, requestHandler));
             }
         } catch (IOException e) {
-            log.error("server socket opening failed on port {}.", port);
+            log.fatal("server socket opening failed on port {}.", port);
             log.throwing(e);
         } finally {
             this.executorService.shutdownNow();

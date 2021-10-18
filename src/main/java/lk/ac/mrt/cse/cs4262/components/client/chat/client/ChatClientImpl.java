@@ -47,7 +47,7 @@ public class ChatClientImpl implements ChatClient {
             printWriter.flush();
         } catch (IOException e) {
             // Sending failed. Disconnect if socket closed. Otherwise ignore.
-            log.error("Client({}) X<- {}", clientId, message);
+            log.fatal("Client({}) X<- {}", clientId, message);
             log.throwing(e);
         }
     }
