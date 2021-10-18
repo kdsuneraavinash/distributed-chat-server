@@ -165,8 +165,8 @@ public class SocketEventHandler extends AbstractEventHandler implements ClientSo
             Optional<AuthenticatedClient> authenticatedClientOp = authenticate(clientId);
             if (authenticatedClientOp.isEmpty()) {
                 // Ignore if the client is not authenticated
-                log.warn("Client({}) tried to message is not authenticated", clientId);
-                return false;
+                log.warn("Client({}) tried to message but is not authenticated", clientId);
+                return true;
             }
             AuthenticatedClient authenticatedClient = authenticatedClientOp.get();
             if (!currentServerId.equals(authenticatedClient.getServerId())) {
@@ -248,9 +248,9 @@ public class SocketEventHandler extends AbstractEventHandler implements ClientSo
         // If participant id is invalid locally, REJECT
         // Add client to waiting list. If someone is already waiting, REJECT
         boolean acceptedLocally = raftState.isAcceptable(baseLog)
-                && waitingList.getWaitingForCreation(participantId).isEmpty();
+                && waitingList.noOneWaitingForParticipantEvent(participantId);
         if (acceptedLocally && sendCommandRequest(baseLog)) {
-            waitingList.waitForParticipantCreation(participantId, clientId);
+            waitingList.waitForParticipantEvent(participantId, clientId);
             return;
         }
         // Send REJECT message
@@ -322,9 +322,9 @@ public class SocketEventHandler extends AbstractEventHandler implements ClientSo
         // If room id is invalid locally, REJECT
         // Add client to waiting list. If someone is already waiting, REJECT
         boolean acceptedLocally = raftState.isAcceptable(baseLog)
-                && waitingList.getWaitingForCreation(roomId).isEmpty();
+                && waitingList.noOneWaitingForRoomEvent(roomId);
         if (acceptedLocally && sendCommandRequest(baseLog)) {
-            waitingList.waitForRoomCreation(roomId, clientId);
+            waitingList.waitForRoomEvent(roomId, clientId);
             return;
         }
         // Send REJECT message
@@ -349,9 +349,9 @@ public class SocketEventHandler extends AbstractEventHandler implements ClientSo
         // Add client to waiting list. If someone is already waiting, REJECT
         boolean acceptedLocally = raftState.isAcceptable(baseLog)
                 && raftState.getOwnerOfRoom(roomId).equals(authenticatedClient.getParticipantId())
-                && waitingList.getWaitingForDeletion(roomId).isEmpty();
+                && waitingList.noOneWaitingForRoomEvent(roomId);
         if (acceptedLocally && sendCommandRequest(baseLog)) {
-            waitingList.waitForRoomDeletion(roomId, clientId);
+            waitingList.waitForRoomEvent(roomId, clientId);
             return;
         }
         // Send REJECT message
@@ -454,7 +454,7 @@ public class SocketEventHandler extends AbstractEventHandler implements ClientSo
         Integer formerServerPort = serverConfiguration.getCoordinationPort(formerServerId);
 
         // If someone already waiting for the same server change, REJECT
-        if (waitingList.getWaitingForServerChange(participantId).isEmpty()) {
+        if (waitingList.noOneWaitingForServerChangeEvent(participantId)) {
             try {
                 // Send validation request to former server and check if the client
                 // really disconnected from the said room.
@@ -472,7 +472,7 @@ public class SocketEventHandler extends AbstractEventHandler implements ClientSo
                     BaseLog baselog = ServerChangeLog.builder().formerServerId(formerServerId)
                             .newServerId(currentServerId).participantId(participantId).build();
                     if (sendCommandRequest(baselog)) {
-                        waitingList.waitForServerChange(participantId, clientId, formerRoomId, newRoomId);
+                        waitingList.waitForServerChangeEvent(participantId, clientId, formerRoomId, newRoomId);
                         return;
                     }
                 }

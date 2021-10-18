@@ -21,31 +21,25 @@ public class ChatRoomWaitingList {
     /**
      * Clients that are waiting for a participant id to be accepted.
      */
-    private final Map<ParticipantId, ClientId> waitingForParticipantIdCreation;
+    private final Map<ParticipantId, ClientId> waitingForParticipantEvent;
 
     /**
-     * Clients that are waiting for a new room id to be accepted.
+     * Clients that are waiting for a new room id to be accepted/deleted.
      */
-    private final Map<RoomId, ClientId> waitingForRoomIdCreation;
-
-    /**
-     * Clients that are waiting for a new room id deletion to be accepted.
-     */
-    private final Map<RoomId, ClientId> waitingForRoomIdDeletion;
+    private final Map<RoomId, ClientId> waitingForRoomEvent;
 
     /**
      * Clients that are waiting for a server change to connect to a chat room in another server.
      */
-    private final Map<ParticipantId, ServerChangeRecord> waitingForServerChange;
+    private final Map<ParticipantId, ServerChangeRecord> waitingForServerChangeEvent;
 
     /**
      * See {@link ChatRoomWaitingList}.
      */
     public ChatRoomWaitingList() {
-        this.waitingForParticipantIdCreation = new HashMap<>();
-        this.waitingForRoomIdCreation = new HashMap<>();
-        this.waitingForRoomIdDeletion = new HashMap<>();
-        this.waitingForServerChange = new HashMap<>();
+        this.waitingForParticipantEvent = new HashMap<>();
+        this.waitingForRoomEvent = new HashMap<>();
+        this.waitingForServerChangeEvent = new HashMap<>();
     }
 
     /**
@@ -55,8 +49,8 @@ public class ChatRoomWaitingList {
      * @param clientId      Client ID.
      */
     @Synchronized
-    public void waitForParticipantCreation(ParticipantId participantId, ClientId clientId) {
-        waitingForParticipantIdCreation.put(participantId, clientId);
+    public void waitForParticipantEvent(ParticipantId participantId, ClientId clientId) {
+        waitingForParticipantEvent.put(participantId, clientId);
     }
 
     /**
@@ -66,19 +60,8 @@ public class ChatRoomWaitingList {
      * @param clientId Client ID.
      */
     @Synchronized
-    public void waitForRoomCreation(RoomId roomId, ClientId clientId) {
-        waitingForRoomIdCreation.put(roomId, clientId);
-    }
-
-    /**
-     * Add to a waiting list to wait until a room id is deleted.
-     *
-     * @param roomId   Room ID.
-     * @param clientId Client ID.
-     */
-    @Synchronized
-    public void waitForRoomDeletion(RoomId roomId, ClientId clientId) {
-        waitingForRoomIdDeletion.put(roomId, clientId);
+    public void waitForRoomEvent(RoomId roomId, ClientId clientId) {
+        waitingForRoomEvent.put(roomId, clientId);
     }
 
     /**
@@ -91,54 +74,43 @@ public class ChatRoomWaitingList {
      * @param newRoomId     New Room ID.
      */
     @Synchronized
-    public void waitForServerChange(ParticipantId participantId,
-                                    ClientId clientId, RoomId formerRoomId, RoomId newRoomId) {
-        waitingForServerChange.put(participantId, new ServerChangeRecord(clientId, formerRoomId, newRoomId));
+    public void waitForServerChangeEvent(ParticipantId participantId,
+                                         ClientId clientId, RoomId formerRoomId, RoomId newRoomId) {
+        waitingForServerChangeEvent.put(participantId, new ServerChangeRecord(clientId, formerRoomId, newRoomId));
     }
 
     /**
-     * Get the client that is waiting for this participant id creation.
+     * Get if there are no clients that is waiting for this participant id creation.
      *
      * @param participantId Participant ID.
-     * @return ID of waiting Client (if any)
+     * @return Whether there are no clients waiting.
      */
     @Synchronized
-    public Optional<ClientId> getWaitingForCreation(ParticipantId participantId) {
-        return Optional.ofNullable(waitingForParticipantIdCreation.get(participantId));
+    public boolean noOneWaitingForParticipantEvent(ParticipantId participantId) {
+        return !waitingForParticipantEvent.containsKey(participantId);
     }
 
     /**
-     * Get the client that is waiting for this room id creation.
+     * Get if there are no clients that is waiting for this room id creation/deletion.
      *
      * @param roomId Room ID.
-     * @return ID of waiting Client (if any)
+     * @return Whether there are no clients waiting.
      */
     @Synchronized
-    public Optional<ClientId> getWaitingForCreation(RoomId roomId) {
-        return Optional.ofNullable(waitingForRoomIdCreation.get(roomId));
+    public boolean noOneWaitingForRoomEvent(RoomId roomId) {
+        return !waitingForRoomEvent.containsKey(roomId);
     }
 
     /**
-     * Get the client that is waiting for this room id deletion.
-     *
-     * @param roomId Room ID.
-     * @return ID of waiting Client (if any)
-     */
-    @Synchronized
-    public Optional<ClientId> getWaitingForDeletion(RoomId roomId) {
-        return Optional.ofNullable(waitingForRoomIdDeletion.get(roomId));
-    }
-
-    /**
-     * Get the data for a specific participant id in a server change process.
+     * Get if there are no data for a specific participant id in a server change process.
      * Used by the destination server to validate the server change source server.
      *
      * @param participantId Participant ID.
-     * @return Related data involved in the server change if any.
+     * @return Whether there are no clients waiting.
      */
     @Synchronized
-    public Optional<ServerChangeRecord> getWaitingForServerChange(ParticipantId participantId) {
-        return Optional.ofNullable(waitingForServerChange.get(participantId));
+    public boolean noOneWaitingForServerChangeEvent(ParticipantId participantId) {
+        return !waitingForServerChangeEvent.containsKey(participantId);
     }
 
     /**
@@ -150,8 +122,8 @@ public class ChatRoomWaitingList {
      * @return ID of waiting Client (if any)
      */
     @Synchronized
-    public Optional<ClientId> removeWaitingForCreation(ParticipantId participantId) {
-        return Optional.ofNullable(waitingForParticipantIdCreation.remove(participantId));
+    public Optional<ClientId> removeWaitingForParticipantEvent(ParticipantId participantId) {
+        return Optional.ofNullable(waitingForParticipantEvent.remove(participantId));
     }
 
     /**
@@ -161,19 +133,8 @@ public class ChatRoomWaitingList {
      * @param roomId Room ID.
      */
     @Synchronized
-    public void removeWaitingForCreation(RoomId roomId) {
-        waitingForRoomIdCreation.remove(roomId);
-    }
-
-    /**
-     * Remove the client that is waiting for this room id deletion.
-     * Ignore if there isn't a client waiting.
-     *
-     * @param roomId Room ID.
-     */
-    @Synchronized
-    public void removeWaitingForDeletion(RoomId roomId) {
-        waitingForRoomIdDeletion.remove(roomId);
+    public void removeWaitingForRoomEvent(RoomId roomId) {
+        waitingForRoomEvent.remove(roomId);
     }
 
     /**
@@ -185,8 +146,8 @@ public class ChatRoomWaitingList {
      * @return Related data involved in the server change if any.
      */
     @Synchronized
-    public Optional<ServerChangeRecord> removeWaitingForServerChange(ParticipantId participantId) {
-        return Optional.ofNullable(waitingForServerChange.remove(participantId));
+    public Optional<ServerChangeRecord> removeWaitingForServerChangeEvent(ParticipantId participantId) {
+        return Optional.ofNullable(waitingForServerChangeEvent.remove(participantId));
     }
 
     /**
@@ -197,10 +158,9 @@ public class ChatRoomWaitingList {
      */
     @Synchronized
     public void removeClientFromAllWaitingLists(ClientId clientId) {
-        waitingForParticipantIdCreation.values().remove(clientId);
-        waitingForRoomIdCreation.values().remove(clientId);
-        waitingForRoomIdDeletion.values().remove(clientId);
-        waitingForServerChange.values().removeIf(record -> clientId.equals(record.getClientId()));
+        waitingForParticipantEvent.values().remove(clientId);
+        waitingForRoomEvent.values().remove(clientId);
+        waitingForServerChangeEvent.values().removeIf(record -> clientId.equals(record.getClientId()));
     }
 
     /**

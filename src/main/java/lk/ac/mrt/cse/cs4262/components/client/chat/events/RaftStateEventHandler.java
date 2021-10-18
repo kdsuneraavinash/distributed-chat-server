@@ -65,7 +65,7 @@ public class RaftStateEventHandler extends AbstractEventHandler implements RaftS
     public void participantIdCreated(ParticipantId createdParticipantId) {
         log.traceEntry("createdParticipantId={}", createdParticipantId);
         // Get client from waiting list. If no one waiting, fake the client.
-        ClientId clientId = waitingList.removeWaitingForCreation(createdParticipantId)
+        ClientId clientId = waitingList.removeWaitingForParticipantEvent(createdParticipantId)
                 .orElseGet(ClientId::fake);
 
         // Update chat room maps.
@@ -85,8 +85,7 @@ public class RaftStateEventHandler extends AbstractEventHandler implements RaftS
         // Get owners client id and former chat room (this must exist)
         ClientId ownerClientId = chatRoomState.getClientIdOf(ownerParticipantId);
         RoomId formerRoomId = chatRoomState.getCurrentRoomIdOf(ownerParticipantId);
-        // Remove and get the client that is waiting for the room creation
-        waitingList.removeWaitingForCreation(createdRoomId);
+        waitingList.removeWaitingForRoomEvent(createdRoomId);
 
         // Update chat room maps.
         chatRoomState.roomCreate(ownerClientId, createdRoomId);
@@ -124,7 +123,7 @@ public class RaftStateEventHandler extends AbstractEventHandler implements RaftS
     public void roomIdDeleted(RoomId deletedRoomId, ParticipantId ownerId) {
         log.traceEntry("deletedRoomId={}", deletedRoomId);
         ClientId ownerClientId = chatRoomState.getClientIdOf(ownerId);
-        waitingList.removeWaitingForDeletion(deletedRoomId);
+        waitingList.removeWaitingForRoomEvent(deletedRoomId);
 
         // Update chat room maps.
         Collection<ClientId> prevClientIds = chatRoomState.roomDelete(deletedRoomId);
@@ -154,7 +153,7 @@ public class RaftStateEventHandler extends AbstractEventHandler implements RaftS
         log.traceEntry("participantJoined={}", joinedParticipant);
         // If not stored, assume moving from main room
         ChatRoomWaitingList.ServerChangeRecord record = waitingList
-                .removeWaitingForServerChange(joinedParticipant)
+                .removeWaitingForServerChangeEvent(joinedParticipant)
                 .orElseGet(() -> new ChatRoomWaitingList.ServerChangeRecord(ClientId.fake(), mainRoomId, mainRoomId));
         ClientId clientId = record.getClientId();
         RoomId formerRoomId = record.getFormerRoomId();
