@@ -113,17 +113,21 @@ public class SocketEventHandler extends AbstractEventHandler implements ClientSo
      * @param clientId ID of client.
      * @return All gathered client information.
      */
-    private AuthenticatedClient authenticate(ClientId clientId) {
+    private Optional<AuthenticatedClient> authenticate(ClientId clientId) {
+        if (!chatRoomState.isParticipant(clientId)) {
+            return Optional.empty();
+        }
         ParticipantId participantId = chatRoomState.getParticipantIdOf(clientId);
         RoomId currentRoomId = chatRoomState.getCurrentRoomIdOf(participantId);
         ServerId serverId = raftState.getServerOfRoom(currentRoomId);
         Optional<RoomId> owningRoomId = raftState.getRoomOwnedByParticipant(participantId);
-        return AuthenticatedClient.builder()
+        AuthenticatedClient authenticatedClient = AuthenticatedClient.builder()
                 .clientId(clientId)
                 .participantId(participantId)
                 .serverId(serverId)
                 .currentRoomId(currentRoomId)
                 .owningRoomId(owningRoomId.orElse(null)).build();
+        return Optional.of(authenticatedClient);
     }
 
     /*
@@ -155,7 +159,13 @@ public class SocketEventHandler extends AbstractEventHandler implements ClientSo
             }
             return false;
         } else {
-            AuthenticatedClient authenticatedClient = authenticate(clientId);
+            Optional<AuthenticatedClient> authenticatedClientOp = authenticate(clientId);
+            if (authenticatedClientOp.isEmpty()) {
+                // Ignore if the client is not authenticated
+                log.warn("Client({}) tried to message is not authenticated", clientId);
+                return false;
+            }
+            AuthenticatedClient authenticatedClient = authenticatedClientOp.get();
             if (movedParticipants.containsKey(authenticatedClient.getParticipantId())) {
                 // Moved participant, IGNORE any other requests.
                 return true;
@@ -203,7 +213,10 @@ public class SocketEventHandler extends AbstractEventHandler implements ClientSo
 
     @Override
     public void clientSideDisconnect(ClientId clientId) {
-        processQuitRequest(authenticate(clientId));
+        Optional<AuthenticatedClient> authenticatedClientOp = authenticate(clientId);
+        // Send quit message only if authenticated. (has a participant id)
+        authenticatedClientOp.ifPresent(this::processQuitRequest);
+        waitingList.removeClientFromAllWaitingLists(clientId);
     }
 
     /*
@@ -457,7 +470,7 @@ public class SocketEventHandler extends AbstractEventHandler implements ClientSo
                 }
 
             } catch (IOException e) {
-                log.error("error: {}", e.toString());
+                log.fatal("error: {}", e.toString());
                 log.throwing(e);
             }
         }

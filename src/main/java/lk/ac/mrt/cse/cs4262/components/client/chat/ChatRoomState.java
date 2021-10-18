@@ -226,6 +226,16 @@ public class ChatRoomState {
      */
 
     /**
+     * Whether the client is a participant in the system.
+     *
+     * @param clientId ID of the client.
+     * @return Whether client has a registered participant.
+     */
+    public boolean isParticipant(ClientId clientId) {
+        return clientParticipantMap.containsKey(clientId);
+    }
+
+    /**
      * Get the participant id of a client.
      *
      * @param clientId ID of the client.
