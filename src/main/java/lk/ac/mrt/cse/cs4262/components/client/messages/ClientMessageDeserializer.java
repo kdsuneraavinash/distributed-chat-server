@@ -35,7 +35,6 @@ public class ClientMessageDeserializer extends TypedJsonDeserializer<BaseClientR
 
     @Override
     protected Class<?> mapTypeToClass(String type) throws JsonParseException {
-        // TODO: Register other request types
         switch (type) {
             case NEW_IDENTITY_TYPE:
                 return NewIdentityClientRequest.class;

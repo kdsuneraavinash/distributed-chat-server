@@ -81,7 +81,6 @@ public class RaftPersistentStateImpl implements RaftPersistentState {
 
     @Override
     public void initialize() {
-        // TODO: Fix bug with state not forwarding correctly
         loadState();
     }
 

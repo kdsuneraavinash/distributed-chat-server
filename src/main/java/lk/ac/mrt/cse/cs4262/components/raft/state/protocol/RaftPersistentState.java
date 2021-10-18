@@ -23,8 +23,6 @@ public interface RaftPersistentState {
     int getCurrentTerm();
 
     /**
-     * TODO: Can we just increment this?
-     *
      * @param currentTerm The current term of server.
      */
     void setCurrentTerm(int currentTerm);
@@ -35,8 +33,6 @@ public interface RaftPersistentState {
     Optional<ServerId> getVotedFor();
 
     /**
-     * TODO: Can we remove nullable requirement?
-     *
      * @param votedFor The voted server for this term. (null if none)
      */
     void setVotedFor(@Nullable ServerId votedFor);

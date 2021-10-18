@@ -22,7 +22,7 @@ import lk.ac.mrt.cse.cs4262.components.client.chat.events.SocketEventHandler;
 import lk.ac.mrt.cse.cs4262.components.client.messages.requests.MoveJoinValidateRequest;
 import lk.ac.mrt.cse.cs4262.components.client.messages.responses.MoveJoinValidateResponse;
 import lk.ac.mrt.cse.cs4262.components.gossip.state.GossipStateReadView;
-import lk.ac.mrt.cse.cs4262.components.raft.state.RaftState;
+import lk.ac.mrt.cse.cs4262.components.raft.state.RaftStateReadView;
 import lk.ac.mrt.cse.cs4262.components.raft.state.logs.BaseLog;
 import lk.ac.mrt.cse.cs4262.components.raft.state.logs.DeleteIdentityLog;
 import lombok.Cleanup;
@@ -51,7 +51,7 @@ public class ClientComponent implements ServerComponent, Runnable, AutoCloseable
     private static final int CHECK_DELETED_ID_ROOMID_INITIAL_DELAY = 1000;
 
     private final RaftStateEventHandler raftStateEventHandler;
-    private final RaftState raftState;
+    private final RaftStateReadView raftState;
     private final ServerConfiguration serverConfiguration;
     private final SocketEventHandler socketEventHandler;
     private final Map<ClientId, ChatClient> allClients;
@@ -74,7 +74,7 @@ public class ClientComponent implements ServerComponent, Runnable, AutoCloseable
      * @param serverConfiguration System server information.
      */
     public ClientComponent(int port, ServerId currentServerId,
-                           GossipStateReadView gossipState, RaftState raftState,
+                           GossipStateReadView gossipState, RaftStateReadView raftState,
                            ServerConfiguration serverConfiguration) {
         RoomId mainRoomId = raftState.getMainRoomId(currentServerId);
         ChatRoomWaitingList waitingList = new ChatRoomWaitingList();

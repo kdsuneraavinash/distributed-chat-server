@@ -237,8 +237,6 @@ public class RaftControllerImpl implements RaftController {
     public boolean handleCommandRequest(CommandRequestMessage request) {
         log.traceEntry("request={}", request);
 
-        // TODO: Check if request is valid depending on its type and current state.
-        // TODO: Send reply with correct leader if I am not the leader.
         if (NodeState.LEADER.equals(raftState.getState())) {
             BaseLog baseLog = request.getCommand();
             if (raftState.isAcceptable(baseLog)) {
@@ -285,7 +283,6 @@ public class RaftControllerImpl implements RaftController {
                 raftState.setLeaderId(senderId);
             }
 
-            // TODO: Following line is required ???? But not in slides.
             restartElectionTimeout();
 
             int prevIndex = request.getPrevIndex();

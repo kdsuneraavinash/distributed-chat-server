@@ -12,7 +12,6 @@ import java.util.Optional;
 /**
  * The State containing the primary system state read view.
  * No edits are permitted via this view.
- * TODO: Change Client component to accept RaftStateReadView.
  */
 public interface RaftStateReadView {
     /**

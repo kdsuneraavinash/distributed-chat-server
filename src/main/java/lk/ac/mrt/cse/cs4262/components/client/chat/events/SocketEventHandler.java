@@ -439,7 +439,6 @@ public class SocketEventHandler extends AbstractEventHandler implements ClientSo
                                         RoomId formerRoomId, RoomId newRoomId) {
         log.info("clientId={} participantId={} formerRoomId={} newRoomId={}",
                 clientId, participantId, formerRoomId, newRoomId);
-        // TODO: Handle the invalid cases properly. Protocol doesn't specify.
 
         ServerId formerServerId = raftState.getServerOfRoom(formerRoomId);
         String formerServerAddress = serverConfiguration.getServerAddress(formerServerId);

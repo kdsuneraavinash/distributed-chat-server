@@ -19,7 +19,6 @@ public class RaftMessageDeserializer extends TypedJsonDeserializer<BaseRaftMessa
 
     @Override
     protected Class<?> mapTypeToClass(String action) throws JsonParseException {
-        // TODO: Register other request types
         switch (action) {
             case BaseRaftMessage.REQUEST_VOTE_REQ:
                 return VoteRequestMessage.class;
