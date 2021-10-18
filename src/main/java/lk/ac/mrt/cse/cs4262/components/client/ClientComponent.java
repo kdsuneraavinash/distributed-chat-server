@@ -133,7 +133,7 @@ public class ClientComponent implements ServerComponent, Runnable, AutoCloseable
                 this.executorService.submit(new ClientSocketListener(clientId, socket, socketEventHandler));
             }
         } catch (IOException e) {
-            log.error("Server socket opening failed on port {}.", port);
+            log.fatal("Server socket opening failed on port {}.", port);
             log.throwing(e);
         } finally {
             this.executorService.shutdownNow();

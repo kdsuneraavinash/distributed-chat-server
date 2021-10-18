@@ -82,7 +82,7 @@ public class RaftPersistentStateImpl implements RaftPersistentState {
     @Override
     public void initialize() {
         // TODO: Fix bug with state not forwarding correctly
-         loadState();
+        loadState();
     }
 
     @Override
@@ -189,7 +189,7 @@ public class RaftPersistentStateImpl implements RaftPersistentState {
                 }
             } catch (IOException e) {
                 // Grave Error XP
-                log.error("state loading failed!!!");
+                log.fatal("state loading failed!!!");
                 log.throwing(e);
             }
         }
@@ -202,7 +202,7 @@ public class RaftPersistentStateImpl implements RaftPersistentState {
             serializer.toJson(new SerializedState(raftLogs, currentTerm, votedForStr), fileWriter);
         } catch (IOException e) {
             // Grave Error XP
-            log.error("state saving failed!!!");
+            log.fatal("state saving failed!!!");
             log.throwing(e);
         }
     }
