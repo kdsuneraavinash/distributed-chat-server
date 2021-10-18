@@ -1,10 +1,10 @@
 package lk.ac.mrt.cse.cs4262.components.client.messages.requests;
 
 import com.google.gson.annotations.SerializedName;
-import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
 
-@AllArgsConstructor
+@Builder
 @Getter
 public class MoveJoinValidateRequest {
 
@@ -12,5 +12,5 @@ public class MoveJoinValidateRequest {
     private String participantId;
 
     @SerializedName("roomid")
-    private String roomId;
+    private String formerRoomId;
 }

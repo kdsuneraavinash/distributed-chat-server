@@ -10,6 +10,7 @@ import lk.ac.mrt.cse.cs4262.components.raft.state.logs.CreateIdentityLog;
 import lk.ac.mrt.cse.cs4262.components.raft.state.logs.CreateRoomLog;
 import lk.ac.mrt.cse.cs4262.components.raft.state.logs.DeleteIdentityLog;
 import lk.ac.mrt.cse.cs4262.components.raft.state.logs.DeleteRoomLog;
+import lk.ac.mrt.cse.cs4262.components.raft.state.logs.NoOpLog;
 import lk.ac.mrt.cse.cs4262.components.raft.state.logs.ServerChangeLog;
 
 import java.lang.reflect.Type;
@@ -37,6 +38,8 @@ public class RaftLogDeserializer extends TypedJsonDeserializer<BaseLog> implemen
                 return DeleteRoomLog.class;
             case BaseLog.SERVER_CHANGE_LOG:
                 return ServerChangeLog.class;
+            case BaseLog.NO_OP_LOG:
+                return NoOpLog.class;
             default:
                 throw new JsonParseException("unknown type: " + action);
         }
@@ -54,6 +57,8 @@ public class RaftLogDeserializer extends TypedJsonDeserializer<BaseLog> implemen
             return context.serialize(src, DeleteRoomLog.class);
         } else if (src instanceof ServerChangeLog) {
             return context.serialize(src, ServerChangeLog.class);
+        } else if (src instanceof NoOpLog) {
+            return context.serialize(src, NoOpLog.class);
         } else {
             return context.serialize(src);
         }

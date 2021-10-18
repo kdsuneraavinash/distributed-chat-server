@@ -5,7 +5,6 @@ import lk.ac.mrt.cse.cs4262.common.symbols.ServerId;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Optional;
 
 /**
  * Non-persistent state of server.
@@ -53,7 +52,10 @@ public class RaftLeaderStateImpl implements RaftLeaderState {
 
     @Override
     public int getNextIndex(ServerId serverId) {
-        return Optional.ofNullable(nextIndices.get(serverId)).orElseThrow();
+        if (nextIndices.containsKey(serverId)) {
+            return nextIndices.get(serverId);
+        }
+        throw new IllegalStateException("unknown server id");
     }
 
     @Override
@@ -63,7 +65,10 @@ public class RaftLeaderStateImpl implements RaftLeaderState {
 
     @Override
     public int getMatchIndex(ServerId serverId) {
-        return Optional.ofNullable(matchIndices.get(serverId)).orElseThrow();
+        if (matchIndices.containsKey(serverId)) {
+            return matchIndices.get(serverId);
+        }
+        throw new IllegalStateException("unknown server id");
     }
 
     @Override

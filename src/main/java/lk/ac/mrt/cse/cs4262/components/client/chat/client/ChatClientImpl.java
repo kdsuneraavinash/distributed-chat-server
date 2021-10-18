@@ -41,7 +41,7 @@ public class ChatClientImpl implements ChatClient {
         }
         try {
             // Get output stream of socket. (Don't close afterwards)
-            OutputStream socketOutputStream = getSocket().getOutputStream();
+            OutputStream socketOutputStream = socket.getOutputStream();
             PrintWriter printWriter = new PrintWriter(socketOutputStream, false, StandardCharsets.UTF_8);
             printWriter.println(message);
             printWriter.flush();
