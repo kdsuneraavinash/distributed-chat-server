@@ -106,7 +106,7 @@ public class RaftPersistentStateImpl implements RaftPersistentState {
         raftLogs.add(raftLog);
         forwardState(raftLog.getCommand());
         saveState();
-        log.info("appended uncommitted log: {}", raftLog);
+        log.debug("appended uncommitted log: {}", raftLog);
     }
 
     @Override
@@ -127,7 +127,7 @@ public class RaftPersistentStateImpl implements RaftPersistentState {
                     .forEach(this::forwardState);
         }
         saveState();
-        log.info("inserted uncommitted log at {}: {}", index, raftLog);
+        log.debug("inserted uncommitted log at {}: {}", index, raftLog);
         log.traceExit("loggedParticipants={} loggedRooms={}");
     }
 

@@ -77,12 +77,13 @@ public class ClientComponent implements ServerComponent, Runnable, AutoCloseable
                            GossipStateReadView gossipState, RaftStateReadView raftState,
                            ServerConfiguration serverConfiguration) {
         RoomId mainRoomId = raftState.getMainRoomId(currentServerId);
+        ParticipantId systemUserId = raftState.getSystemUserId(currentServerId);
         ChatRoomWaitingList waitingList = new ChatRoomWaitingList();
 
         this.port = port;
         this.allClients = new HashMap<>();
         this.raftState = raftState;
-        this.chatRoomState = new ChatRoomState(mainRoomId);
+        this.chatRoomState = new ChatRoomState(mainRoomId, systemUserId);
         this.serializer = new Gson();
         this.socketEventHandler = SocketEventHandler.builder()
                 .currentServerId(currentServerId)

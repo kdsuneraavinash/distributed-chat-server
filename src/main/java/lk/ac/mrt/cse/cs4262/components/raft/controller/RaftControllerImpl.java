@@ -96,7 +96,7 @@ public class RaftControllerImpl implements RaftController {
             // Change term and appoint as candidate
             raftState.setCurrentTerm(raftState.getCurrentTerm() + 1);
             raftState.setState(NodeState.CANDIDATE);
-            log.info("starting election round and becoming candidate for term {}",
+            log.debug("starting election round and becoming candidate for term {}",
                     raftState.getCurrentTerm());
 
             // Add my own vote for the election
@@ -153,7 +153,7 @@ public class RaftControllerImpl implements RaftController {
         // If sender has a higher term, step down immediately.
         int currentTerm = raftState.getCurrentTerm();
         if (senderTerm > currentTerm) {
-            log.debug("stepping down on vote request from {}", senderId);
+            log.trace("stepping down on vote request from {}", senderId);
             stepDown(senderTerm);
 
         } else if (senderTerm == currentTerm) {
@@ -161,7 +161,7 @@ public class RaftControllerImpl implements RaftController {
             // vote can be given to the sender.
             Optional<ServerId> myVote = raftState.getVotedFor();
             if (myVote.isEmpty() || myVote.get().equals(senderId)) {
-                log.debug("can vote for {}", senderId);
+                log.trace("can vote for {}", senderId);
                 // If sender has logs that are same or newer, vote.
                 int senderLastLogTerm = request.getLastLogTerm();
                 int senderLastLogIndex = request.getLastLogIndex();
@@ -169,7 +169,7 @@ public class RaftControllerImpl implements RaftController {
                 if (senderLastLogTerm > lastLogTerm
                         || (senderLastLogTerm == lastLogTerm
                         && senderLastLogIndex >= raftState.getLogSize())) {
-                    log.info("voted for {}", senderId);
+                    log.debug("voted for {}", senderId);
 
                     // Vote for the server.
                     raftState.setVotedFor(senderId);
@@ -209,7 +209,7 @@ public class RaftControllerImpl implements RaftController {
 
                 // Check if minimum required votes is reached.
                 int minimumRequiredVotes = serverConfiguration.allServerIds().size() / 2 + 1;
-                log.info("received vote reply. current votes {}/{} for term {}",
+                log.debug("received vote reply. current votes {}/{} for term {}",
                         votes.size(), minimumRequiredVotes, currentTerm);
                 if (votes.size() >= minimumRequiredVotes) {
                     // Appoint myself as leader.
@@ -357,7 +357,7 @@ public class RaftControllerImpl implements RaftController {
      *             This is newer than the current term.
      */
     private void stepDown(int term) {
-        log.info("stepping down and becoming follower for term={}", term);
+        log.debug("stepping down and becoming follower for term={}", term);
 
         // Update term and set self as follower.
         raftState.setCurrentTerm(term);

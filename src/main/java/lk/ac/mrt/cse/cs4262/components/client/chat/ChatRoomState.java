@@ -1,7 +1,10 @@
 package lk.ac.mrt.cse.cs4262.components.client.chat;
 
+import com.google.common.base.Preconditions;
 import com.google.common.collect.BiMap;
 import com.google.common.collect.HashBiMap;
+import com.google.common.collect.HashMultimap;
+import com.google.common.collect.Multimap;
 import lk.ac.mrt.cse.cs4262.common.symbols.ClientId;
 import lk.ac.mrt.cse.cs4262.common.symbols.ParticipantId;
 import lk.ac.mrt.cse.cs4262.common.symbols.RoomId;
@@ -9,11 +12,10 @@ import lombok.Synchronized;
 import lombok.ToString;
 import lombok.extern.log4j.Log4j2;
 
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * Class tracking the state of chat rooms.
@@ -21,195 +23,37 @@ import java.util.Map;
 @Log4j2
 @ToString
 public class ChatRoomState {
-    /**
-     * ID of the main room.
-     */
     private final RoomId mainRoomId;
+    private final ParticipantId systemUserId;
 
     /**
      * Data structure to track client id of participants.
+     * All authenticated clients are guaranteed to be in this map.
      */
-    private final BiMap<ParticipantId, ClientId> participantClientMap;
-
-    /**
-     * Data structure to track all the participants in a given room.
-     * The clients in the map should have a participant id.
-     */
-    private final Map<RoomId, List<ClientId>> roomClientListMap;
+    private final BiMap<ClientId, ParticipantId> clientParticipantMap;
 
     /**
      * Data structure to track the current room of a given participant.
      */
+    private final Multimap<RoomId, ParticipantId> roomParticipantMap;
     private final Map<ParticipantId, RoomId> participantRoomMap;
 
     /**
      * See {@link ChatRoomState}.
      *
-     * @param mainRoomId ID of the main room in the server.
+     * @param mainRoomId   ID of the main room in the server.
+     * @param systemUserId ID of the system user.
      */
-    public ChatRoomState(RoomId mainRoomId) {
+    public ChatRoomState(RoomId mainRoomId, ParticipantId systemUserId) {
         this.mainRoomId = mainRoomId;
-
-        this.participantClientMap = HashBiMap.create();
-        this.roomClientListMap = new HashMap<>();
-        this.roomClientListMap.put(this.mainRoomId, new ArrayList<>());
+        this.systemUserId = systemUserId;
+        this.clientParticipantMap = HashBiMap.create();
+        this.roomParticipantMap = HashMultimap.create();
         this.participantRoomMap = new HashMap<>();
-    }
-
-    /*
-    ========================================================
-    State Write Methods
-    ========================================================
-     */
-
-    /**
-     * Participant ID created.
-     *
-     * @param clientId      ID of the client.
-     * @param participantId New participant ID.
-     */
-    @Synchronized
-    public void participantCreate(ClientId clientId, ParticipantId participantId) {
-        log.traceEntry("clientId={} participantId={}", clientId, participantId);
-        if (!roomClientListMap.containsKey(mainRoomId)) {
-            throw new IllegalStateException("main room does not exist");
-        }
-        participantClientMap.put(participantId, clientId);
-        roomClientListMap.get(mainRoomId).add(clientId);
-        participantRoomMap.put(participantId, mainRoomId);
-        log.traceExit("state modified: {}", this);
-    }
-
-    /**
-     * Delete participant from the server.
-     *
-     * @param participantId ID of the participant.
-     */
-    @Synchronized
-    public void participantDelete(ParticipantId participantId) {
-        log.traceEntry("participantId={}", participantId);
-        ClientId clientId = participantClientMap.remove(participantId);
-        if (clientId == null) {
-            throw new IllegalStateException("participant unknown");
-        }
-        RoomId formerRoomId = getCurrentRoomIdOf(participantId);
-        participantRoomMap.remove(participantId);
-        if (roomClientListMap.containsKey(formerRoomId)) {
-            roomClientListMap.get(formerRoomId).remove(clientId);
-        }
-        log.traceExit("state modified: {}", this);
-    }
-
-    /**
-     * Participants joins a room that is also in the same server.
-     * The room join must happen inside the same server.
-     *
-     * @param clientId ID of the client.
-     * @param roomId   Moving room ID.
-     */
-    @Synchronized
-    public void roomJoinInternal(ClientId clientId, RoomId roomId) {
-        log.traceEntry("clientId={} roomId={}", clientId, roomId);
-        if (!roomClientListMap.containsKey(roomId)) {
-            throw new IllegalArgumentException("next room does not exist");
-        }
-        ParticipantId participantId = getParticipantIdOf(clientId);
-        RoomId formerRoomId = getCurrentRoomIdOf(participantId);
-        participantRoomMap.put(participantId, roomId);
-        // Ignore if former room does not exist
-        if (roomClientListMap.containsKey(formerRoomId)) {
-            roomClientListMap.get(formerRoomId).remove(clientId);
-        }
-        roomClientListMap.get(roomId).add(clientId);
-        log.traceExit("state modified: {}", this);
-    }
-
-    /**
-     * Participants join from an external server.
-     *
-     * @param clientId      Client ID
-     * @param participantId Participant ID
-     * @param roomId        Room ID
-     */
-    @Synchronized
-    public void roomJoinExternal(ClientId clientId, ParticipantId participantId, RoomId roomId) {
-        log.traceEntry("clientId={} participantId={} roomId={}", clientId, participantId, roomId);
-        if (!roomClientListMap.containsKey(roomId)) {
-            throw new IllegalArgumentException("next room does not exist");
-        }
-        participantClientMap.put(participantId, clientId);
-        roomClientListMap.get(roomId).add(clientId);
-        participantRoomMap.put(participantId, roomId);
-    }
-
-    /**
-     * Delete participants who have moved to another server. Participants
-     * get deleted after moving the destination server successfully.
-     *
-     * @param clientId Client ID
-     * @param roomId   Room ID
-     */
-    @Synchronized
-    public void deleteMovedParticipant(ClientId clientId, RoomId roomId) {
-        log.traceEntry("clientId={} roomId={}", clientId, roomId);
-        if (!roomClientListMap.containsKey(roomId)) {
-            throw new IllegalArgumentException("previous room does not exist");
-        }
-        ParticipantId participantId = getParticipantIdOf(clientId);
-        participantRoomMap.remove(participantId);
-        roomClientListMap.get(roomId).remove(clientId);
-    }
-
-    /**
-     * Create a room.
-     *
-     * @param clientId ID of the client.
-     * @param roomId   Newly created room.
-     */
-    @Synchronized
-    public void roomCreate(ClientId clientId, RoomId roomId) {
-        log.traceEntry("clientId={} roomId={}", clientId, roomId);
-        ParticipantId participantId = getParticipantIdOf(clientId);
-        RoomId formerRoomId = getCurrentRoomIdOf(participantId);
-        List<ClientId> newRoomClients = new ArrayList<>();
-        newRoomClients.add(clientId);
-        // Ignore if former room does not exist
-        if (roomClientListMap.containsKey(formerRoomId)) {
-            roomClientListMap.get(formerRoomId).remove(clientId);
-        }
-        roomClientListMap.put(roomId, newRoomClients);
-        participantRoomMap.put(participantId, roomId);
-        log.traceExit("state modified: {}", this);
-    }
-
-    /**
-     * Delete a room from server.
-     * Participants are moved to main room.
-     *
-     * @param deletedRoomId Deleted room id.
-     * @return Clients of the deleted chat room.
-     */
-    @Synchronized
-    public Collection<ClientId> roomDelete(RoomId deletedRoomId) {
-        log.traceEntry("deletedRoomId={}", deletedRoomId);
-        if (!roomClientListMap.containsKey(mainRoomId)) {
-            throw new IllegalStateException("main room does not exist");
-        }
-        if (!roomClientListMap.containsKey(deletedRoomId)) {
-            throw new IllegalArgumentException("deleted room does not exist");
-        }
-        List<ClientId> prevClientIds = roomClientListMap.remove(deletedRoomId);
-        // Ignore if prevClientIds is null for some reason
-        if (prevClientIds == null) {
-            return List.of();
-        }
-        roomClientListMap.get(mainRoomId).addAll(prevClientIds);
-        for (ClientId prevClientId : prevClientIds) {
-            ParticipantId prevParticipantId = getParticipantIdOf(prevClientId);
-            participantRoomMap.put(prevParticipantId, mainRoomId);
-        }
-        log.traceExit("state modified: {}", this);
-        return prevClientIds;
+        // Add system user and rooms
+        this.clientParticipantMap.put(ClientId.real(), systemUserId);
+        this.roomParticipantMap.put(mainRoomId, systemUserId);
+        this.participantRoomMap.put(systemUserId, mainRoomId);
     }
 
     /*
@@ -219,59 +63,37 @@ public class ChatRoomState {
      */
 
     /**
-     * Whether the client is a participant in the system.
-     *
-     * @param clientId ID of the client.
-     * @return Whether client has a registered participant.
+     * @param clientId Client ID.
+     * @return Whether client has not participant mapped.
      */
-    public boolean isParticipant(ClientId clientId) {
-        return participantClientMap.containsValue(clientId);
+    public boolean cannotFindParticipant(ClientId clientId) {
+        return !clientParticipantMap.containsKey(clientId);
     }
 
     /**
-     * Get the participant id of a client.
-     *
      * @param clientId ID of the client.
      * @return ID of the corresponding participant if any.
      */
     public ParticipantId getParticipantIdOf(ClientId clientId) {
-        ParticipantId participantId = participantClientMap.inverse().get(clientId);
-        if (participantId != null) {
-            return participantId;
+        if (clientParticipantMap.containsKey(clientId)) {
+            return clientParticipantMap.get(clientId);
         }
         throw new IllegalStateException("client does not exist");
     }
 
     /**
-     * Get the client id of a participant.
-     *
      * @param participantId ID of the participant.
      * @return ID of the corresponding client if any.
      */
     public ClientId getClientIdOf(ParticipantId participantId) {
-        if (participantClientMap.containsKey(participantId)) {
-            return participantClientMap.get(participantId);
+        ClientId clientId = clientParticipantMap.inverse().get(participantId);
+        if (clientId != null) {
+            return clientId;
         }
-        throw new IllegalStateException("participant does not exist");
+        throw new IllegalStateException("client does not exist");
     }
 
     /**
-     * Get the clients of a room.
-     * If the room does not exist, an empty collection will be returned.
-     *
-     * @param roomId ID of the room.
-     * @return Client IDs of participants.
-     */
-    public Collection<ClientId> getClientIdsOf(RoomId roomId) {
-        if (roomClientListMap.containsKey(roomId)) {
-            return roomClientListMap.get(roomId);
-        }
-        return List.of();
-    }
-
-    /**
-     * Get the current room id of a participant.
-     *
      * @param participantId ID of the participant.
      * @return Current room id of the participant.
      */
@@ -283,17 +105,119 @@ public class ChatRoomState {
     }
 
     /**
-     * Get all participant Ids.
-     *
+     * @param roomId ID of the room.
+     * @return Participant IDs of participants in the room.
+     */
+    public Collection<ParticipantId> getParticipantIdsOf(RoomId roomId) {
+        return roomParticipantMap.get(roomId).stream()
+                .filter(participantId -> !systemUserId.equals(participantId))
+                .collect(Collectors.toUnmodifiableList());
+    }
+
+    /**
+     * @param roomId ID of the room.
+     * @return Client IDs of participants.
+     */
+    public Collection<ClientId> getClientIdsOf(RoomId roomId) {
+        return getParticipantIdsOf(roomId).stream()
+                .map(this::getClientIdOf)
+                .collect(Collectors.toUnmodifiableList());
+    }
+
+    /**
      * @return All current participant ids.
      */
     public Collection<ParticipantId> getAllActiveParticipantIds() {
-        ArrayList<ParticipantId> participantIds = new ArrayList<>();
-        participantClientMap.forEach((participantId, clientId) -> {
-            if (!clientId.isFakeClient()) {
-                participantIds.add(participantId);
-            }
-        });
+        return clientParticipantMap.entrySet().stream()
+                .filter(entry -> !entry.getKey().isFakeClient())
+                .map(Map.Entry::getValue)
+                .collect(Collectors.toUnmodifiableList());
+    }
+
+    /*
+    ========================================================
+    State Write Methods
+    ========================================================
+     */
+
+    /**
+     * @param participantId New participant ID.
+     * @param clientId      ID of the client.
+     * @param roomId        Room to add the participant.
+     */
+    @Synchronized
+    public void createParticipant(ParticipantId participantId, ClientId clientId, RoomId roomId) {
+        Preconditions.checkArgument(!hasParticipant(participantId), "participant already present");
+        Preconditions.checkArgument(cannotFindParticipant(clientId), "client already present");
+        Preconditions.checkArgument(hasRoom(roomId), "room does not exist");
+        clientParticipantMap.put(clientId, participantId);
+        roomParticipantMap.put(roomId, participantId);
+        participantRoomMap.put(participantId, roomId);
+        log.debug("createParticipant={}", this);
+    }
+
+    /**
+     * @param participantId ID of the participant.
+     *                      The participant is assumed not to own a room.
+     */
+    @Synchronized
+    public void deleteParticipant(ParticipantId participantId) {
+        Preconditions.checkArgument(hasParticipant(participantId), "participant does not exist");
+        clientParticipantMap.values().remove(participantId);
+        roomParticipantMap.values().remove(participantId);
+        participantRoomMap.remove(participantId);
+        log.debug("deleteParticipant={}", this);
+    }
+
+    /**
+     * @param ownerId Owner ID.
+     * @param roomId  Room to create.
+     */
+    @Synchronized
+    public void createRoom(ParticipantId ownerId, RoomId roomId) {
+        Preconditions.checkArgument(hasParticipant(ownerId), "participant does not exist");
+        Preconditions.checkArgument(!hasRoom(roomId), "room already present");
+        RoomId currentRoomId = getCurrentRoomIdOf(ownerId);
+        roomParticipantMap.remove(currentRoomId, ownerId);
+        roomParticipantMap.put(roomId, ownerId);
+        participantRoomMap.put(ownerId, roomId);
+        log.debug("createRoom={}", this);
+    }
+
+    /**
+     * @param roomId Room to delete.
+     * @return Deleted participants.
+     */
+    @Synchronized
+    public Collection<ParticipantId> deleteRoom(RoomId roomId) {
+        Preconditions.checkArgument(hasRoom(roomId), "room does not exist");
+        Collection<ParticipantId> participantIds = roomParticipantMap.removeAll(roomId);
+        participantRoomMap.values().remove(roomId);
+        roomParticipantMap.putAll(mainRoomId, participantIds);
+        participantIds.forEach(participantId -> participantRoomMap.put(participantId, mainRoomId));
+        log.debug("deleteRoom={}", this);
         return participantIds;
+    }
+
+    /*
+    ========================================================
+    Private Helpers
+    ========================================================
+     */
+
+    /**
+     * @param participantId Participant ID.
+     * @return Whether participant exists.
+     */
+    private boolean hasParticipant(ParticipantId participantId) {
+        return clientParticipantMap.containsValue(participantId);
+    }
+
+    /**
+     * @param roomId room ID.
+     * @return Whether participant exists.
+     */
+    private boolean hasRoom(RoomId roomId) {
+        return roomParticipantMap.containsKey(roomId);
     }
 }

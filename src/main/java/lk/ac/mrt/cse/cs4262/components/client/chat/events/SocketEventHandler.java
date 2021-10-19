@@ -49,7 +49,6 @@ import lombok.extern.log4j.Log4j2;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
@@ -117,7 +116,7 @@ public class SocketEventHandler extends AbstractEventHandler implements ClientSo
      * @return All gathered client information.
      */
     private Optional<AuthenticatedClient> authenticate(ClientId clientId) {
-        if (!chatRoomState.isParticipant(clientId)) {
+        if (chatRoomState.cannotFindParticipant(clientId)) {
             return Optional.empty();
         }
         ParticipantId participantId = chatRoomState.getParticipantIdOf(clientId);
@@ -293,15 +292,12 @@ public class SocketEventHandler extends AbstractEventHandler implements ClientSo
      */
     private void processWhoRequest(AuthenticatedClient authenticatedClient) {
         log.traceEntry("authenticatedClient={}", authenticatedClient);
+        log.debug("chatRoomState={}", chatRoomState);
+        log.debug("waitingList={}", waitingList);
         // Find information for the response.
         RoomId currentRoomId = authenticatedClient.getCurrentRoomId();
         ParticipantId roomOwnerId = raftState.getOwnerOfRoom(currentRoomId);
-        Collection<ParticipantId> friendParticipantIds = new ArrayList<>();
-        for (ClientId friendClientId : chatRoomState.getClientIdsOf(currentRoomId)) {
-            ParticipantId friendParticipantId = chatRoomState
-                    .getParticipantIdOf(friendClientId);
-            friendParticipantIds.add(friendParticipantId);
-        }
+        Collection<ParticipantId> friendParticipantIds = chatRoomState.getParticipantIdsOf(currentRoomId);
         String message = createWhoMsg(roomOwnerId, friendParticipantIds, currentRoomId);
         sendToClient(authenticatedClient.getClientId(), message);
     }
@@ -386,7 +382,8 @@ public class SocketEventHandler extends AbstractEventHandler implements ClientSo
         boolean isSameServer = currentServerId.equals(raftState.getServerOfRoom(roomId));
         if (isSameServer) {
             // Update chat room maps.
-            chatRoomState.roomJoinInternal(clientId, roomId);
+            chatRoomState.deleteParticipant(participantId);
+            chatRoomState.createParticipant(participantId, clientId, roomId);
             // Send room change to all in new/old room.
             String message = createRoomChangeBroadcastMsg(participantId, formerRoomId, roomId);
             sendToRoom(formerRoomId, message);
@@ -446,7 +443,7 @@ public class SocketEventHandler extends AbstractEventHandler implements ClientSo
     @Synchronized
     private void processMoveJoinRequest(ClientId clientId, ParticipantId participantId,
                                         RoomId formerRoomId, RoomId newRoomId) {
-        log.info("clientId={} participantId={} formerRoomId={} newRoomId={}",
+        log.debug("clientId={} participantId={} formerRoomId={} newRoomId={}",
                 clientId, participantId, formerRoomId, newRoomId);
 
         ServerId formerServerId = raftState.getServerOfRoom(formerRoomId);
