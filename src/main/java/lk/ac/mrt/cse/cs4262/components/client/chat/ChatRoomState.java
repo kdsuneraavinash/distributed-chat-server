@@ -1,5 +1,7 @@
 package lk.ac.mrt.cse.cs4262.components.client.chat;
 
+import com.google.common.collect.BiMap;
+import com.google.common.collect.HashBiMap;
 import lk.ac.mrt.cse.cs4262.common.symbols.ClientId;
 import lk.ac.mrt.cse.cs4262.common.symbols.ParticipantId;
 import lk.ac.mrt.cse.cs4262.common.symbols.RoomId;
@@ -25,14 +27,9 @@ public class ChatRoomState {
     private final RoomId mainRoomId;
 
     /**
-     * Data structure to track participant id of clients.
-     */
-    private final Map<ClientId, ParticipantId> clientParticipantMap;
-
-    /**
      * Data structure to track client id of participants.
      */
-    private final Map<ParticipantId, ClientId> participantClientMap;
+    private final BiMap<ParticipantId, ClientId> participantClientMap;
 
     /**
      * Data structure to track all the participants in a given room.
@@ -53,8 +50,7 @@ public class ChatRoomState {
     public ChatRoomState(RoomId mainRoomId) {
         this.mainRoomId = mainRoomId;
 
-        this.clientParticipantMap = new HashMap<>();
-        this.participantClientMap = new HashMap<>();
+        this.participantClientMap = HashBiMap.create();
         this.roomClientListMap = new HashMap<>();
         this.roomClientListMap.put(this.mainRoomId, new ArrayList<>());
         this.participantRoomMap = new HashMap<>();
@@ -78,7 +74,6 @@ public class ChatRoomState {
         if (!roomClientListMap.containsKey(mainRoomId)) {
             throw new IllegalStateException("main room does not exist");
         }
-        clientParticipantMap.put(clientId, participantId);
         participantClientMap.put(participantId, clientId);
         roomClientListMap.get(mainRoomId).add(clientId);
         participantRoomMap.put(participantId, mainRoomId);
@@ -98,7 +93,6 @@ public class ChatRoomState {
             throw new IllegalStateException("participant unknown");
         }
         RoomId formerRoomId = getCurrentRoomIdOf(participantId);
-        clientParticipantMap.remove(clientId);
         participantRoomMap.remove(participantId);
         if (roomClientListMap.containsKey(formerRoomId)) {
             roomClientListMap.get(formerRoomId).remove(clientId);
@@ -143,7 +137,6 @@ public class ChatRoomState {
         if (!roomClientListMap.containsKey(roomId)) {
             throw new IllegalArgumentException("next room does not exist");
         }
-        clientParticipantMap.put(clientId, participantId);
         participantClientMap.put(participantId, clientId);
         roomClientListMap.get(roomId).add(clientId);
         participantRoomMap.put(participantId, roomId);
@@ -232,7 +225,7 @@ public class ChatRoomState {
      * @return Whether client has a registered participant.
      */
     public boolean isParticipant(ClientId clientId) {
-        return clientParticipantMap.containsKey(clientId);
+        return participantClientMap.containsValue(clientId);
     }
 
     /**
@@ -242,8 +235,9 @@ public class ChatRoomState {
      * @return ID of the corresponding participant if any.
      */
     public ParticipantId getParticipantIdOf(ClientId clientId) {
-        if (clientParticipantMap.containsKey(clientId)) {
-            return clientParticipantMap.get(clientId);
+        ParticipantId participantId = participantClientMap.inverse().get(clientId);
+        if (participantId != null) {
+            return participantId;
         }
         throw new IllegalStateException("client does not exist");
     }
@@ -295,7 +289,7 @@ public class ChatRoomState {
      */
     public Collection<ParticipantId> getAllActiveParticipantIds() {
         ArrayList<ParticipantId> participantIds = new ArrayList<>();
-        clientParticipantMap.forEach((clientId, participantId) -> {
+        participantClientMap.forEach((participantId, clientId) -> {
             if (!clientId.isFakeClient()) {
                 participantIds.add(participantId);
             }

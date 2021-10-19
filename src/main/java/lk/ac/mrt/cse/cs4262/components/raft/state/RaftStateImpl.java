@@ -23,12 +23,7 @@ import lombok.extern.log4j.Log4j2;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 /**
  * Implementation for the {@link RaftState}.
@@ -36,17 +31,6 @@ import java.util.stream.Collectors;
 @ToString(onlyExplicitlyIncluded = true)
 @Log4j2
 public class RaftStateImpl implements RaftState {
-    /**
-     * A reserved participant name prefix for SYSTEM user.
-     * This is the owner main rooms for each server.
-     */
-    private static final String SYSTEM_USER_PREFIX = "SYSTEM-";
-    /**
-     * A reserved room name prefix for Main Rooms.
-     * This is the default room for each server.
-     */
-    private static final String MAIN_ROOM_PREFIX = "MainHall-";
-
     /**
      * ID of current server.
      */
@@ -58,20 +42,8 @@ public class RaftStateImpl implements RaftState {
      * Other objects are simply for performance-sake.
      */
     @ToString.Include
-    private final Map<ServerId, HashMap<ParticipantId, @Nullable RoomId>> state;
+    private final RaftStateStructure state;
 
-    /**
-     * Map for each participant to record the server that they are part of.
-     * This is a derived value of {@code state}. Used for reverse relations.
-     */
-    @ToString.Include
-    private final Map<ParticipantId, ServerId> participantServerMap;
-    /**
-     * Map for each room to record their owner.
-     * This is a derived value of {@code state}. Used for reverse relations.
-     */
-    @ToString.Include
-    private final Map<RoomId, ParticipantId> roomOwnerMap;
     private final ServerConfiguration serverConfiguration;
     private final RaftPersistentState persistentState;
     private final RaftCommonState commonState;
@@ -92,9 +64,7 @@ public class RaftStateImpl implements RaftState {
     public RaftStateImpl(ServerId currentServerId, ServerConfiguration serverConfiguration) {
         this.serverConfiguration = serverConfiguration;
         this.currentServerId = currentServerId;
-        this.state = new HashMap<>();
-        this.participantServerMap = new HashMap<>();
-        this.roomOwnerMap = new HashMap<>();
+        this.state = new RaftStateStructure();
         this.persistentState = new RaftPersistentStateImpl(currentServerId);
         this.commonState = new RaftCommonStateImpl();
         this.leaderState = new RaftLeaderStateImpl(serverConfiguration);
@@ -106,10 +76,8 @@ public class RaftStateImpl implements RaftState {
         for (ServerId serverId : serverConfiguration.allServerIds()) {
             RoomId mainRoomId = getMainRoomId(serverId);
             ParticipantId systemUserId = getSystemUserId(serverId);
-            this.state.put(serverId, new HashMap<>());
-            this.state.get(serverId).put(systemUserId, mainRoomId);
-            this.participantServerMap.put(systemUserId, serverId);
-            this.roomOwnerMap.put(mainRoomId, systemUserId);
+            state.createServer(serverId);
+            state.createRoom(systemUserId, mainRoomId);
         }
 
         // Restore persisted state.
@@ -187,81 +155,43 @@ public class RaftStateImpl implements RaftState {
      */
 
     @Override
-    public boolean hasParticipant(ParticipantId participantId) {
-        return participantServerMap.containsKey(participantId);
-    }
-
-    @Override
     public boolean hasRoom(RoomId roomId) {
-        if (RoomId.NULL.equals(roomId)) {
-            return true;
-        }
-        return roomOwnerMap.containsKey(roomId);
+        return state.hasRoom(roomId);
     }
 
     @Override
     public Optional<RoomId> getRoomOwnedByParticipant(ParticipantId participantId) {
-        if (participantServerMap.containsKey(participantId)) {
-            ServerId serverId = participantServerMap.get(participantId);
-            if (state.containsKey(serverId)) {
-                Map<ParticipantId, @Nullable RoomId> prMap = state.get(serverId);
-                if (prMap.containsKey(participantId)) {
-                    return Optional.ofNullable(prMap.get(participantId));
-                }
-            }
-        }
-        return Optional.empty();
+        return state.getRoomOwnedByParticipant(participantId);
     }
-
 
     @Override
     public Collection<ParticipantId> getParticipantsInServer(ServerId serverId) {
-        if (state.containsKey(serverId)) {
-            return state.get(serverId).keySet().stream().filter(
-                    participantId -> !getSystemUserId(currentServerId).equals(participantId)
-            ).collect(Collectors.toList());
-        }
-        return List.of();
+        return state.getParticipantsInServer(serverId);
     }
 
     @Override
     public Collection<RoomId> getRoomsInSystem() {
-        return Collections.unmodifiableCollection(roomOwnerMap.keySet());
+        return state.getRoomsInSystem();
     }
 
     @Override
     public ParticipantId getOwnerOfRoom(RoomId roomId) {
-        if (roomOwnerMap.containsKey(roomId)) {
-            return roomOwnerMap.get(roomId);
-        }
-        throw new IllegalStateException("room does not exist");
+        return state.getOwnerOfRoom(roomId);
     }
 
     @Override
     public ServerId getServerOfRoom(RoomId roomId) {
-        ParticipantId ownerId = getOwnerOfRoom(roomId);
-        if (participantServerMap.containsKey(ownerId)) {
-            return participantServerMap.get(ownerId);
-        }
-        throw new IllegalStateException("owner does not belong to a server");
-    }
-
-    @Override
-    public ServerId getServerOfParticipant(ParticipantId participantId) {
-        if (participantServerMap.containsKey(participantId)) {
-            return participantServerMap.get(participantId);
-        }
-        throw new IllegalStateException("participant does not exist");
+        return state.getServerOfRoom(roomId);
     }
 
     @Override
     public ParticipantId getSystemUserId(ServerId serverId) {
-        return new ParticipantId(SYSTEM_USER_PREFIX + serverId.getValue());
+        return state.getSystemUserId(serverId);
     }
 
     @Override
     public RoomId getMainRoomId(ServerId serverId) {
-        return new RoomId(MAIN_ROOM_PREFIX + serverId.getValue());
+        return state.getMainRoomId(serverId);
     }
 
     @Override
@@ -278,11 +208,7 @@ public class RaftStateImpl implements RaftState {
     private void applyCreateIdentityLog(CreateIdentityLog logEntry) {
         ParticipantId participantId = logEntry.getIdentity();
         ServerId serverId = logEntry.getServerId();
-        if (!state.containsKey(serverId)) {
-            throw new IllegalStateException("unknown server id");
-        }
-        state.get(serverId).put(participantId, null);
-        participantServerMap.put(participantId, serverId);
+        state.createParticipant(serverId, participantId);
         if (currentServerId.equals(serverId) && eventHandler != null) {
             eventHandler.participantIdCreated(participantId);
         }
@@ -291,12 +217,8 @@ public class RaftStateImpl implements RaftState {
     private void applyCreateRoomLog(CreateRoomLog logEntry) {
         ParticipantId participantId = logEntry.getParticipantId();
         RoomId roomId = logEntry.getRoomId();
-        ServerId serverId = participantServerMap.get(participantId);
-        if (serverId == null || !state.containsKey(serverId)) {
-            throw new IllegalStateException("unknown server id");
-        }
-        state.get(serverId).put(participantId, roomId);
-        roomOwnerMap.put(roomId, participantId);
+        state.createRoom(participantId, roomId);
+        ServerId serverId = state.getServerOfParticipant(participantId);
         if (currentServerId.equals(serverId) && eventHandler != null) {
             eventHandler.roomIdCreated(participantId, roomId);
         }
@@ -304,14 +226,9 @@ public class RaftStateImpl implements RaftState {
 
     private void applyDeleteIdentityLog(DeleteIdentityLog logEntry) {
         ParticipantId participantId = logEntry.getIdentity();
-        ServerId serverId = participantServerMap.remove(participantId);
-        if (serverId == null || !state.containsKey(serverId)) {
-            throw new IllegalStateException("unknown server id");
-        }
-        RoomId ownedRoomId = state.get(serverId).remove(participantId);
-        if (ownedRoomId != null) {
-            roomOwnerMap.remove(ownedRoomId);
-        }
+        ServerId serverId = state.getServerOfParticipant(participantId);
+        RoomId ownedRoomId = state.getRoomOwnedByParticipant(participantId).orElse(null);
+        state.deleteParticipant(participantId);
         if (currentServerId.equals(serverId) && eventHandler != null) {
             eventHandler.participantIdDeleted(participantId, ownedRoomId);
         }
@@ -319,15 +236,9 @@ public class RaftStateImpl implements RaftState {
 
     private void applyDeleteRoomLog(DeleteRoomLog logEntry) {
         RoomId roomId = logEntry.getRoomId();
-        ParticipantId ownerId = roomOwnerMap.remove(roomId);
-        if (ownerId == null) {
-            throw new IllegalStateException("owner cannot be null");
-        }
-        ServerId serverId = participantServerMap.get(ownerId);
-        if (serverId == null || !state.containsKey(serverId)) {
-            throw new IllegalStateException("unknown server id");
-        }
-        state.get(serverId).put(ownerId, null);
+        ParticipantId ownerId = state.getOwnerOfRoom(roomId);
+        ServerId serverId = state.getServerOfParticipant(ownerId);
+        state.deleteRoom(roomId);
         if (currentServerId.equals(serverId) && eventHandler != null) {
             eventHandler.roomIdDeleted(roomId, ownerId);
         }
@@ -335,23 +246,14 @@ public class RaftStateImpl implements RaftState {
 
     private void applyServerChangeLog(ServerChangeLog logEntry) {
         ParticipantId participantId = logEntry.getParticipantId();
-        ServerId former = logEntry.getFormerServerId();
-        ServerId newer = logEntry.getNewServerId();
-        if (!participantServerMap.containsKey(participantId)) {
-            throw new IllegalStateException("Participant Unknown");
-        }
-        if (!state.containsKey(former)
-                || !state.containsKey(newer)) {
-            throw new IllegalStateException("Unknown server id");
-        }
-        state.get(former).remove(participantId);
-        state.get(newer).put(participantId, null);
-        participantServerMap.put(participantId, newer);
-        if (currentServerId.equals(former) && eventHandler != null) {
+        ServerId fromServerId = logEntry.getFormerServerId();
+        ServerId toServerId = logEntry.getNewServerId();
+        state.moveParticipant(participantId, toServerId);
+        if (currentServerId.equals(fromServerId) && eventHandler != null) {
             eventHandler.participantMoved(participantId);
         }
-        if (currentServerId.equals(newer) && eventHandler != null) {
-            eventHandler.participantJoined(participantId, newer);
+        if (currentServerId.equals(toServerId) && eventHandler != null) {
+            eventHandler.participantJoined(participantId, toServerId);
         }
     }
 
@@ -491,9 +393,9 @@ public class RaftStateImpl implements RaftState {
             ParticipantId participantId = serverChangeLog.getParticipantId();
             ServerId newServerId = serverChangeLog.getNewServerId();
             ServerId formerServerId = serverChangeLog.getFormerServerId();
-            return state.containsKey(newServerId)
-                    && participantServerMap.containsKey(participantId)
-                    && formerServerId.equals(participantServerMap.get(participantId));
+            return state.hasServer(newServerId)
+                    && state.hasParticipant(participantId)
+                    && formerServerId.equals(state.getServerOfParticipant(participantId));
         } else {
             return persistentState.isAcceptable(baseLog);
         }

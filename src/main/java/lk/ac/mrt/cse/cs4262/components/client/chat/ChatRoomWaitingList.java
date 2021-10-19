@@ -1,5 +1,7 @@
 package lk.ac.mrt.cse.cs4262.components.client.chat;
 
+import com.google.common.collect.BiMap;
+import com.google.common.collect.HashBiMap;
 import lk.ac.mrt.cse.cs4262.common.symbols.ClientId;
 import lk.ac.mrt.cse.cs4262.common.symbols.ParticipantId;
 import lk.ac.mrt.cse.cs4262.common.symbols.RoomId;
@@ -21,12 +23,12 @@ public class ChatRoomWaitingList {
     /**
      * Clients that are waiting for a participant id to be accepted.
      */
-    private final Map<ParticipantId, ClientId> waitingForParticipantEvent;
+    private final BiMap<ParticipantId, ClientId> waitingForParticipantEvent;
 
     /**
      * Clients that are waiting for a new room id to be accepted/deleted.
      */
-    private final Map<RoomId, ClientId> waitingForRoomEvent;
+    private final BiMap<RoomId, ClientId> waitingForRoomEvent;
 
     /**
      * Clients that are waiting for a server change to connect to a chat room in another server.
@@ -37,8 +39,8 @@ public class ChatRoomWaitingList {
      * See {@link ChatRoomWaitingList}.
      */
     public ChatRoomWaitingList() {
-        this.waitingForParticipantEvent = new HashMap<>();
-        this.waitingForRoomEvent = new HashMap<>();
+        this.waitingForParticipantEvent = HashBiMap.create();
+        this.waitingForRoomEvent = HashBiMap.create();
         this.waitingForServerChangeEvent = new HashMap<>();
     }
 

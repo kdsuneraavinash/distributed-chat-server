@@ -15,12 +15,6 @@ import java.util.Optional;
  */
 public interface RaftStateReadView {
     /**
-     * @param participantId ID of the participant.
-     * @return Whether the participant is active in the system.
-     */
-    boolean hasParticipant(ParticipantId participantId);
-
-    /**
      * @param roomId ID of the room.
      * @return Whether the room is active in the system.
      */
@@ -54,12 +48,6 @@ public interface RaftStateReadView {
      * @return The ID of the server with the room.
      */
     ServerId getServerOfRoom(RoomId roomId);
-
-    /**
-     * @param participantId ID of the participant.
-     * @return The ID of the server with the participant.
-     */
-    ServerId getServerOfParticipant(ParticipantId participantId);
 
     /**
      * @param serverId ID of the server.
