@@ -1,5 +1,7 @@
 package lk.ac.mrt.cse.cs4262;
 
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
 import lk.ac.mrt.cse.cs4262.common.symbols.ServerId;
 import lk.ac.mrt.cse.cs4262.common.tcp.server.shared.SharedTcpServer;
 import lk.ac.mrt.cse.cs4262.components.client.ClientComponent;
@@ -17,9 +19,6 @@ import lombok.extern.log4j.Log4j2;
  */
 @Log4j2
 public class ChatServer implements AutoCloseable {
-    // Timeout for coordination server - 1 second
-    private static final int COORDINATION_TIMEOUT_MS = 1000;
-
     // Coordination server
     private final SharedTcpServer coordinationServer;
     // Components
@@ -39,6 +38,9 @@ public class ChatServer implements AutoCloseable {
     public ChatServer(ServerId currentServerId, ServerConfiguration serverConfiguration) {
         log.info("starting server {}", currentServerId);
         log.trace("configuration: {}", serverConfiguration);
+
+        Config configuration = ConfigFactory.load();
+        int coordinationServerTimeout = configuration.getInt("coordination.server.timeout");
         int clientPort = serverConfiguration.getClientPort(currentServerId);
         int coordinationPort = serverConfiguration.getCoordinationPort(currentServerId);
 
@@ -48,7 +50,7 @@ public class ChatServer implements AutoCloseable {
         raftState.initialize();
         gossipState.initialize();
         // Coordination server
-        this.coordinationServer = new SharedTcpServer(coordinationPort, COORDINATION_TIMEOUT_MS);
+        this.coordinationServer = new SharedTcpServer(coordinationPort, coordinationServerTimeout);
         // Components
         this.clientComponent = new ClientComponent(clientPort, currentServerId,
                 gossipState, raftState, serverConfiguration);

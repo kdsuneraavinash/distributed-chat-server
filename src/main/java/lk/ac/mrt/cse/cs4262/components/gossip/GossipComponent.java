@@ -1,6 +1,8 @@
 package lk.ac.mrt.cse.cs4262.components.gossip;
 
 import com.google.gson.Gson;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
 import lk.ac.mrt.cse.cs4262.ServerConfiguration;
 import lk.ac.mrt.cse.cs4262.common.symbols.ServerId;
 import lk.ac.mrt.cse.cs4262.common.tcp.TcpClient;
@@ -21,16 +23,16 @@ import java.util.Random;
  */
 @Log4j2
 public class GossipComponent implements ServerComponent, SharedTcpRequestHandler, PeriodicInvoker.EventHandler {
-    private static final int GOSSIP_WAIT_TIMEOUT_MS = 2000;
-    private static final int GOSSIP_INITIAL_DELAY_MS = 5000;
-    private static final int GOSSIP_PERIOD_MS = 5000;
-
     private final ServerId currentServerId;
     private final ServerConfiguration serverConfiguration;
     private final PeriodicInvoker periodicInvoker;
     private final GossipState gossipState;
     private final Random randomServerPicker;
     private final Gson serializer;
+
+    private final int gossipWaitTimeoutMs;
+    private final int gossipInitialDelayMs;
+    private final int gossipPeriodMs;
 
     /**
      * Create a raft component. See {@link GossipComponent}.
@@ -46,11 +48,16 @@ public class GossipComponent implements ServerComponent, SharedTcpRequestHandler
         this.periodicInvoker = new PeriodicInvoker("gossip-timer");
         this.randomServerPicker = new Random();
         this.serializer = new Gson();
+
+        Config configuration = ConfigFactory.load();
+        this.gossipWaitTimeoutMs = configuration.getInt("gossip.wait.timeout");
+        this.gossipInitialDelayMs = configuration.getInt("gossip.initial.delay");
+        this.gossipPeriodMs = configuration.getInt("gossip.period");
     }
 
     @Override
     public void connect() {
-        periodicInvoker.startExecution(this, GOSSIP_INITIAL_DELAY_MS, GOSSIP_PERIOD_MS);
+        periodicInvoker.startExecution(this, gossipInitialDelayMs, gossipPeriodMs);
     }
 
     @Override
@@ -99,7 +106,7 @@ public class GossipComponent implements ServerComponent, SharedTcpRequestHandler
                 String ipAddress = serverConfiguration.getServerAddress(serverId);
                 int coordPort = serverConfiguration.getCoordinationPort(serverId);
                 String response = TcpClient.request(ipAddress, coordPort,
-                        gossipState.toJson(serializer), GOSSIP_WAIT_TIMEOUT_MS);
+                        gossipState.toJson(serializer), gossipWaitTimeoutMs);
                 Map<String, Integer> gossip = serializer.fromJson(response, GossipFormat.class);
                 gossipState.updateHeartBeatCounter(gossip);
             } catch (Exception ignored) {

@@ -1,6 +1,8 @@
 package lk.ac.mrt.cse.cs4262.components.gossip.state;
 
 import com.google.gson.Gson;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
 import lk.ac.mrt.cse.cs4262.ServerConfiguration;
 import lk.ac.mrt.cse.cs4262.common.symbols.ServerId;
 import lombok.Synchronized;
@@ -19,12 +21,12 @@ import java.util.Map;
 @Log4j2
 @ToString
 public class GossipStateImpl implements GossipState {
-    private static final int T_FAIL = 10000;
-
     private final ServerId currentServerId;
     private final Map<ServerId, Integer> heartBeatCounters;
     private final Map<ServerId, Long> lastUpdatedTimestamps;
     private final ServerConfiguration serverConfiguration;
+
+    private final int gossipFailDurationMs;
 
     /**
      * Create a gossip state. See {@link GossipState}.
@@ -37,6 +39,9 @@ public class GossipStateImpl implements GossipState {
         this.serverConfiguration = serverConfiguration;
         this.heartBeatCounters = new HashMap<>();
         this.lastUpdatedTimestamps = new HashMap<>();
+
+        Config configuration = ConfigFactory.load();
+        this.gossipFailDurationMs = configuration.getInt("gossip.fail.duration");
     }
 
     @Synchronized
@@ -75,7 +80,7 @@ public class GossipStateImpl implements GossipState {
         long currentTimestamp = System.currentTimeMillis();
         List<ServerId> failedServers = new ArrayList<>();
         lastUpdatedTimestamps.forEach(((serverId, lastUpdated) -> {
-            if (currentTimestamp - lastUpdated > T_FAIL) {
+            if (currentTimestamp - lastUpdated > gossipFailDurationMs) {
                 failedServers.add(serverId);
             }
         }));

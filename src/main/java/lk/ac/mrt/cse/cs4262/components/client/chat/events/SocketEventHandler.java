@@ -1,6 +1,8 @@
 package lk.ac.mrt.cse.cs4262.components.client.chat.events;
 
 import com.google.gson.Gson;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
 import lk.ac.mrt.cse.cs4262.ServerConfiguration;
 import lk.ac.mrt.cse.cs4262.common.symbols.ClientId;
 import lk.ac.mrt.cse.cs4262.common.symbols.ParticipantId;
@@ -56,7 +58,6 @@ import java.util.Optional;
 
 @Log4j2
 public class SocketEventHandler extends AbstractEventHandler implements ClientSocketListener.EventHandler {
-    private static final int TCP_TIMEOUT = 5000;
     private final ServerId currentServerId;
     private final GossipStateReadView gossipState;
     private final RaftStateReadView raftState;
@@ -64,6 +65,8 @@ public class SocketEventHandler extends AbstractEventHandler implements ClientSo
     private final ChatRoomWaitingList waitingList;
     private final Gson serializer;
     private final ServerConfiguration serverConfiguration;
+
+    private final int chatRequestTimeout;
 
     /**
      * Participants that are moved from this server.
@@ -101,6 +104,9 @@ public class SocketEventHandler extends AbstractEventHandler implements ClientSo
         this.serializer = serializer;
         this.serverConfiguration = serverConfiguration;
         this.movedParticipants = new HashMap<>();
+
+        Config configuration = ConfigFactory.load();
+        this.chatRequestTimeout = configuration.getInt("chat.request.timeout");
     }
 
     /*
@@ -459,7 +465,7 @@ public class SocketEventHandler extends AbstractEventHandler implements ClientSo
                         .formerRoomId(formerRoomId.getValue())
                         .participantId(participantId.getValue()).build();
                 String response = TcpClient.request(formerServerAddress, formerServerPort,
-                        serializer.toJson(validateRequest), TCP_TIMEOUT);
+                        serializer.toJson(validateRequest), chatRequestTimeout);
                 MoveJoinValidateResponse validateResponse = serializer.fromJson(response,
                         MoveJoinValidateResponse.class);
 
@@ -521,7 +527,7 @@ public class SocketEventHandler extends AbstractEventHandler implements ClientSo
             try {
                 log.info("sending command request to {}: {}", leaderId, message);
                 String rawResponse = TcpClient.request(serverAddress, coordinationPort,
-                        serializer.toJson(message), TCP_TIMEOUT);
+                        serializer.toJson(message), chatRequestTimeout);
                 CommandAckResponse response = serializer.fromJson(rawResponse, CommandAckResponse.class);
                 return response.isAccepted();
             } catch (IOException ignored) {

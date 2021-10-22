@@ -1,6 +1,8 @@
 package lk.ac.mrt.cse.cs4262.components.client;
 
 import com.google.gson.Gson;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
 import lk.ac.mrt.cse.cs4262.ServerConfiguration;
 import lk.ac.mrt.cse.cs4262.common.symbols.ClientId;
 import lk.ac.mrt.cse.cs4262.common.symbols.ParticipantId;
@@ -46,10 +48,6 @@ import java.util.concurrent.Executors;
 @Log4j2
 public class ClientComponent implements ServerComponent, Runnable, AutoCloseable, MessageSender,
         PeriodicInvoker.EventHandler, SharedTcpRequestHandler {
-    private static final int PROXY_TIMEOUT = 1000;
-    private static final int CHECK_DELETED_ID_ROOMID_TIMEOUT = 5000;
-    private static final int CHECK_DELETED_ID_ROOMID_INITIAL_DELAY = 1000;
-
     private final RaftStateEventHandler raftStateEventHandler;
     private final RaftStateReadView raftState;
     private final ServerConfiguration serverConfiguration;
@@ -63,6 +61,9 @@ public class ClientComponent implements ServerComponent, Runnable, AutoCloseable
     private final ServerId currentServerId;
     private final PeriodicInvoker periodicInvoker;
 
+    private final int proxyTimeoutMs;
+    private final int checkDeletedRoomIdTimeoutMs;
+    private final int checkDeletedRoomIdInitialDelayMs;
 
     /**
      * Create a client connector. See {@link ClientComponent}.
@@ -106,6 +107,10 @@ public class ClientComponent implements ServerComponent, Runnable, AutoCloseable
         this.currentServerId = currentServerId;
         this.periodicInvoker = new PeriodicInvoker("check-deleted-id-roomId");
 
+        Config configuration = ConfigFactory.load();
+        this.proxyTimeoutMs = configuration.getInt("client.proxy.timeout");
+        this.checkDeletedRoomIdTimeoutMs = configuration.getInt("client.deleted.room.timeout");
+        this.checkDeletedRoomIdInitialDelayMs = configuration.getInt("client.deleted.room.initial.delay");
     }
 
     @Override
@@ -116,7 +121,7 @@ public class ClientComponent implements ServerComponent, Runnable, AutoCloseable
         log.info("client component connected");
 
         periodicInvoker.startExecution(this,
-                CHECK_DELETED_ID_ROOMID_INITIAL_DELAY, CHECK_DELETED_ID_ROOMID_TIMEOUT);
+                checkDeletedRoomIdInitialDelayMs, checkDeletedRoomIdTimeoutMs);
     }
 
     @Override
@@ -198,7 +203,7 @@ public class ClientComponent implements ServerComponent, Runnable, AutoCloseable
         String serverAddress = serverConfiguration.getServerAddress(serverId);
         int serverPort = serverConfiguration.getCoordinationPort(serverId);
         try {
-            TcpClient.request(serverAddress, serverPort, message, PROXY_TIMEOUT);
+            TcpClient.request(serverAddress, serverPort, message, proxyTimeoutMs);
         } catch (Exception e) {
             log.trace("sending to server failed: {}", e.toString());
         }

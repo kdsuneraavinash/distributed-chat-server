@@ -1,5 +1,7 @@
 package lk.ac.mrt.cse.cs4262.components.raft.controller;
 
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
 import lk.ac.mrt.cse.cs4262.ServerConfiguration;
 import lk.ac.mrt.cse.cs4262.common.symbols.ServerId;
 import lk.ac.mrt.cse.cs4262.components.raft.messages.AppendReplyMessage;
@@ -30,8 +32,6 @@ import java.util.Set;
  */
 @Log4j2
 public class RaftControllerImpl implements RaftController {
-    private static final int INITIAL_ELECTION_DELAY_MS = 1000;
-
     private final ServerId currentServerId;
     private final RaftState raftState;
     private final ServerConfiguration serverConfiguration;
@@ -41,7 +41,7 @@ public class RaftControllerImpl implements RaftController {
 
     // List holding votes that this server received
     private final Set<ServerId> votes;
-
+    private final int raftElectionDelayMs;
     @Nullable
     private RaftMessageSender raftMessageSender;
 
@@ -61,6 +61,9 @@ public class RaftControllerImpl implements RaftController {
         this.rpcTimeoutInvoker = new RpcTimeoutInvoker();
         this.randomGenerator = new Random();
         this.votes = new HashSet<>();
+
+        Config configuration = ConfigFactory.load();
+        this.raftElectionDelayMs = configuration.getInt("raft.election.delay");
     }
 
     @Override
@@ -74,7 +77,7 @@ public class RaftControllerImpl implements RaftController {
         this.electionTimeoutInvoker.attachController(this);
         this.rpcTimeoutInvoker.attachController(this);
         // Start election timeout
-        this.electionTimeoutInvoker.setTimeout(INITIAL_ELECTION_DELAY_MS);
+        this.electionTimeoutInvoker.setTimeout(raftElectionDelayMs);
     }
 
     /*
