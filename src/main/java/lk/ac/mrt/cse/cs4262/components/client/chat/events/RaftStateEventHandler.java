@@ -111,10 +111,12 @@ public class RaftStateEventHandler extends AbstractEventHandler implements RaftS
         // Update chat room maps.
         Collection<ParticipantId> prevParticipantIds = chatRoomState.deleteRoom(deletedRoomId);
         chatRoomState.deleteParticipant(deletedParticipantId);
-        // Send room change to all old users.
+        // Send room change to all old users. (do not send for the deleted user)
         for (ParticipantId prevParticipantId : prevParticipantIds) {
-            String message = createRoomChangeBroadcastMsg(prevParticipantId, deletedRoomId, mainRoomId);
-            sendToRoom(mainRoomId, message);
+            if (!deletedParticipantId.equals(prevParticipantId)) {
+                String message = createRoomChangeBroadcastMsg(prevParticipantId, deletedRoomId, mainRoomId);
+                sendToRoom(mainRoomId, message);
+            }
         }
     }
 
