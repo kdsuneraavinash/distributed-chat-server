@@ -55,6 +55,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Log4j2
 public class SocketEventHandler extends AbstractEventHandler implements ClientSocketListener.EventHandler {
@@ -265,16 +266,20 @@ public class SocketEventHandler extends AbstractEventHandler implements ClientSo
 
     /**
      * Lists all the chat rooms.
-     * TODO: Integrate gossip state.
      *
      * @param authenticatedClient Authenticated client.
      */
     private void processChatRoomListRequest(AuthenticatedClient authenticatedClient) {
         log.traceEntry("authenticatedClient={}", authenticatedClient);
         log.info("failedKnownServerIds={}", gossipState.failedServerIds());
-        // TODO: Integrate Gossip state
+
         Collection<RoomId> roomIds = raftState.getRoomsInSystem();
-        String message = createRoomListMsg(roomIds);
+        Collection<ServerId> failedServersIds = gossipState.failedServerIds();
+        // filter roomIds of failed servers.
+        Collection<RoomId> availableRoomIds = roomIds.stream()
+                .filter(roomId -> !failedServersIds.contains(raftState.getServerOfRoom(roomId)))
+                .collect(Collectors.toUnmodifiableList());
+        String message = createRoomListMsg(availableRoomIds);
         sendToClient(authenticatedClient.getClientId(), message);
     }
 
