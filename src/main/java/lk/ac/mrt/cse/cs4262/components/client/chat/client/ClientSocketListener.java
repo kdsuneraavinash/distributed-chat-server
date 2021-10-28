@@ -39,7 +39,7 @@ public class ClientSocketListener implements Runnable {
                 log.trace("Client({}) -> {}", clientId, inputLine);
                 exitByServer = eventHandler.processClientRequest(clientId, inputLine);
             }
-        } catch (IOException e) {
+        } catch (Exception e) {
             log.error("disconnected Client({})", clientId);
             eventHandler.clientSideDisconnect(clientId);
         } finally {
