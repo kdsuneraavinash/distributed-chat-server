@@ -32,7 +32,7 @@ public class RaftCommonStateImpl implements RaftCommonState {
      */
     @Getter
     @Setter
-    private int commitIndex;
+    private volatile int commitIndex;
 
     /**
      * See {@link RaftCommonStateImpl}.

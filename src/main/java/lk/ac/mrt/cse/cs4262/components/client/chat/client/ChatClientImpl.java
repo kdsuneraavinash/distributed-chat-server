@@ -7,7 +7,6 @@ import lombok.Getter;
 import lombok.ToString;
 import lombok.extern.log4j.Log4j2;
 
-import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.net.Socket;
@@ -32,6 +31,8 @@ public class ChatClientImpl implements ChatClient {
     @Getter(AccessLevel.PROTECTED)
     private final Socket socket;
 
+    private final ClientSocketListener.EventHandler clientListener;
+
     @Override
     public void sendMessage(String message) {
         // No messages sent if disconnected
@@ -45,9 +46,8 @@ public class ChatClientImpl implements ChatClient {
             PrintWriter printWriter = new PrintWriter(socketOutputStream, false, StandardCharsets.UTF_8);
             printWriter.println(message);
             printWriter.flush();
-        } catch (IOException e) {
-            // Sending failed. Disconnect if socket closed. Otherwise ignore.
-            log.fatal("Client({}) X<- {}", clientId, message);
+        } catch (Exception e) {
+            clientListener.clientSideDisconnect(clientId);
             log.throwing(e);
         }
     }

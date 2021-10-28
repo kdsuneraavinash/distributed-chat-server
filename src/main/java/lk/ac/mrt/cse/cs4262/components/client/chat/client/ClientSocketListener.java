@@ -40,8 +40,8 @@ public class ClientSocketListener implements Runnable {
                 exitByServer = eventHandler.processClientRequest(clientId, inputLine);
             }
         } catch (Exception e) {
-            log.error("disconnected Client({})", clientId);
             eventHandler.clientSideDisconnect(clientId);
+            log.error("disconnected Client({})", clientId);
         } finally {
             try {
                 socket.close();
